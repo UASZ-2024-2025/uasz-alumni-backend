@@ -1,0 +1,42 @@
+server:
+  port: ${SERVER_PORT}
+  shutdown: graceful
+  # "native" derrière un ingress de confiance pour obtenir la vraie IP cliente
+  forward-headers-strategy: ${FORWARD_HEADERS_STRATEGY}
+
+spring:
+  application:
+    name: job-offer-service
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+  # SPRING_DATASOURCE_URL / _USERNAME / _PASSWORD viennent de l'environnement
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+
+security:
+  api:
+    prefix: ${API_PREFIX}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS}
+
+# Secret et émetteur identiques dans TOUS les services.
+# user-service génère le secret ; les autres le copient (make setup / make jwt-sync).
+jwt:
+  # Base64, 32 octets minimum
+  secret: ${JWT_SECRET}
+  issuer: ${JWT_ISSUER}

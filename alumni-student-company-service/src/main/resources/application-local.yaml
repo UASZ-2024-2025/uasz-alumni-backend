@@ -1,0 +1,9 @@
+# DEV LOCAL (make run). Aucune valeur : tout vient de .env (chargé par scripts/start.sh).
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:${DB_PORT}/${POSTGRES_DB}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
+logging:
+  level:
+    com.uasz.alumni.alumnistudentcompany: DEBUG

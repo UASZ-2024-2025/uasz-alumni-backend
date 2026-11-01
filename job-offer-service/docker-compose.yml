@@ -1,0 +1,47 @@
+# Aucune valeur par défaut ni secret ici : tout vient de .env (voir .env.example, `make setup`).
+# ${VAR:?msg} -> échoue si la variable est absente OU vide
+#   make db -> PostgreSQL seul (l'appli tourne en local)
+#   make up -> tout en conteneurs
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB manquant, lancez make setup}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER manquant, lancez make setup}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant, lancez make setup}
+    ports:
+      - "127.0.0.1:${DB_PORT:?DB_PORT manquant}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  job-offer-service:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: ${SERVER_PORT:?SERVER_PORT manquant}
+      FORWARD_HEADERS_STRATEGY: ${FORWARD_HEADERS_STRATEGY:?FORWARD_HEADERS_STRATEGY manquant}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:?POSTGRES_DB manquant}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:?POSTGRES_USER manquant}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET manquant, lancez make setup}
+      JWT_ISSUER: ${JWT_ISSUER:?JWT_ISSUER manquant}
+      API_PREFIX: ${API_PREFIX:?API_PREFIX manquant}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?CORS_ALLOWED_ORIGINS manquant}
+    ports:
+      - "127.0.0.1:${SERVER_PORT:?SERVER_PORT manquant}:${SERVER_PORT}"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:${SERVER_PORT}/actuator/health/readiness || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 40s
+
+volumes:
+  pgdata:

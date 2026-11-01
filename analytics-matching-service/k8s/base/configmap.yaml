@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: analytics-matching-service-config
+data:
+  SERVER_PORT: "8084"
+  SPRING_DATASOURCE_URL: jdbc:postgresql://analytics-matching-service-postgres:5432/analytics_matching_db
+  FORWARD_HEADERS_STRATEGY: native
+  # URL de production des contrats : https://api.alumni-uasz.sn/analytics-matching-service/v1
+  API_PREFIX: /analytics-matching-service/v1
+  JWT_ISSUER: alumni-uasz-user

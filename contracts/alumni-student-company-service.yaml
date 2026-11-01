@@ -1,0 +1,1065 @@
+openapi: 3.0.3
+info:
+  title: Service Gestion des Entreprises, Alumni et Étudiants - Plateforme Alumni UASZ
+  description: |
+    Microservice responsable de la gestion des profils étudiants, des CV, du parcours professionnel des Alumni,
+    des entreprises partenaires et des promotions académiques pour la plateforme Alumni UASZ.
+  contact:
+    name: Équipe Projet Intégrateur - M2 GL - UASZ
+  version: 1.0.0
+servers:
+  - url: https://api.alumni-uasz.sn/alumni-student-company-service/v1
+    description: Serveur de production
+  - url: http://localhost:8082/v1
+    description: Serveur de développement local
+tags:
+  - name: Students
+    description: Gestion des étudiants, des CV, compétences et disponibilités
+  - name: Alumni
+    description: Gestion des Alumni, parcours professionnel et recommandations
+  - name: Companies
+    description: Gestion des entreprises partenaires et profils d'entreprises
+  - name: Promotions
+    description: Gestion des promotions académiques, spécialités et listes de diplômés
+
+paths:
+  /students:
+    get:
+      tags:
+        - Students
+      summary: Recherche et liste des étudiants
+      description: Permet de rechercher des étudiants par spécialité, année de promotion, compétences ou disponibilité.
+      operationId: searchStudents
+      parameters:
+        - name: query
+          in: query
+          description: Terme de recherche (nom, prénom, compétences)
+          required: false
+          schema:
+            type: string
+        - name: specialty
+          in: query
+          description: Filtrer par spécialité (ex. Génie Logiciel)
+          required: false
+          schema:
+            type: string
+        - name: graduationYear
+          in: query
+          description: Filtrer par année de promotion
+          required: false
+          schema:
+            type: integer
+        - name: availability
+          in: query
+          description: Filtrer par disponibilité
+          required: false
+          schema:
+            $ref: "#/components/schemas/AvailabilityStatus"
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Liste paginée d'étudiants
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudentPagedResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      security:
+        - bearerAuth: []
+
+  /students/{id}:
+    get:
+      tags:
+        - Students
+      summary: Obtenir le profil détaillé d'un étudiant
+      operationId: getStudentById
+      parameters:
+        - $ref: "#/components/parameters/EntityId"
+      responses:
+        "200":
+          description: Profil étudiant trouvé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudentProfile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
+    put:
+      tags:
+        - Students
+      summary: Mettre à jour le profil d'un étudiant
+      operationId: updateStudentProfile
+      parameters:
+        - $ref: "#/components/parameters/EntityId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudentProfileUpdateRequest"
+      responses:
+        "200":
+          description: Profil mis à jour avec succès
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudentProfile"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
+  /students/{id}/cv:
+    get:
+      tags:
+        - Students
+      summary: Obtenir le CV détaillé d'un étudiant
+      operationId: getStudentCv
+      parameters:
+        - $ref: "#/components/parameters/EntityId"
+      responses:
+        "200":
+          description: CV de l'étudiant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CvResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
+    put:
+      tags:
+        - Students
+      summary: Créer ou mettre à jour le CV d'un étudiant
+      operationId: updateStudentCv
+      parameters:
+        - $ref: "#/components/parameters/EntityId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CvRequest"
+      responses:
+        "200":
+          description: CV enregistré avec succès
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CvResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
+  /alumni:
+    get:
+      tags:
+        - Alumni
+      summary: Recherche et liste des Alumni
+      operationId: searchAlumni
+      parameters:
+        - name: query
+          in: query
+          description: Recherche par nom, entreprise ou poste
+          required: false
+          schema:
+            type: string
+        - name: companyId
+          in: query
+          description: Filtrer par entreprise actuelle
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: graduationYear
+          in: query
+          description: Année de diplôme
+          required: false
+          schema:
+            type: integer
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Liste paginée d'Alumni
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlumniPagedResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      security:
+        - bearerAuth: []
+
+  /alumni/{id}:
+    get:
+      tags:
+        - Alumni
+      summary: Obtenir le profil détaillé d'un Alumni
+      operationId: getAlumniById
+      parameters:
+        - $ref: "#/components/parameters/EntityId"
+      responses:
+        "200":
+          description: Profil Alumni trouvé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlumniProfile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
+    put:
+      tags:
+        - Alumni
+      summary: Mettre à jour le profil d'un Alumni
+      operationId: updateAlumniProfile
+      parameters:
+        - $ref: "#/components/parameters/EntityId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AlumniProfileUpdateRequest"
+      responses:
+        "200":
+          description: Profil mis à jour
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlumniProfile"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
+  /alumni/{id}/experiences:
+    get:
+      tags:
+        - Alumni
+      summary: Liste du parcours professionnel d'un Alumni
+      operationId: getAlumniExperiences
+      parameters:
+        - $ref: "#/components/parameters/EntityId"
+      responses:
+        "200":
+          description: Liste des expériences
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WorkExperience"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      security:
+        - bearerAuth: []
+
+    post:
+      tags:
+        - Alumni
+      summary: Ajouter une expérience professionnelle
+      operationId: addAlumniExperience
+      parameters:
+        - $ref: "#/components/parameters/EntityId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkExperienceRequest"
+      responses:
+        "201":
+          description: Expérience ajoutée
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkExperience"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      security:
+        - bearerAuth: []
+
+  /alumni/recommendations:
+    post:
+      tags:
+        - Alumni
+      summary: Recommander un candidat/étudiant auprès d'une entreprise ou opportunité
+      operationId: recommendCandidate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecommendationRequest"
+      responses:
+        "201":
+          description: Recommandation enregistrée avec succès
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecommendationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      security:
+        - bearerAuth: []
+
+  /companies:
+    get:
+      tags:
+        - Companies
+      summary: Lister les entreprises et partenaires
+      operationId: searchCompanies
+      parameters:
+        - name: query
+          in: query
+          description: Recherche par nom ou secteur
+          required: false
+          schema:
+            type: string
+        - name: isPartner
+          in: query
+          description: Filtrer par entreprise partenaire officielle
+          required: false
+          schema:
+            type: boolean
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Liste paginée d'entreprises
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompanyPagedResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      security:
+        - bearerAuth: []
+
+    post:
+      tags:
+        - Companies
+      summary: Créer une fiche d'entreprise
+      operationId: createCompany
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompanyCreateRequest"
+      responses:
+        "201":
+          description: Entreprise créée avec succès
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Company"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      security:
+        - bearerAuth: []
+
+  /companies/{id}:
+    get:
+      tags:
+        - Companies
+      summary: Obtenir les détails d'une entreprise
+      operationId: getCompanyById
+      parameters:
+        - $ref: "#/components/parameters/EntityId"
+      responses:
+        "200":
+          description: Détails de l'entreprise
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Company"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
+    put:
+      tags:
+        - Companies
+      summary: Mettre à jour une entreprise
+      operationId: updateCompany
+      parameters:
+        - $ref: "#/components/parameters/EntityId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompanyUpdateRequest"
+      responses:
+        "200":
+          description: Entreprise mise à jour
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Company"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
+  /promotions:
+    get:
+      tags:
+        - Promotions
+      summary: Lister les promotions académiques
+      operationId: listPromotions
+      responses:
+        "200":
+          description: Liste des promotions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Promotion"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      security:
+        - bearerAuth: []
+
+    post:
+      tags:
+        - Promotions
+      summary: Ajouter une nouvelle promotion
+      operationId: createPromotion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PromotionCreateRequest"
+      responses:
+        "201":
+          description: Promotion créée
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Promotion"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      security:
+        - bearerAuth: []
+
+  /promotions/{id}/graduates:
+    get:
+      tags:
+        - Promotions
+      summary: Obtenir la liste des diplômés d'une promotion
+      operationId: getPromotionGraduates
+      parameters:
+        - $ref: "#/components/parameters/EntityId"
+      responses:
+        "200":
+          description: Liste des diplômés
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StudentProfile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
+components:
+  parameters:
+    EntityId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    AvailabilityStatus:
+      type: string
+      enum:
+        - AVAILABLE_FOR_INTERNSHIP
+        - AVAILABLE_FOR_JOB
+        - AVAILABLE_IMMEDIATELY
+        - NOT_AVAILABLE
+
+    StudentProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+          format: email
+        specialty:
+          type: string
+          example: "Génie Logiciel"
+        academicYear:
+          type: integer
+          example: 2025
+        bio:
+          type: string
+        interests:
+          type: array
+          items:
+            type: string
+          example: ["DevOps", "Cloud", "Microservices"]
+        skills:
+          type: array
+          items:
+            type: string
+          example: ["Java", "Spring Boot", "React", "Docker"]
+        availabilityStatus:
+          $ref: "#/components/schemas/AvailabilityStatus"
+        availabilityDate:
+          type: string
+          format: date
+          example: "2026-09-01"
+
+    StudentProfileUpdateRequest:
+      type: object
+      properties:
+        specialty:
+          type: string
+        academicYear:
+          type: integer
+        bio:
+          type: string
+        interests:
+          type: array
+          items:
+            type: string
+        skills:
+          type: array
+          items:
+            type: string
+        availabilityStatus:
+          $ref: "#/components/schemas/AvailabilityStatus"
+        availabilityDate:
+          type: string
+          format: date
+
+    CvResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        studentId:
+          type: string
+          format: uuid
+        title:
+          type: string
+          example: "Développeur Fullstack Java/React"
+        template:
+          type: string
+          example: "MODERN_BLUE"
+        language:
+          type: string
+          example: "Français"
+        summary:
+          type: string
+        skills:
+          type: array
+          items:
+            type: string
+        experiences:
+          type: array
+          items:
+            $ref: "#/components/schemas/CvExperience"
+        educations:
+          type: array
+          items:
+            $ref: "#/components/schemas/CvEducation"
+        languages:
+          type: array
+          items:
+            $ref: "#/components/schemas/CvLanguage"
+        fileUrl:
+          type: string
+          description: Lien vers le fichier PDF du CV publié
+
+    CvRequest:
+      type: object
+      required:
+        - title
+        - template
+        - language
+      properties:
+        title:
+          type: string
+        template:
+          type: string
+        language:
+          type: string
+        summary:
+          type: string
+        skills:
+          type: array
+          items:
+            type: string
+        experiences:
+          type: array
+          items:
+            $ref: "#/components/schemas/CvExperience"
+        educations:
+          type: array
+          items:
+            $ref: "#/components/schemas/CvEducation"
+        languages:
+          type: array
+          items:
+            $ref: "#/components/schemas/CvLanguage"
+
+    CvExperience:
+      type: object
+      properties:
+        companyName:
+          type: string
+        position:
+          type: string
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        description:
+          type: string
+
+    CvEducation:
+      type: object
+      properties:
+        institution:
+          type: string
+        degree:
+          type: string
+        fieldOfStudy:
+          type: string
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+
+    CvLanguage:
+      type: object
+      properties:
+        language:
+          type: string
+          example: "Anglais"
+        proficiency:
+          type: string
+          example: "Avancé"
+
+    AlumniProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+          format: email
+        graduationYear:
+          type: integer
+          example: 2023
+        specialty:
+          type: string
+          example: "Génie Logiciel"
+        currentCompany:
+          type: string
+          example: "Atos"
+        currentPosition:
+          type: string
+          example: "Architecte Logiciel"
+        linkedinUrl:
+          type: string
+        experiences:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkExperience"
+
+    AlumniProfileUpdateRequest:
+      type: object
+      properties:
+        graduationYear:
+          type: integer
+        specialty:
+          type: string
+        currentCompany:
+          type: string
+        currentPosition:
+          type: string
+        linkedinUrl:
+          type: string
+
+    WorkExperience:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        companyName:
+          type: string
+        position:
+          type: string
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        isCurrent:
+          type: boolean
+        description:
+          type: string
+
+    WorkExperienceRequest:
+      type: object
+      required:
+        - companyName
+        - position
+        - startDate
+      properties:
+        companyName:
+          type: string
+        position:
+          type: string
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        isCurrent:
+          type: boolean
+        description:
+          type: string
+
+    RecommendationRequest:
+      type: object
+      required:
+        - studentId
+        - companyId
+        - comments
+      properties:
+        studentId:
+          type: string
+          format: uuid
+        companyId:
+          type: string
+          format: uuid
+        comments:
+          type: string
+
+    RecommendationResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        recommenderId:
+          type: string
+          format: uuid
+        studentId:
+          type: string
+          format: uuid
+        companyId:
+          type: string
+          format: uuid
+        comments:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    Company:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: "Gainde 2000"
+        sector:
+          type: string
+          example: "Technologies de l'information"
+        description:
+          type: string
+        website:
+          type: string
+          example: "https://www.gainde2000.sn"
+        address:
+          type: string
+        contactEmail:
+          type: string
+          format: email
+        contactPhone:
+          type: string
+        logoUrl:
+          type: string
+        isPartner:
+          type: boolean
+          default: false
+        createdAt:
+          type: string
+          format: date-time
+
+    CompanyCreateRequest:
+      type: object
+      required:
+        - name
+        - sector
+        - contactEmail
+      properties:
+        name:
+          type: string
+        sector:
+          type: string
+        description:
+          type: string
+        website:
+          type: string
+        address:
+          type: string
+        contactEmail:
+          type: string
+          format: email
+        contactPhone:
+          type: string
+        logoUrl:
+          type: string
+
+    CompanyUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        sector:
+          type: string
+        description:
+          type: string
+        website:
+          type: string
+        address:
+          type: string
+        contactEmail:
+          type: string
+          format: email
+        contactPhone:
+          type: string
+        logoUrl:
+          type: string
+        isPartner:
+          type: boolean
+
+    Promotion:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        academicYear:
+          type: integer
+          example: 2025
+        specialty:
+          type: string
+          example: "Master Génie Logiciel"
+        graduateCount:
+          type: integer
+          example: 30
+
+    PromotionCreateRequest:
+      type: object
+      required:
+        - academicYear
+        - specialty
+      properties:
+        academicYear:
+          type: integer
+        specialty:
+          type: string
+
+    StudentPagedResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/StudentProfile"
+        totalElements:
+          type: integer
+        page:
+          type: integer
+        size:
+          type: integer
+
+    AlumniPagedResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/AlumniProfile"
+        totalElements:
+          type: integer
+        page:
+          type: integer
+        size:
+          type: integer
+
+    CompanyPagedResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/Company"
+        totalElements:
+          type: integer
+        page:
+          type: integer
+        size:
+          type: integer
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+  responses:
+    BadRequest:
+      description: Requête invalide
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Authentification requise
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Accès refusé
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Ressource non trouvée
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

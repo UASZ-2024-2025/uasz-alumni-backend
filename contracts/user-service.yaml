@@ -1,0 +1,656 @@
+openapi: 3.0.3
+info:
+  title: User Service API - Plateforme Alumni UASZ
+  description: |
+    Microservice de gestion des utilisateurs et de l'authentification pour la plateforme de gestion des Alumni du Master Informatique (UASZ).
+  contact:
+    name: Équipe Projet Intégrateur - M2 GL - UASZ
+  version: 1.0.0
+servers:
+  - url: https://api.alumni-uasz.sn/user-service/v1
+    description: Serveur de production
+  - url: http://localhost:8081/v1
+    description: Serveur de développement local
+tags:
+  - name: Auth
+    description: "Authentification, sécurité du compte et gestion des sessions"
+  - name: Users
+    description: Gestion des utilisateurs
+  - name: Roles
+    description: Gestion des rôles
+paths:
+  /auth/register:
+    post:
+      tags:
+        - Auth
+      summary: Inscription d'un nouvel utilisateur
+      operationId: registerUser
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+        required: true
+      responses:
+        "201":
+          description: "Compte créé avec succès (statut en_attente, email de confirmation envoyé)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          description: Email déjà utilisé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Connexion d'un utilisateur
+      operationId: loginUser
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+        required: true
+      responses:
+        "200":
+          description: Connexion réussie
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Identifiants invalides
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Compte non activé ou suspendu
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /auth/refresh-token:
+    post:
+      tags:
+        - Auth
+      summary: Rafraîchir le token d'accès
+      operationId: refreshToken
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshTokenRequest"
+        required: true
+      responses:
+        "200":
+          description: Nouveau token généré
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Refresh token invalide ou expiré
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /auth/logout:
+    post:
+      tags:
+        - Auth
+      summary: Déconnexion (invalidation du refresh token)
+      operationId: logoutUser
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LogoutRequest"
+        required: true
+      responses:
+        "204":
+          description: Déconnexion réussie
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      security:
+        - bearerAuth: []
+  /auth/forgot-password:
+    post:
+      tags:
+        - Auth
+      summary: Demande de réinitialisation du mot de passe
+      operationId: forgotPassword
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ForgotPasswordRequest"
+        required: true
+      responses:
+        "200":
+          description: |
+            Requête traitée. Un email est envoyé si le compte existe (réponse volontairement générique pour éviter l'énumération de comptes).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+  /auth/reset-password:
+    post:
+      tags:
+        - Auth
+      summary: Réinitialisation du mot de passe via token
+      operationId: resetPassword
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordRequest"
+        required: true
+      responses:
+        "200":
+          description: Mot de passe réinitialisé avec succès
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          description: Token invalide ou expiré
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Mot de passe non conforme à la politique de sécurité
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /auth/confirm-email:
+    post:
+      tags:
+        - Auth
+      summary: Confirmation de l'adresse email (activation du compte)
+      operationId: confirmEmail
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfirmEmailRequest"
+        required: true
+      responses:
+        "200":
+          description: Compte activé avec succès
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          description: Token invalide ou expiré
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /auth/resend-confirmation:
+    post:
+      tags:
+        - Auth
+      summary: Renvoyer l'email de confirmation de compte
+      operationId: resendConfirmation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResendConfirmationRequest"
+        required: true
+      responses:
+        "200":
+          description: Email de confirmation renvoyé (si applicable)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "409":
+          description: Le compte est déjà activé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /users:
+    get:
+      tags:
+        - Users
+      summary: Lister les utilisateurs (filtrage par rôle)
+      operationId: listUsers
+      parameters:
+        - name: role
+          in: query
+          description: Filtrer par rôle
+          required: false
+          schema:
+            $ref: "#/components/schemas/RoleName"
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/UserStatus"
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Liste paginée des utilisateurs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserPagedResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      security:
+        - bearerAuth: []
+  /users/{id}:
+    get:
+      tags:
+        - Users
+      summary: Récupérer un utilisateur par son identifiant
+      operationId: getUserById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Utilisateur trouvé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+    put:
+      tags:
+        - Users
+      summary: Mettre à jour les informations d'un utilisateur
+      operationId: updateUser
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdateRequest"
+        required: true
+      responses:
+        "200":
+          description: Utilisateur mis à jour
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+    delete:
+      tags:
+        - Users
+      summary: Supprimer un utilisateur
+      operationId: deleteUser
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Utilisateur supprimé
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+  /users/{id}/status:
+    patch:
+      tags:
+        - Users
+      summary: Modifier le statut d'un utilisateur (activation/désactivation/suspension)
+      operationId: updateUserStatus
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserStatusUpdateRequest"
+        required: true
+      responses:
+        "200":
+          description: Statut mis à jour
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Action réservée à l'Administrateur
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+  /roles:
+    get:
+      tags:
+        - Roles
+      summary: Lister les rôles disponibles
+      operationId: listRoles
+      responses:
+        "200":
+          description: Liste des rôles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Role"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      security:
+        - bearerAuth: []
+components:
+  schemas:
+    RoleName:
+      type: string
+      enum:
+        - ALUMNI
+        - ETUDIANT
+        - ENSEIGNANT
+        - ADMINISTRATEUR
+    UserStatus:
+      type: string
+      enum:
+        - EN_ATTENTE
+        - ACTIF
+        - INACTIF
+        - SUSPENDU
+    RegisterRequest:
+      required:
+        - email
+        - firstName
+        - lastName
+        - password
+        - role
+      type: object
+      properties:
+        lastName:
+          type: string
+        firstName:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          minLength: 8
+          type: string
+          format: password
+        role:
+          $ref: "#/components/schemas/RoleName"
+    LoginRequest:
+      required:
+        - email
+        - password
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+    AuthResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        expiresIn:
+          type: integer
+          description: Durée de validité de l'accessToken en secondes
+        user:
+          $ref: "#/components/schemas/User"
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        lastName:
+          type: string
+        firstName:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          $ref: "#/components/schemas/RoleName"
+        status:
+          $ref: "#/components/schemas/UserStatus"
+        createdAt:
+          type: string
+          format: date-time
+        phone:
+          type: string
+        gender:
+          type: string
+          enum:
+            - MALE
+            - FEMALE
+        birthDate:
+          type: string
+          format: date
+          example: "1995-05-15"
+    UserUpdateRequest:
+      type: object
+      properties:
+        lastName:
+          type: string
+        firstName:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        gender:
+          type: string
+          enum:
+            - MALE
+            - FEMALE
+        birthDate:
+          type: string
+          format: date
+          example: "1995-05-15"
+    Role:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          $ref: "#/components/schemas/RoleName"
+        permissions:
+          type: array
+          items:
+            type: string
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+    RefreshTokenRequest:
+      required:
+        - refreshToken
+      type: object
+      properties:
+        refreshToken:
+          type: string
+    LogoutRequest:
+      required:
+        - refreshToken
+      type: object
+      properties:
+        refreshToken:
+          type: string
+    ForgotPasswordRequest:
+      required:
+        - email
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+    ResetPasswordRequest:
+      required:
+        - newPassword
+        - token
+      type: object
+      properties:
+        token:
+          type: string
+        newPassword:
+          minLength: 8
+          type: string
+          format: password
+    ConfirmEmailRequest:
+      required:
+        - token
+      type: object
+      properties:
+        token:
+          type: string
+    ResendConfirmationRequest:
+      required:
+        - email
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+    UserPagedResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
+        totalElements:
+          type: integer
+        page:
+          type: integer
+        size:
+          type: integer
+    UserStatusUpdateRequest:
+      required:
+        - status
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/UserStatus"
+  responses:
+    BadRequest:
+      description: Requête invalide
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Authentification requise ou invalide
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Accès refusé (permissions insuffisantes)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Ressource introuvable
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+  parameters:
+    UserId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

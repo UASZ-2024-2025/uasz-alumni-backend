@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: job-offer-service-config
+data:
+  SERVER_PORT: "8083"
+  SPRING_DATASOURCE_URL: jdbc:postgresql://job-offer-service-postgres:5432/job_offer_db
+  FORWARD_HEADERS_STRATEGY: native
+  # URL de production des contrats : https://api.alumni-uasz.sn/job-offer-service/v1
+  API_PREFIX: /job-offer-service/v1
+  JWT_ISSUER: alumni-uasz-user

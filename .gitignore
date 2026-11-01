@@ -1,0 +1,10 @@
+.env
+**/.env
+.env.bak*
+**/k8s/overlays/dev/*.env
+**/backups/
+**/target/
+.idea/
+.vscode/
+*.log
+*.zip

@@ -1,0 +1,931 @@
+openapi: 3.0.3
+info:
+  title: Service Gestion des Notifications et Messageries - Plateforme Alumni UASZ
+  description: |
+    Microservice responsable de la messagerie privée 1-à-1 entre utilisateurs, des groupes de discussion,
+    ainsi que de la gestion et de la distribution des notifications (In-App, Email, Push).
+  contact:
+    name: Équipe Projet Intégrateur - M2 GL - UASZ
+  version: 1.0.0
+servers:
+  - url: https://api.alumni-uasz.sn/notification-messaging-service/v1
+    description: Serveur de production
+  - url: http://localhost:8085/v1
+    description: Serveur de développement local
+tags:
+  - name: PrivateMessaging
+    description: Échanges et discussions privées 1-à-1 entre étudiants, Alumni et enseignants
+  - name: GroupMessaging
+    description: Groupes de discussion (création, membres, échanges collectifs entre étudiants, Alumni et enseignants)
+  - name: Notifications
+    description: Centre de notifications système, alertes et suivi de lecture
+
+paths:
+  /messages/conversations:
+    get:
+      tags:
+        - PrivateMessaging
+      summary: Lister les conversations privées de l'utilisateur connecté
+      operationId: listConversations
+      responses:
+        "200":
+          description: Liste des conversations avec le dernier message et le nombre de non-lus
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ConversationSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      security:
+        - bearerAuth: []
+
+  /messages/conversations/{recipientId}:
+    get:
+      tags:
+        - PrivateMessaging
+      summary: Historique des messages d'une conversation avec un utilisateur
+      operationId: getConversationMessages
+      parameters:
+        - name: recipientId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 30
+      responses:
+        "200":
+          description: Historique des messages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PrivateMessagePagedResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
+    post:
+      tags:
+        - PrivateMessaging
+      summary: Envoyer un message privé à un utilisateur
+      operationId: sendPrivateMessage
+      parameters:
+        - name: recipientId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendMessageRequest"
+      responses:
+        "201":
+          description: Message envoyé avec succès
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PrivateMessage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      security:
+        - bearerAuth: []
+
+  /messages/conversations/{recipientId}/read:
+    patch:
+      tags:
+        - PrivateMessaging
+      summary: Marquer tous les messages d'une conversation comme lus
+      operationId: markConversationAsRead
+      parameters:
+        - name: recipientId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Conversation marquée comme lue
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      security:
+        - bearerAuth: []
+
+  /messages/{messageId}:
+    delete:
+      tags:
+        - PrivateMessaging
+      summary: Supprimer un message privé
+      operationId: deletePrivateMessage
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Message supprimé
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
+
+  /messages/groups:
+    get:
+      tags:
+        - GroupMessaging
+      summary: Lister les groupes de discussion de l'utilisateur connecté
+      operationId: listGroups
+      responses:
+        "200":
+          description: Liste des groupes avec le dernier message et le nombre de non-lus
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GroupSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      security:
+        - bearerAuth: []
+
+    post:
+      tags:
+        - GroupMessaging
+      summary: Créer un groupe de discussion
+      description: L'utilisateur connecté devient propriétaire (OWNER) du groupe.
+      operationId: createGroup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupCreateRequest"
+      responses:
+        "201":
+          description: Groupe créé avec succès
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      security:
+        - bearerAuth: []
+
+  /messages/groups/{groupId}:
+    get:
+      tags:
+        - GroupMessaging
+      summary: Obtenir le détail d'un groupe et la liste de ses membres
+      operationId: getGroupById
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Détail du groupe
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
+    put:
+      tags:
+        - GroupMessaging
+      summary: Modifier le nom ou la description d'un groupe (propriétaire uniquement)
+      operationId: updateGroup
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupUpdateRequest"
+      responses:
+        "200":
+          description: Groupe mis à jour
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
+    delete:
+      tags:
+        - GroupMessaging
+      summary: Supprimer un groupe (propriétaire ou administrateur)
+      operationId: deleteGroup
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Groupe supprimé
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
+  /messages/groups/{groupId}/members:
+    post:
+      tags:
+        - GroupMessaging
+      summary: Ajouter des membres à un groupe (propriétaire uniquement)
+      operationId: addGroupMembers
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupMembersRequest"
+      responses:
+        "200":
+          description: Membres ajoutés, groupe mis à jour
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
+  /messages/groups/{groupId}/members/{userId}:
+    delete:
+      tags:
+        - GroupMessaging
+      summary: Retirer un membre du groupe ou quitter le groupe
+      description: Le propriétaire peut retirer n'importe quel membre ; un membre peut se retirer lui-même (quitter le groupe).
+      operationId: removeGroupMember
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Membre retiré
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
+  /messages/groups/{groupId}/messages:
+    get:
+      tags:
+        - GroupMessaging
+      summary: Historique des messages d'un groupe
+      operationId: getGroupMessages
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 30
+      responses:
+        "200":
+          description: Historique des messages du groupe
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupMessagePagedResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
+    post:
+      tags:
+        - GroupMessaging
+      summary: Envoyer un message dans un groupe
+      operationId: sendGroupMessage
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendMessageRequest"
+      responses:
+        "201":
+          description: Message envoyé au groupe
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupMessage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
+  /messages/groups/{groupId}/read:
+    patch:
+      tags:
+        - GroupMessaging
+      summary: Marquer tous les messages d'un groupe comme lus
+      operationId: markGroupAsRead
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Groupe marqué comme lu
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
+
+  /notifications:
+    get:
+      tags:
+        - Notifications
+      summary: Obtenir la liste des notifications de l'utilisateur
+      operationId: getUserNotifications
+      parameters:
+        - name: unreadOnly
+          in: query
+          description: Ne retourner que les notifications non lues
+          required: false
+          schema:
+            type: boolean
+            default: false
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Liste des notifications
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationPagedResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      security:
+        - bearerAuth: []
+
+  /notifications/unread-count:
+    get:
+      tags:
+        - Notifications
+      summary: Obtenir le nombre total de notifications non lues
+      operationId: getUnreadNotificationCount
+      responses:
+        "200":
+          description: Nombre de notifications non lues
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnreadCountResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      security:
+        - bearerAuth: []
+
+  /notifications/{id}/read:
+    patch:
+      tags:
+        - Notifications
+      summary: Marquer une notification spécifique comme lue
+      operationId: markNotificationAsRead
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Notification marquée comme lue
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notification"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
+  /notifications/read-all:
+    patch:
+      tags:
+        - Notifications
+      summary: Marquer toutes les notifications comme lues
+      operationId: markAllNotificationsAsRead
+      responses:
+        "204":
+          description: Toutes les notifications ont été marquées comme lues
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      security:
+        - bearerAuth: []
+
+  /notifications/send:
+    post:
+      tags:
+        - Notifications
+      summary: Émettre/déclencher une notification (Usage interne inter-services ou Admin)
+      operationId: triggerNotification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendNotificationRequest"
+      responses:
+        "201":
+          description: Notification émise avec succès
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notification"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      security:
+        - bearerAuth: []
+
+components:
+  schemas:
+    NotificationType:
+      type: string
+      enum:
+        - MESSAGE_RECEIVED
+        - APPLICATION_STATUS_CHANGED
+        - NEW_JOB_PROPOSAL
+        - NEW_MATCHING_OFFER
+        - ACCOUNT_CONFIRMATION
+        - SYSTEM_ALERT
+        - GROUP_INVITATION
+        - GROUP_MESSAGE_RECEIVED
+
+    NotificationChannel:
+      type: string
+      enum:
+        - IN_APP
+        - EMAIL
+        - PUSH
+
+    ConversationSummary:
+      type: object
+      properties:
+        recipientId:
+          type: string
+          format: uuid
+        recipientName:
+          type: string
+        recipientRole:
+          type: string
+          example: "ALUMNI"
+        lastMessage:
+          type: string
+        lastMessageTime:
+          type: string
+          format: date-time
+        unreadCount:
+          type: integer
+          example: 3
+
+    PrivateMessage:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        senderId:
+          type: string
+          format: uuid
+        senderName:
+          type: string
+        recipientId:
+          type: string
+          format: uuid
+        recipientName:
+          type: string
+        content:
+          type: string
+        isRead:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    SendMessageRequest:
+      type: object
+      required:
+        - content
+      properties:
+        content:
+          type: string
+          example: "Bonjour ! Seriez-vous disponible pour discuter des opportunités dans votre entreprise ?"
+
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        type:
+          $ref: "#/components/schemas/NotificationType"
+        channel:
+          $ref: "#/components/schemas/NotificationChannel"
+        title:
+          type: string
+        content:
+          type: string
+        referenceId:
+          type: string
+          description: ID de l'élément concerné (ex. ID de l'offre ou ID du message)
+        isRead:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    SendNotificationRequest:
+      type: object
+      required:
+        - userId
+        - type
+        - title
+        - content
+      properties:
+        userId:
+          type: string
+          format: uuid
+        type:
+          $ref: "#/components/schemas/NotificationType"
+        channel:
+          $ref: "#/components/schemas/NotificationChannel"
+        title:
+          type: string
+        content:
+          type: string
+        referenceId:
+          type: string
+
+    UnreadCountResponse:
+      type: object
+      properties:
+        unreadCount:
+          type: integer
+          example: 5
+
+    PrivateMessagePagedResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/PrivateMessage"
+        totalElements:
+          type: integer
+        page:
+          type: integer
+        size:
+          type: integer
+
+
+    NotificationPagedResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/Notification"
+        totalElements:
+          type: integer
+        page:
+          type: integer
+        size:
+          type: integer
+
+    GroupMemberRole:
+      type: string
+      enum:
+        - OWNER
+        - MEMBER
+
+    GroupMember:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        userName:
+          type: string
+        userRole:
+          type: string
+          description: Rôle applicatif de l'utilisateur (ALUMNI, ETUDIANT, ENSEIGNANT, ADMINISTRATEUR)
+          example: "ETUDIANT"
+        groupRole:
+          $ref: "#/components/schemas/GroupMemberRole"
+        joinedAt:
+          type: string
+          format: date-time
+
+    Group:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: "Promotion 2026 - Génie Logiciel"
+        description:
+          type: string
+        ownerId:
+          type: string
+          format: uuid
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/GroupMember"
+        createdAt:
+          type: string
+          format: date-time
+
+    GroupSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        memberCount:
+          type: integer
+          example: 12
+        lastMessage:
+          type: string
+        lastMessageTime:
+          type: string
+          format: date-time
+        unreadCount:
+          type: integer
+          example: 3
+
+    GroupCreateRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 100
+          example: "Mentorat Alumni - Data & IA"
+        description:
+          type: string
+        memberIds:
+          type: array
+          description: Identifiants des utilisateurs invités dès la création
+          items:
+            type: string
+            format: uuid
+
+    GroupUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 100
+        description:
+          type: string
+
+    GroupMembersRequest:
+      type: object
+      required:
+        - memberIds
+      properties:
+        memberIds:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            format: uuid
+
+    GroupMessage:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        groupId:
+          type: string
+          format: uuid
+        senderId:
+          type: string
+          format: uuid
+        senderName:
+          type: string
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    GroupMessagePagedResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/GroupMessage"
+        totalElements:
+          type: integer
+        page:
+          type: integer
+        size:
+          type: integer
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+  responses:
+    BadRequest:
+      description: Requête invalide
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Authentification requise
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Accès refusé
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Ressource non trouvée
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

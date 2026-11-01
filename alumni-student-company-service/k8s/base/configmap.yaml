@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alumni-student-company-service-config
+data:
+  SERVER_PORT: "8082"
+  SPRING_DATASOURCE_URL: jdbc:postgresql://alumni-student-company-service-postgres:5432/alumni_student_company_db
+  FORWARD_HEADERS_STRATEGY: native
+  # URL de production des contrats : https://api.alumni-uasz.sn/alumni-student-company-service/v1
+  API_PREFIX: /alumni-student-company-service/v1
+  JWT_ISSUER: alumni-uasz-user

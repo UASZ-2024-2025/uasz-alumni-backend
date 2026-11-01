@@ -1,0 +1,775 @@
+openapi: 3.0.3
+info:
+  title: Service Gestion des Offres d'Emplois, Stages et Candidatures - Plateforme Alumni UASZ
+  description: |
+    Microservice responsable de la publication et de la gestion des offres d'emploi et de stage,
+    du dépôt et suivi des candidatures et des propositions directes d'opportunités.
+  contact:
+    name: Équipe Projet Intégrateur - M2 GL - UASZ
+  version: 1.0.0
+servers:
+  - url: https://api.alumni-uasz.sn/job-offer-service/v1
+    description: Serveur de production
+  - url: http://localhost:8083/v1
+    description: Serveur de développement local
+tags:
+  - name: Offers
+    description: Publication, recherche et gestion des offres d'emploi et de stage
+  - name: Applications
+    description: Dépôt et suivi des candidatures des étudiants
+  - name: Proposals
+    description: Propositions directes d'offres d'emploi ou stage envoyées aux étudiants
+
+paths:
+  /offers:
+    get:
+      tags:
+        - Offers
+      summary: Recherche et liste des offres d'emplois et de stages
+      operationId: searchOffers
+      parameters:
+        - name: query
+          in: query
+          description: Terme de recherche (intitulé, mots-clés, entreprise)
+          required: false
+          schema:
+            type: string
+        - name: type
+          in: query
+          description: Type d'offre (STAGE ou EMPLOI)
+          required: false
+          schema:
+            $ref: "#/components/schemas/OfferType"
+        - name: companyId
+          in: query
+          description: Filtrer par entreprise
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: location
+          in: query
+          description: Localisation (ex. Dakar, Ziguinchor, Remote)
+          required: false
+          schema:
+            type: string
+        - name: remoteType
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/RemoteType"
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/OfferStatus"
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Liste paginée d'offres
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobOfferPagedResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    post:
+      tags:
+        - Offers
+      summary: Publier une nouvelle offre d'emploi ou de stage
+      operationId: createOffer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JobOfferCreateRequest"
+      responses:
+        "201":
+          description: Offre créée avec succès
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobOffer"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      security:
+        - bearerAuth: []
+
+  /offers/{id}:
+    get:
+      tags:
+        - Offers
+      summary: Obtenir les détails d'une offre
+      operationId: getOfferById
+      parameters:
+        - $ref: "#/components/parameters/EntityId"
+      responses:
+        "200":
+          description: Offre trouvée
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobOffer"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      tags:
+        - Offers
+      summary: Mettre à jour une offre d'emploi/stage
+      operationId: updateOffer
+      parameters:
+        - $ref: "#/components/parameters/EntityId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JobOfferUpdateRequest"
+      responses:
+        "200":
+          description: Offre mise à jour
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobOffer"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
+    delete:
+      tags:
+        - Offers
+      summary: Supprimer ou archiver une offre
+      operationId: deleteOffer
+      parameters:
+        - $ref: "#/components/parameters/EntityId"
+      responses:
+        "204":
+          description: Offre supprimée
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
+  /offers/{id}/status:
+    patch:
+      tags:
+        - Offers
+      summary: Changer le statut d'une offre (ex. Clôturer l'offre)
+      operationId: updateOfferStatus
+      parameters:
+        - $ref: "#/components/parameters/EntityId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JobOfferStatusUpdateRequest"
+      responses:
+        "200":
+          description: Statut d'offre mis à jour
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobOffer"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
+  /offers/{offerId}/applications:
+    get:
+      tags:
+        - Applications
+      summary: Lister les candidatures reçues pour une offre spécifique
+      operationId: getApplicationsForOffer
+      parameters:
+        - name: offerId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Liste des candidatures
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Application"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
+    post:
+      tags:
+        - Applications
+      summary: Postuler à une offre de stage ou d'emploi
+      operationId: submitApplication
+      parameters:
+        - name: offerId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApplicationCreateRequest"
+      responses:
+        "201":
+          description: Candidature déposée avec succès
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Application"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          description: Vous avez déjà postulé à cette offre
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - bearerAuth: []
+
+  /applications:
+    get:
+      tags:
+        - Applications
+      summary: Consulter mes candidatures (pour un étudiant)
+      operationId: listMyApplications
+      parameters:
+        - name: studentId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/ApplicationStatus"
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Liste paginée de candidatures
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplicationPagedResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      security:
+        - bearerAuth: []
+
+  /applications/{id}/status:
+    patch:
+      tags:
+        - Applications
+      summary: Mettre à jour l'état d'une candidature (ex. Retenu, Rejeté, En revue)
+      operationId: updateApplicationStatus
+      parameters:
+        - $ref: "#/components/parameters/EntityId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApplicationStatusUpdateRequest"
+      responses:
+        "200":
+          description: Statut de candidature mis à jour
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Application"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
+
+  /proposals:
+    get:
+      tags:
+        - Proposals
+      summary: Lister les propositions d'offres reçues ou envoyées
+      operationId: listProposals
+      parameters:
+        - name: studentId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: recruiterId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/ProposalStatus"
+      responses:
+        "200":
+          description: Liste des propositions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Proposal"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      security:
+        - bearerAuth: []
+
+    post:
+      tags:
+        - Proposals
+      summary: Proposer directement une offre à un étudiant (par un Alumni ou Entreprise)
+      operationId: createProposal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProposalCreateRequest"
+      responses:
+        "201":
+          description: Proposition envoyée avec succès
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Proposal"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      security:
+        - bearerAuth: []
+
+  /proposals/{id}/status:
+    patch:
+      tags:
+        - Proposals
+      summary: Accepter ou refuser une proposition d'offre (par l'étudiant)
+      operationId: updateProposalStatus
+      parameters:
+        - $ref: "#/components/parameters/EntityId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProposalStatusUpdateRequest"
+      responses:
+        "200":
+          description: Statut de la proposition mis à jour
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Proposal"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
+components:
+  parameters:
+    EntityId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    OfferType:
+      type: string
+      enum:
+        - INTERNSHIP
+        - JOB
+
+    RemoteType:
+      type: string
+      enum:
+        - ON_SITE
+        - HYBRID
+        - REMOTE
+
+    OfferStatus:
+      type: string
+      enum:
+        - OPEN
+        - CLOSED
+        - ARCHIVED
+
+    ApplicationStatus:
+      type: string
+      enum:
+        - SUBMITTED
+        - UNDER_REVIEW
+        - SHORTLISTED
+        - REJECTED
+        - ACCEPTED
+
+    ProposalStatus:
+      type: string
+      enum:
+        - PENDING
+        - ACCEPTED
+        - REJECTED
+        - EXPIRED
+
+    JobOffer:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          example: "Développeur Fullstack Java / Spring Boot"
+        type:
+          $ref: "#/components/schemas/OfferType"
+        description:
+          type: string
+        companyId:
+          type: string
+          format: uuid
+        companyName:
+          type: string
+          example: "Atos Sénégal"
+        publisherId:
+          type: string
+          format: uuid
+        publisherName:
+          type: string
+        location:
+          type: string
+          example: "Dakar, Sénégal"
+        remoteType:
+          $ref: "#/components/schemas/RemoteType"
+        requiredSkills:
+          type: array
+          items:
+            type: string
+          example: ["Java", "Spring Boot", "PostgreSQL", "Docker"]
+        durationMonths:
+          type: integer
+          example: 6
+        salaryRange:
+          type: string
+          example: "300,000 - 500,000 XOF"
+        deadline:
+          type: string
+          format: date
+          example: "2026-10-31"
+        status:
+          $ref: "#/components/schemas/OfferStatus"
+        createdAt:
+          type: string
+          format: date-time
+
+    JobOfferCreateRequest:
+      type: object
+      required:
+        - title
+        - type
+        - description
+        - companyId
+        - location
+        - requiredSkills
+      properties:
+        title:
+          type: string
+        type:
+          $ref: "#/components/schemas/OfferType"
+        description:
+          type: string
+        companyId:
+          type: string
+          format: uuid
+        location:
+          type: string
+        remoteType:
+          $ref: "#/components/schemas/RemoteType"
+        requiredSkills:
+          type: array
+          items:
+            type: string
+        durationMonths:
+          type: integer
+        salaryRange:
+          type: string
+        deadline:
+          type: string
+          format: date
+
+    JobOfferUpdateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        type:
+          $ref: "#/components/schemas/OfferType"
+        description:
+          type: string
+        location:
+          type: string
+        remoteType:
+          $ref: "#/components/schemas/RemoteType"
+        requiredSkills:
+          type: array
+          items:
+            type: string
+        durationMonths:
+          type: integer
+        salaryRange:
+          type: string
+        deadline:
+          type: string
+          format: date
+
+    JobOfferStatusUpdateRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          $ref: "#/components/schemas/OfferStatus"
+
+    Application:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        offerId:
+          type: string
+          format: uuid
+        offerTitle:
+          type: string
+        studentId:
+          type: string
+          format: uuid
+        studentName:
+          type: string
+        cvId:
+          type: string
+          format: uuid
+        coverLetter:
+          type: string
+        status:
+          $ref: "#/components/schemas/ApplicationStatus"
+        createdAt:
+          type: string
+          format: date-time
+
+    ApplicationCreateRequest:
+      type: object
+      required:
+        - studentId
+      properties:
+        studentId:
+          type: string
+          format: uuid
+        cvId:
+          type: string
+          format: uuid
+        coverLetter:
+          type: string
+
+    ApplicationStatusUpdateRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          $ref: "#/components/schemas/ApplicationStatus"
+
+
+    Proposal:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        offerId:
+          type: string
+          format: uuid
+        offerTitle:
+          type: string
+        studentId:
+          type: string
+          format: uuid
+        studentName:
+          type: string
+        recruiterId:
+          type: string
+          format: uuid
+        recruiterName:
+          type: string
+        message:
+          type: string
+        status:
+          $ref: "#/components/schemas/ProposalStatus"
+        createdAt:
+          type: string
+          format: date-time
+
+    ProposalCreateRequest:
+      type: object
+      required:
+        - offerId
+        - studentId
+      properties:
+        offerId:
+          type: string
+          format: uuid
+        studentId:
+          type: string
+          format: uuid
+        message:
+          type: string
+
+    ProposalStatusUpdateRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          $ref: "#/components/schemas/ProposalStatus"
+
+    JobOfferPagedResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/JobOffer"
+        totalElements:
+          type: integer
+        page:
+          type: integer
+        size:
+          type: integer
+
+    ApplicationPagedResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/Application"
+        totalElements:
+          type: integer
+        page:
+          type: integer
+        size:
+          type: integer
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+  responses:
+    BadRequest:
+      description: Requête invalide
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Authentification requise
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Accès refusé
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Ressource non trouvée
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

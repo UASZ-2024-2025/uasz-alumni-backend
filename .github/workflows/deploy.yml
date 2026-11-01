@@ -1,0 +1,110 @@
+name: CD - Deploy to Kubernetes
+
+on:
+  push:
+    branches: [prod]
+  workflow_dispatch:
+    inputs:
+      service:
+        description: "Microservice à déployer (nom du dossier, ou all)"
+        required: true
+        default: all
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.pick.outputs.services }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        if: github.event_name == 'push'
+        with:
+          filters: |
+            user-service: ['user-service/**']
+            alumni-student-company-service: ['alumni-student-company-service/**']
+            job-offer-service: ['job-offer-service/**']
+            analytics-matching-service: ['analytics-matching-service/**']
+            notification-messaging-service: ['notification-messaging-service/**']
+      - id: pick
+        env:
+          EVENT: ${{ github.event_name }}
+          INPUT_SERVICE: ${{ inputs.service }}
+          CHANGES: ${{ steps.filter.outputs.changes }}
+        run: |
+          ALL='["user-service","alumni-student-company-service","job-offer-service","analytics-matching-service","notification-messaging-service"]'
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            if [ "$INPUT_SERVICE" = "all" ]; then
+              echo "services=$ALL" >> "$GITHUB_OUTPUT"
+            else
+              echo "$ALL" | grep -q "\"$INPUT_SERVICE\"" || { echo "service inconnu : $INPUT_SERVICE"; exit 1; }
+              echo "services=[\"$INPUT_SERVICE\"]" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "services=${CHANGES:-[]}" >> "$GITHUB_OUTPUT"
+          fi
+
+  deploy:
+    needs: changes
+    if: needs.changes.outputs.services != '[]'
+    runs-on: ubuntu-latest
+    environment: production      # protections/approbations à configurer dans GitHub
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        service: ${{ fromJson(needs.changes.outputs.services) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+          cache-dependency-path: ${{ matrix.service }}/pom.xml
+      - name: Build Maven
+        working-directory: ${{ matrix.service }}
+        run: ./mvnw -B -DskipTests package
+
+      - name: Nom d'image (minuscules)
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}/${{ matrix.service }}" >> "$GITHUB_ENV"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.service }}
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.IMAGE }}:latest
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+      - uses: azure/setup-kubectl@v4
+      - name: Kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+      - name: Déploiement
+        working-directory: ${{ matrix.service }}/k8s/overlays/prod
+        run: |
+          kustomize edit set image ${{ matrix.service }}="${IMAGE}:${GITHUB_SHA}"
+          kubectl apply -k .
+          kubectl -n alumni-uasz rollout status deployment/${{ matrix.service }} --timeout=180s
+
+# Secret GitHub requis : KUBE_CONFIG (kubeconfig encodé en base64).
+# Les secrets applicatifs (<service>-db, <service>-secrets) sont créés hors dépôt dans le namespace alumni-uasz.

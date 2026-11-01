@@ -1,0 +1,67 @@
+# PostgreSQL de dev (en prod : service managé ou opérateur dédié)
+apiVersion: v1
+kind: Service
+metadata:
+  name: alumni-student-company-service-postgres
+  labels:
+    app.kubernetes.io/name: alumni-student-company-service-postgres
+spec:
+  selector:
+    app.kubernetes.io/name: alumni-student-company-service-postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: alumni-student-company-service-postgres
+  labels:
+    app.kubernetes.io/name: alumni-student-company-service-postgres
+spec:
+  serviceName: alumni-student-company-service-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: alumni-student-company-service-postgres
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: alumni-student-company-service-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - name: postgres
+              containerPort: 5432
+          envFrom:
+            - secretRef:
+                name: alumni-student-company-service-db
+          env:
+            - name: POSTGRES_DB
+              value: alumni_student_company_db
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+            periodSeconds: 5
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi

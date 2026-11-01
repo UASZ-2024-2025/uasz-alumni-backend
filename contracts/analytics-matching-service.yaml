@@ -1,0 +1,368 @@
+openapi: 3.0.3
+info:
+  title: Service Analyse de Données, Matchings et Tableau de bord Administrateur - Plateforme Alumni UASZ
+  description: |
+    Microservice responsable des algorithmes d'analyse de données, du matching automatique entre profils étudiants
+    et offres d'emploi/stage, ainsi que de la génération des métriques statistiques pour le tableau de bord de l'administrateur.
+  contact:
+    name: Équipe Projet Intégrateur - M2 GL - UASZ
+  version: 1.0.0
+servers:
+  - url: https://api.alumni-uasz.sn/analytics-matching-service/v1
+    description: Serveur de production
+  - url: http://localhost:8084/v1
+    description: Serveur de développement local
+tags:
+  - name: Matchings
+    description: Algorithmes d'analyse de correspondance entre profil étudiant et exigences des offres
+  - name: Dashboard
+    description: Indicateurs clés de performance (KPI) et statistiques du tableau de bord administrateur
+  - name: AnalyticsReports
+    description: Rapports d'analyse de données (taux d'insertion professionnelle, analyse des compétences)
+
+paths:
+  /analytics/matchings/students/{studentId}:
+    get:
+      tags:
+        - Matchings
+      summary: Recommander les offres d'emploi/stage les plus adaptées à un étudiant
+      description: Algorithme d'analyse croisée des compétences, intérêts et disponibilités de l'étudiant avec les offres publiées.
+      operationId: getMatchingOffersForStudent
+      parameters:
+        - name: studentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: minScore
+          in: query
+          description: Score minimal d'adéquation en pourcentage (ex. 60)
+          required: false
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Liste des offres recommandées avec score de correspondance
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OfferMatchResult"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
+  /analytics/matchings/offers/{offerId}:
+    get:
+      tags:
+        - Matchings
+      summary: Recommander les étudiants/candidats les plus qualifiés pour une offre
+      operationId: getMatchingCandidatesForOffer
+      parameters:
+        - name: offerId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: minScore
+          in: query
+          description: Score minimal d'adéquation en pourcentage
+          required: false
+          schema:
+            type: integer
+            default: 60
+      responses:
+        "200":
+          description: Liste des candidats étudiants correspondants avec score
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CandidateMatchResult"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
+  /analytics/dashboard/stats:
+    get:
+      tags:
+        - Dashboard
+      summary: Obtenir les statistiques globales du tableau de bord administrateur
+      description: |
+        Fournit le nombre total d'Alumni, d'étudiants, d'entreprises partenaires, le taux d'insertion
+        professionnelle, ainsi que le nombre de stages et d'emplois publiés.
+      operationId: getDashboardStats
+      responses:
+        "200":
+          description: Statistiques globales du système
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      security:
+        - bearerAuth: []
+
+  /analytics/reports/insertion:
+    get:
+      tags:
+        - AnalyticsReports
+      summary: Générer un rapport sur le taux d'insertion professionnelle
+      operationId: getInsertionReport
+      parameters:
+        - name: graduationYear
+          in: query
+          description: Filtrer par année de promotion
+          required: false
+          schema:
+            type: integer
+        - name: specialty
+          in: query
+          description: Filtrer par spécialité (ex. Génie Logiciel)
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Rapport du taux d'insertion professionnelle
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InsertionReportResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      security:
+        - bearerAuth: []
+
+  /analytics/reports/skills-gap:
+    get:
+      tags:
+        - AnalyticsReports
+      summary: Analyse comparative entre compétences demandées par le marché et compétences des diplômés
+      operationId: getSkillsGapReport
+      responses:
+        "200":
+          description: Rapport d'analyse de compétences (Skills Gap Analysis)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SkillsGapResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      security:
+        - bearerAuth: []
+
+components:
+  schemas:
+    OfferMatchResult:
+      type: object
+      properties:
+        offerId:
+          type: string
+          format: uuid
+        offerTitle:
+          type: string
+          example: "Développeur Fullstack Java / React"
+        companyName:
+          type: string
+          example: "Atos Sénégal"
+        matchScore:
+          type: integer
+          example: 85
+          description: Score de correspondance en pourcentage (0 à 100)
+        matchingSkills:
+          type: array
+          items:
+            type: string
+          example: ["Java", "Spring Boot", "Docker"]
+        missingSkills:
+          type: array
+          items:
+            type: string
+          example: ["Kubernetes"]
+
+    CandidateMatchResult:
+      type: object
+      properties:
+        studentId:
+          type: string
+          format: uuid
+        studentName:
+          type: string
+          example: "Amina Diallo"
+        specialty:
+          type: string
+          example: "Génie Logiciel"
+        matchScore:
+          type: integer
+          example: 92
+        matchingSkills:
+          type: array
+          items:
+            type: string
+          example: ["Java", "Spring Boot", "React"]
+
+    DashboardStats:
+      type: object
+      properties:
+        alumniCount:
+          type: integer
+          example: 350
+          description: Nombre total d'Alumni enregistrés
+        studentCount:
+          type: integer
+          example: 120
+          description: Nombre total d'étudiants actifs
+        companyCount:
+          type: integer
+          example: 45
+          description: Nombre total d'entreprises partenaires
+        insertionRate:
+          type: number
+          format: float
+          example: 88.5
+          description: Taux d'insertion professionnelle en pourcentage (%)
+        internshipCount:
+          type: integer
+          example: 85
+          description: Nombre total de stages publiés
+        jobOfferCount:
+          type: integer
+          example: 140
+          description: Nombre total d'offres d'emploi publiées
+        updatedAt:
+          type: string
+          format: date-time
+
+    InsertionReportItem:
+      type: object
+      properties:
+        graduationYear:
+          type: integer
+          example: 2024
+        specialty:
+          type: string
+          example: "Génie Logiciel"
+        totalGraduates:
+          type: integer
+          example: 40
+        employedCount:
+          type: integer
+          example: 35
+        insertionRate:
+          type: number
+          format: float
+          example: 87.5
+        averageMonthsToFirstJob:
+          type: number
+          format: float
+          example: 2.4
+          description: Délai moyen d'accès au 1er emploi (en mois)
+
+    InsertionReportResponse:
+      type: object
+      properties:
+        overallInsertionRate:
+          type: number
+          format: float
+          example: 88.5
+        reportData:
+          type: array
+          items:
+            $ref: "#/components/schemas/InsertionReportItem"
+
+    SkillsGapItem:
+      type: object
+      properties:
+        skillName:
+          type: string
+          example: "Docker & Kubernetes"
+        demandPercentage:
+          type: number
+          format: float
+          example: 75.0
+          description: Pourcentage d'offres exigeant cette compétence
+        supplyPercentage:
+          type: number
+          format: float
+          example: 45.0
+          description: Pourcentage d'étudiants/Alumni maîtrisant cette compétence
+        gap:
+          type: number
+          format: float
+          example: 30.0
+          description: Écart de compétence (Market Gap)
+
+    SkillsGapResponse:
+      type: object
+      properties:
+        topRequiredSkills:
+          type: array
+          items:
+            type: string
+          example: ["Java", "React", "Spring Boot", "Docker", "PostgreSQL"]
+        skillsGapAnalysis:
+          type: array
+          items:
+            $ref: "#/components/schemas/SkillsGapItem"
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+  responses:
+    BadRequest:
+      description: Requête invalide
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Authentification requise
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Accès refusé (action réservée à l'Administrateur)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Ressource non trouvée
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

@@ -1,0 +1,48 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: alumni-uasz
+  namespace: alumni-uasz
+  labels:
+    app.kubernetes.io/part-of: alumni-uasz
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /user-service/v1
+            pathType: Prefix
+            backend:
+              service:
+                name: user-service
+                port:
+                  name: http
+          - path: /alumni-student-company-service/v1
+            pathType: Prefix
+            backend:
+              service:
+                name: alumni-student-company-service
+                port:
+                  name: http
+          - path: /job-offer-service/v1
+            pathType: Prefix
+            backend:
+              service:
+                name: job-offer-service
+                port:
+                  name: http
+          - path: /analytics-matching-service/v1
+            pathType: Prefix
+            backend:
+              service:
+                name: analytics-matching-service
+                port:
+                  name: http
+          - path: /notification-messaging-service/v1
+            pathType: Prefix
+            backend:
+              service:
+                name: notification-messaging-service
+                port:
+                  name: http
+          # --- ajouter ici les prochains microservices ---
