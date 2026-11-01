@@ -8,3 +8,6 @@
 .vscode/
 *.log
 *.zip
+
+# SPIs : sources generees ignorees, spis/repo versionne
+spis/**/target/

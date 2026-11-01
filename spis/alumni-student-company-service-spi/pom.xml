@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.uasz.alumni</groupId>
+    <artifactId>alumni-spis</artifactId>
+    <version>1.0.0</version>
+  </parent>
+
+  <artifactId>alumni-student-company-service-spi</artifactId>
+  <name>alumni-student-company-service-spi</name>
+  <description>SPI généré depuis contracts/alumni-student-company-service.yaml</description>
+
+  <properties>
+    <spi.contract>${project.basedir}/../../contracts/alumni-student-company-service.yaml</spi.contract>
+    <spi.package>com.uasz.alumni.alumnistudentcompany.spi</spi.package>
+  </properties>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.openapitools</groupId>
+        <artifactId>openapi-generator-maven-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+</project>

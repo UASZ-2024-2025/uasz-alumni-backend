@@ -1,2 +1,4 @@
 * text=auto eol=lf
 **/mvnw text eol=lf
+spis/mvnw text eol=lf
+spis/repo/**/*.jar binary
