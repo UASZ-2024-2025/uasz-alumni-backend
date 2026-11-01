@@ -20,7 +20,11 @@ services:
       retries: 10
 
   alumni-student-company-service:
-    build: .
+    build:
+      context: ..
+      dockerfile: docker/service.Dockerfile
+      args:
+        SERVICE: alumni-student-company-service
     depends_on:
       postgres:
         condition: service_healthy

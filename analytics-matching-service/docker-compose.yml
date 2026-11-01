@@ -20,7 +20,11 @@ services:
       retries: 10
 
   analytics-matching-service:
-    build: .
+    build:
+      context: ..
+      dockerfile: docker/service.Dockerfile
+      args:
+        SERVICE: analytics-matching-service
     depends_on:
       postgres:
         condition: service_healthy

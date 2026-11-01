@@ -1,6 +1,7 @@
 .RECIPEPREFIX = >
 .DEFAULT_GOAL := help
 IMAGE ?= job-offer-service:dev
+SERVICE := $(notdir $(CURDIR))
 
 help: ## Liste des commandes
 > @grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf " %-14s %s\n",$$1,$$2}'
@@ -52,3 +53,6 @@ image: ## Construit l'image Docker
 
 k8s-secrets: ## Génère les secrets K8s (dev) à partir de .env
 > ./scripts/k8s-secrets.sh
+
+spi: ## (Contrat modifie) regenere le SPI de ce service dans ../spis/repo
+> ../spis/build.sh $(SERVICE)

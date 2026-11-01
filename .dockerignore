@@ -1,0 +1,15 @@
+**/target/
+**/.git/
+.git/
+.github/
+**/.idea/
+**/.vscode/
+**/k8s/
+**/backups/
+**/*.md
+**/.env*
+**/docker-compose.yml
+alumni-uasz-infra/
+contracts/
+spis/*-spi/
+spis/.mvn/

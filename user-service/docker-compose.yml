@@ -20,7 +20,11 @@ services:
       retries: 10
 
   user-service:
-    build: .
+    build:
+      context: ..
+      dockerfile: docker/service.Dockerfile
+      args:
+        SERVICE: user-service
     depends_on:
       postgres:
         condition: service_healthy

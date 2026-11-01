@@ -20,7 +20,11 @@ services:
       retries: 10
 
   notification-messaging-service:
-    build: .
+    build:
+      context: ..
+      dockerfile: docker/service.Dockerfile
+      args:
+        SERVICE: notification-messaging-service
     depends_on:
       postgres:
         condition: service_healthy

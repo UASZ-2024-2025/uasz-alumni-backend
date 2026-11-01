@@ -18,9 +18,30 @@
 
   <properties>
     <java.version>21</java.version>
+    <alumni.spi.version>1.0.0</alumni.spi.version>
   </properties>
 
+  <repositories>
+    <repository>
+      <id>alumni-spis</id>
+      <url>file://${project.basedir}/../spis/repo</url>
+      <releases>
+        <enabled>true</enabled>
+        <updatePolicy>never</updatePolicy>
+      </releases>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+    </repository>
+  </repositories>
+
   <dependencies>
+    <dependency>
+      <groupId>com.uasz.alumni</groupId>
+      <artifactId>user-service-spi</artifactId>
+      <version>${alumni.spi.version}</version>
+    </dependency>
+
     <!-- Web / API REST -->
     <dependency>
       <groupId>org.springframework.boot</groupId>

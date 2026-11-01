@@ -24,3 +24,24 @@ done
 ## CI/CD
 
 `.github/workflows/` (racine) : CI et CD ne traitent que les microservices modifiés.
+
+## SPIs (contract-first)
+
+Les interfaces et modeles d'API sont generes depuis `contracts/*.yaml` et **publies dans `spis/repo/`**
+(depot Maven versionne dans Git). Les microservices le lisent via `../spis/repo` : un `git pull` suffit.
+
+### Consommer les SPIs (tous)
+
+```bash
+git pull
+cd <service> && ./mvnw package
+```
+
+### Modifier un contrat (via Pull Request)
+
+1. Modifier `contracts/<service>.yaml` et `contracts/CHANGELOG.md`.
+2. Incrementer la version : `(cd spis && ./mvnw -B -q versions:set -DnewVersion=1.1.0 -DgenerateBackupPoms=false)`
+3. Aligner `<alumni.spi.version>` dans le `pom.xml` des services concernes.
+4. `./spis/build.sh <service>` (ou sans argument pour tous), puis committer `contracts/`, `spis/` et les `pom.xml`.
+
+Toujours changer la version : Maven ne revalide jamais une version deja resolue (`updatePolicy=never`).

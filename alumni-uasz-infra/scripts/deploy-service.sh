@@ -8,7 +8,8 @@ SVC_DIR="$ROOT/$SVC"
 [[ -d "$SVC_DIR" ]] || { echo "Dépôt introuvable : $SVC_DIR" >&2; exit 1; }
 [[ -f "$SVC_DIR/k8s/overlays/dev/db.env" ]] || { echo "db.env absent : lancez 'make k8s-secrets' dans $SVC" >&2; exit 1; }
 
-docker build -t "$SVC:dev" "$SVC_DIR"
+# Contexte = racine du monorepo (spis/repo necessaire au build)
+docker build -f "$ROOT/docker/service.Dockerfile" --build-arg SERVICE="$SVC" -t "$SVC:dev" "$ROOT"
 kind load docker-image "$SVC:dev" --name alumni-uasz
 kubectl apply -k "$SVC_DIR/k8s/overlays/dev"
 # redémarre pour prendre en compte une image :dev reconstruite

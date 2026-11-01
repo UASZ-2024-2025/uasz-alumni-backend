@@ -14,7 +14,32 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Détecte les microservices modifiés : seuls ceux-là sont construits.
+  # Les contrats produisent-ils des SPIs valides ? (verify : aucune publication)
+  spis-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: spis
+        with:
+          filters: |
+            changed:
+              - 'contracts/**'
+              - 'spis/pom.xml'
+              - 'spis/*-spi/pom.xml'
+      - uses: actions/setup-java@v4
+        if: steps.spis.outputs.changed == 'true'
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+          cache-dependency-path: spis/pom.xml
+      - name: Generer les SPIs (verification)
+        if: steps.spis.outputs.changed == 'true'
+        working-directory: spis
+        run: ./mvnw -B -ntp clean verify -DskipTests
+
+  # Detecte les microservices modifies : seuls ceux-la sont construits.
   changes:
     runs-on: ubuntu-latest
     outputs:
@@ -25,11 +50,31 @@ jobs:
         id: filter
         with:
           filters: |
-            user-service: ['user-service/**']
-            alumni-student-company-service: ['alumni-student-company-service/**']
-            job-offer-service: ['job-offer-service/**']
-            analytics-matching-service: ['analytics-matching-service/**']
-            notification-messaging-service: ['notification-messaging-service/**']
+            user-service:
+              - 'user-service/**'
+              - 'spis/repo/com/uasz/alumni/user-service-spi/**'
+              - 'spis/repo/com/uasz/alumni/alumni-spis/**'
+              - 'docker/**'
+            alumni-student-company-service:
+              - 'alumni-student-company-service/**'
+              - 'spis/repo/com/uasz/alumni/alumni-student-company-service-spi/**'
+              - 'spis/repo/com/uasz/alumni/alumni-spis/**'
+              - 'docker/**'
+            job-offer-service:
+              - 'job-offer-service/**'
+              - 'spis/repo/com/uasz/alumni/job-offer-service-spi/**'
+              - 'spis/repo/com/uasz/alumni/alumni-spis/**'
+              - 'docker/**'
+            analytics-matching-service:
+              - 'analytics-matching-service/**'
+              - 'spis/repo/com/uasz/alumni/analytics-matching-service-spi/**'
+              - 'spis/repo/com/uasz/alumni/alumni-spis/**'
+              - 'docker/**'
+            notification-messaging-service:
+              - 'notification-messaging-service/**'
+              - 'spis/repo/com/uasz/alumni/notification-messaging-service-spi/**'
+              - 'spis/repo/com/uasz/alumni/alumni-spis/**'
+              - 'docker/**'
 
   build:
     needs: changes
@@ -39,9 +84,6 @@ jobs:
       fail-fast: false
       matrix:
         service: ${{ fromJson(needs.changes.outputs.services) }}
-    defaults:
-      run:
-        working-directory: ${{ matrix.service }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -50,7 +92,10 @@ jobs:
           java-version: "21"
           cache: maven
           cache-dependency-path: ${{ matrix.service }}/pom.xml
-      - run: ./mvnw -B -DskipTests package
+
+      - name: Build Maven
+        working-directory: ${{ matrix.service }}
+        run: ./mvnw -B -DskipTests package
 
       - name: Nom d'image (minuscules)
         run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}/${{ matrix.service }}" >> "$GITHUB_ENV"
@@ -70,7 +115,10 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
       - uses: docker/build-push-action@v6
         with:
-          context: ${{ matrix.service }}
+          context: ${{ github.workspace }}
+          file: docker/service.Dockerfile
+          build-args: |
+            SERVICE=${{ matrix.service }}
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=gha,scope=${{ matrix.service }}
