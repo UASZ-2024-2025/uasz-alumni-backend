@@ -9,3 +9,9 @@ data:
   # URL de production des contrats : https://api.alumni-uasz.sn/user-service/v1
   API_PREFIX: /user-service/v1
   JWT_ISSUER: alumni-uasz-user
+  # Emails : serveur SMTP réel à fournir par overlay (prod). MAIL_USERNAME / MAIL_PASSWORD : secret hors dépôt.
+  MAIL_HOST: mailpit
+  MAIL_PORT: "1025"
+  MAIL_FROM: no-reply@alumni-uasz.sn
+  FRONTEND_URL: http://localhost:4200
+  EMAIL_CONFIRMATION_TTL: 24h
