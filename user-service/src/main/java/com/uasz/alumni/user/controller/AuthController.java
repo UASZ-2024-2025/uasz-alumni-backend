@@ -1,3 +1,4 @@
+
 package com.uasz.alumni.user.controller;
 
 import com.uasz.alumni.user.exceptions.NotImplementedYetException;
@@ -16,20 +17,11 @@ import com.uasz.alumni.user.spi.model.ResendConfirmationRequest;
 import com.uasz.alumni.user.spi.model.ResetPasswordRequest;
 import com.uasz.alumni.user.spi.model.User;
 import com.uasz.alumni.user.utils.UserMapper;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * Implémentation de l'interface {@link AuthApi} générée depuis le contrat.
- *
- * <ul>
- *   <li>AL-18 : {@code registerUser}, {@code confirmEmail}, {@code resendConfirmation}</li>
- *   <li>AL-19 : {@code loginUser}, {@code refreshToken}, {@code logoutUser} (à implémenter)</li>
- *   <li>AL-20 : {@code forgotPassword}, {@code resetPassword} (à implémenter)</li>
- * </ul>
- * Les méthodes des autres tickets répondent 501 en attendant : remplacez simplement leur corps.
- */
 @RestController
 public class AuthController implements AuthApi {
 
@@ -39,28 +31,42 @@ public class AuthController implements AuthApi {
         this.registration = registration;
     }
 
-    // ───── AL-18 ─────
+    // ================= AL-18 : INSCRIPTION =================
 
     @Override
     public ResponseEntity<User> registerUser(RegisterRequest registerRequest) {
         UserAccount account = registration.register(registerRequest);
-        return ResponseEntity.status(HttpStatus.CREATED).body(UserMapper.toApi(account));
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(UserMapper.toApi(account));
     }
 
     @Override
-    public ResponseEntity<MessageResponse> confirmEmail(ConfirmEmailRequest confirmEmailRequest) {
+    public ResponseEntity<MessageResponse> confirmEmail(
+            ConfirmEmailRequest confirmEmailRequest) {
+
         registration.confirmEmail(confirmEmailRequest.getToken());
-        return ResponseEntity.ok(new MessageResponse().message("Compte activé avec succès."));
+
+        return ResponseEntity.ok(
+                new MessageResponse().message("Compte activé avec succès.")
+        );
     }
 
     @Override
-    public ResponseEntity<MessageResponse> resendConfirmation(ResendConfirmationRequest resendConfirmationRequest) {
+    public ResponseEntity<MessageResponse> resendConfirmation(
+            ResendConfirmationRequest resendConfirmationRequest) {
+
         registration.resendConfirmation(resendConfirmationRequest.getEmail());
-        return ResponseEntity.ok(new MessageResponse()
-                .message("Si un compte en attente existe pour cette adresse, un email de confirmation vient d'être envoyé."));
+
+        return ResponseEntity.ok(
+                new MessageResponse().message(
+                        "Si un compte en attente existe pour cette adresse, "
+                        + "un email de confirmation vient d'être envoyé."
+                )
+        );
     }
 
-    // ───── AL-19 (connexion) : à implémenter ─────
+    // ================= AL-19 : AUTHENTIFICATION =================
 
     @Override
     public ResponseEntity<AuthResponse> loginUser(LoginRequest loginRequest) {
@@ -68,7 +74,9 @@ public class AuthController implements AuthApi {
     }
 
     @Override
-    public ResponseEntity<AuthResponse> refreshToken(RefreshTokenRequest refreshTokenRequest) {
+    public ResponseEntity<AuthResponse> refreshToken(
+            RefreshTokenRequest refreshTokenRequest) {
+
         throw new NotImplementedYetException("AL-19");
     }
 
@@ -77,15 +85,19 @@ public class AuthController implements AuthApi {
         throw new NotImplementedYetException("AL-19");
     }
 
-    // ───── AL-20 (mot de passe) : à implémenter ─────
+    // ================= AL-20 : MOT DE PASSE =================
 
     @Override
-    public ResponseEntity<MessageResponse> forgotPassword(ForgotPasswordRequest forgotPasswordRequest) {
+    public ResponseEntity<MessageResponse> forgotPassword(
+            ForgotPasswordRequest forgotPasswordRequest) {
+
         throw new NotImplementedYetException("AL-20");
     }
 
     @Override
-    public ResponseEntity<MessageResponse> resetPassword(ResetPasswordRequest resetPasswordRequest) {
+    public ResponseEntity<MessageResponse> resetPassword(
+            ResetPasswordRequest resetPasswordRequest) {
+
         throw new NotImplementedYetException("AL-20");
     }
 }

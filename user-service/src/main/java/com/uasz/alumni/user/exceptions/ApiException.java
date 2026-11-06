@@ -2,7 +2,7 @@ package com.uasz.alumni.user.exceptions;
 
 import org.springframework.http.HttpStatus;
 
-/** Erreur métier convertie en {@code ErrorResponse} (voir le contrat) par {@link ApiExceptionHandler}. */
+/** Erreur métier de base : porte le statut HTTP et un code applicatif (champ "code" de ErrorResponse). */
 public class ApiException extends RuntimeException {
 
     private final HttpStatus status;

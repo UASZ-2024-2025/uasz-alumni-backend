@@ -1,3 +1,4 @@
+
 package com.uasz.alumni.user.config;
 
 import java.util.Arrays;
@@ -16,11 +17,6 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-/**
- * Configuration de sécurité de base : API stateless, sondes de santé publiques,
- * tout le reste authentifié. La validation JWT et les règles par endpoint
- * (selon les contrats) seront ajoutées lors de l'implémentation.
- */
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
@@ -38,7 +34,6 @@ public class SecurityConfig {
                 .toList();
     }
 
-    /** Autorise le frontend (ex. http://localhost:4200) à appeler l'API depuis le navigateur. */
     @Bean
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
@@ -46,6 +41,7 @@ public class SecurityConfig {
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
         config.setMaxAge(3600L);
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;
@@ -61,10 +57,18 @@ public class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/health/**", "/actuator/info").permitAll()
-                // Inscription, confirmation d'email, connexion, mot de passe oublié : accessibles sans jeton.
-                // Le préfixe d'API varie (/v1 en local, /user-service/v1 sur Kubernetes).
-                .requestMatchers(apiPrefix + "/auth/**").permitAll()
-                .anyRequest().authenticated());
+                .requestMatchers(
+                    apiPrefix + "/auth/register",
+                    apiPrefix + "/auth/login",
+                    apiPrefix + "/auth/refresh-token",
+                    apiPrefix + "/auth/forgot-password",
+                    apiPrefix + "/auth/reset-password",
+                    apiPrefix + "/auth/confirm-email",
+                    apiPrefix + "/auth/resend-confirmation"
+                ).permitAll()
+                .anyRequest().authenticated()
+            );
+
         return http.build();
     }
 }
