@@ -21,6 +21,27 @@ for s in alumni-student-company job-offer analytics-matching notification-messag
 done
 ```
 
+## Lancer un microservice
+
+```bash
+cd chemin_du_microservice
+make up 
+```
+
+## Commandes SonarQube
+
+```bash
+./sonar/sonar.sh up              # démarre SonarQube + sa base (http://localhost:9000)
+./sonar/sonar.sh init            # 1re fois : change le mot de passe admin, génère le token
+./sonar/sonar.sh scan            # analyse les 5 services
+./sonar/sonar.sh scan user-service   # un seul service
+./sonar/sonar.sh open            # ouvre le tableau de bord
+```
+
+Par defaut en local pour connexion sonarqube:
+Login : admin
+Mot de passe : Alumni-Uasz-2026!
+
 ## CI/CD
 
 `.github/workflows/` (racine) : CI et CD ne traitent que les microservices modifiés.

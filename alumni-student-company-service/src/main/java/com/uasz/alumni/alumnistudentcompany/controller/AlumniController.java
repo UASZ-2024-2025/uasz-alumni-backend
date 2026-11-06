@@ -1,5 +1,6 @@
 package com.uasz.alumni.alumnistudentcompany.controller;
 
+import com.uasz.alumni.alumnistudentcompany.exceptions.NotImplementedYetException;
 import com.uasz.alumni.alumnistudentcompany.model.Recommendation;
 import com.uasz.alumni.alumnistudentcompany.service.RecommendationService;
 import com.uasz.alumni.alumnistudentcompany.spi.api.AlumniApi;
@@ -18,7 +19,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 public class AlumniController implements AlumniApi {
@@ -27,6 +27,37 @@ public class AlumniController implements AlumniApi {
 
     public AlumniController(RecommendationService recommendations) {
         this.recommendations = recommendations;
+    }
+
+    @Override
+    public ResponseEntity<AlumniPagedResponse> searchAlumni(String query, UUID companyId, Integer graduationYear,
+                                                            Integer page, Integer size) {
+        // TODO : recherche paginée (nom, entreprise, poste, année)
+        throw new NotImplementedYetException("searchAlumni");
+    }
+
+    @Override
+    public ResponseEntity<AlumniProfile> getAlumniById(UUID id) {
+        // TODO : profil détaillé -> 200 / 404
+        throw new NotImplementedYetException("getAlumniById");
+    }
+
+    @Override
+    public ResponseEntity<AlumniProfile> updateAlumniProfile(UUID id, AlumniProfileUpdateRequest alumniProfileUpdateRequest) {
+        // TODO : mise à jour du profil -> 200 / 400 / 404
+        throw new NotImplementedYetException("updateAlumniProfile");
+    }
+
+    @Override
+    public ResponseEntity<List<WorkExperience>> getAlumniExperiences(UUID id) {
+        // TODO : parcours professionnel
+        throw new NotImplementedYetException("getAlumniExperiences");
+    }
+
+    @Override
+    public ResponseEntity<WorkExperience> addAlumniExperience(UUID id, WorkExperienceRequest workExperienceRequest) {
+        // TODO : ajouter une expérience -> 201 / 400
+        throw new NotImplementedYetException("addAlumniExperience");
     }
 
     @Override
@@ -40,21 +71,5 @@ public class AlumniController implements AlumniApi {
         return ResponseEntity.status(HttpStatus.CREATED).body(new RecommendationResponse()
             .id(r.getId()).recommenderId(r.getRecommenderId()).studentId(r.getStudentId())
             .companyId(r.getCompanyId()).comments(r.getComments()).createdAt(r.getCreatedAt()));
-    }
-
-    // Autres endpoints du tag Alumni : tickets distincts.
-    @Override
-    public ResponseEntity<WorkExperience> addAlumniExperience(UUID id, WorkExperienceRequest body) { throw nonImplemente(); }
-    @Override
-    public ResponseEntity<AlumniProfile> getAlumniById(UUID id) { throw nonImplemente(); }
-    @Override
-    public ResponseEntity<List<WorkExperience>> getAlumniExperiences(UUID id) { throw nonImplemente(); }
-    @Override
-    public ResponseEntity<AlumniPagedResponse> searchAlumni(String q, UUID promotionId, Integer a, Integer b, Integer c) { throw nonImplemente(); }
-    @Override
-    public ResponseEntity<AlumniProfile> updateAlumniProfile(UUID id, AlumniProfileUpdateRequest body) { throw nonImplemente(); }
-
-    private static ResponseStatusException nonImplemente() {
-        return new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED);
     }
 }
