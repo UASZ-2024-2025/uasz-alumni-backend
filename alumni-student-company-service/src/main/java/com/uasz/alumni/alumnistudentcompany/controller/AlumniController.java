@@ -1,6 +1,8 @@
 package com.uasz.alumni.alumnistudentcompany.controller;
 
 import com.uasz.alumni.alumnistudentcompany.exceptions.NotImplementedYetException;
+import com.uasz.alumni.alumnistudentcompany.model.Recommendation;
+import com.uasz.alumni.alumnistudentcompany.service.RecommendationService;
 import com.uasz.alumni.alumnistudentcompany.spi.api.AlumniApi;
 import com.uasz.alumni.alumnistudentcompany.spi.model.AlumniPagedResponse;
 import com.uasz.alumni.alumnistudentcompany.spi.model.AlumniProfile;
@@ -11,11 +13,21 @@ import com.uasz.alumni.alumnistudentcompany.spi.model.WorkExperience;
 import com.uasz.alumni.alumnistudentcompany.spi.model.WorkExperienceRequest;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 public class AlumniController implements AlumniApi {
+
+    private final RecommendationService recommendations;
+
+    public AlumniController(RecommendationService recommendations) {
+        this.recommendations = recommendations;
+    }
 
     @Override
     public ResponseEntity<AlumniPagedResponse> searchAlumni(String query, UUID companyId, Integer graduationYear,
@@ -49,8 +61,15 @@ public class AlumniController implements AlumniApi {
     }
 
     @Override
-    public ResponseEntity<RecommendationResponse> recommendCandidate(RecommendationRequest recommendationRequest) {
-        // TODO : enregistrer la recommandation (recommenderId = utilisateur courant) -> 201 / 400
-        throw new NotImplementedYetException("recommendCandidate");
+    @PreAuthorize("hasRole('ALUMNI')")
+    public ResponseEntity<RecommendationResponse> recommendCandidate(RecommendationRequest request) {
+        // Le contrôleur n'a pas accès au JWT par paramètre (signature imposée par le SPI) : on le lit dans le contexte.
+        Jwt jwt = (Jwt) SecurityContextHolder.getContext()
+            .getAuthentication().getPrincipal();
+        Recommendation r = recommendations.recommander(UUID.fromString(jwt.getSubject()),
+            request.getStudentId(), request.getCompanyId(), request.getComments(), jwt.getTokenValue());
+        return ResponseEntity.status(HttpStatus.CREATED).body(new RecommendationResponse()
+            .id(r.getId()).recommenderId(r.getRecommenderId()).studentId(r.getStudentId())
+            .companyId(r.getCompanyId()).comments(r.getComments()).createdAt(r.getCreatedAt()));
     }
 }

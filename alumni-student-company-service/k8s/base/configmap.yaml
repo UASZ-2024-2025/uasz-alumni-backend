@@ -9,3 +9,4 @@ data:
   # URL de production des contrats : https://api.alumni-uasz.sn/alumni-student-company-service/v1
   API_PREFIX: /alumni-student-company-service/v1
   JWT_ISSUER: alumni-uasz-user
+  NOTIFICATION_SERVICE_URL: http://notification-messaging-service:8085/notification-messaging-service/v1
