@@ -21,6 +21,13 @@ for s in alumni-student-company job-offer analytics-matching notification-messag
 done
 ```
 
+## Lancer un microservice
+
+```bash
+cd chemin_du_microservice
+make up 
+```
+
 ## CI/CD
 
 `.github/workflows/` (racine) : CI et CD ne traitent que les microservices modifiés.
