@@ -22,7 +22,7 @@ public class SmtpEmailService implements EmailService {
     @Override
     public void sendConfirmationEmail(String to, String firstName, String token) {
         String link = UriComponentsBuilder.fromUriString(properties.frontendUrl())
-                .path("/confirmer-email")
+                .path("/confirmation-email")
                 .queryParam("token", token)
                 .build()
                 .toUriString();

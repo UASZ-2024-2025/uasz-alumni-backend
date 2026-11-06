@@ -32,7 +32,7 @@ class SmtpEmailServiceTest {
         assertThat(message.getFrom()).isEqualTo("no-reply@alumni-uasz.sn");
         assertThat(message.getText())
                 .contains("Bonjour Awa")
-                .contains("http://localhost:4200/confirmer-email?token=tok123")
+                .contains("http://localhost:4200/confirmation-email?token=tok123")
                 .contains("24 heures");
     }
 }
