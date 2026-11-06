@@ -4,7 +4,7 @@
 load_env
 
 info "Démarrage de PostgreSQL..."
-docker compose up -d --wait postgres
+docker compose up -d --wait postgres mailpit
 
 info "Démarrage de l'application (profil local)..."
 SPRING_PROFILES_ACTIVE=local exec ./mvnw spring-boot:run

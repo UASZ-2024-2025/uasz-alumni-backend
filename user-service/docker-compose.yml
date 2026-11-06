@@ -19,6 +19,13 @@ services:
       timeout: 3s
       retries: 10
 
+  # Faux serveur SMTP de développement : les emails sont visibles sur http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "127.0.0.1:8025:8025"
+      - "127.0.0.1:${MAIL_PORT:?MAIL_PORT manquant}:1025"
+
   user-service:
     build:
       context: ..
@@ -28,6 +35,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      mailpit:
+        condition: service_started
     environment:
       SERVER_PORT: ${SERVER_PORT:?SERVER_PORT manquant}
       FORWARD_HEADERS_STRATEGY: ${FORWARD_HEADERS_STRATEGY:?FORWARD_HEADERS_STRATEGY manquant}
@@ -38,6 +47,14 @@ services:
       JWT_ISSUER: ${JWT_ISSUER:?JWT_ISSUER manquant}
       API_PREFIX: ${API_PREFIX:?API_PREFIX manquant}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?CORS_ALLOWED_ORIGINS manquant}
+      # Dans Docker, l'appli joint Mailpit par le nom du service (port interne 1025)
+      MAIL_HOST: mailpit
+      MAIL_PORT: "1025"
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:?MAIL_FROM manquant}
+      FRONTEND_URL: ${FRONTEND_URL:?FRONTEND_URL manquant}
+      EMAIL_CONFIRMATION_TTL: ${EMAIL_CONFIRMATION_TTL:?EMAIL_CONFIRMATION_TTL manquant}
     ports:
       - "127.0.0.1:${SERVER_PORT:?SERVER_PORT manquant}:${SERVER_PORT}"
     healthcheck:

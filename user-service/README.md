@@ -40,3 +40,18 @@ k8s/overlays/prod  image GHCR, configuration de production (secrets hors dépôt
 - 12-factor : aucune valeur par défaut dans les yml, aucun secret dans le dépôt (`.env` ignoré par git).
 - JWT : même `JWT_SECRET` et même `JWT_ISSUER` dans tous les services.
 - Probes K8s : `/actuator/health/liveness` et `/actuator/health/readiness`.
+
+## Inscription et confirmation d'email (AL-18)
+
+| Endpoint | Comportement |
+|---|---|
+| `POST /auth/register` | Crée le compte au statut `EN_ATTENTE`, envoie le lien de confirmation. 201 · 400 · 409 (email déjà utilisé). Le rôle `ADMINISTRATEUR` est refusé (400 `ROLE_NOT_ALLOWED`). |
+| `POST /auth/confirm-email` | Active le compte (`ACTIF`) si le jeton est valide, non expiré, non utilisé. 200 · 400 `INVALID_OR_EXPIRED_TOKEN`. |
+| `POST /auth/resend-confirmation` | Renvoie un lien (l'ancien est invalidé). 200 (même réponse si l'adresse est inconnue) · 409 si déjà activé. |
+
+- Le jeton (256 bits aléatoires) n'est **jamais stocké** : la base ne contient que son empreinte SHA-256. Durée de validité : `EMAIL_CONFIRMATION_TTL`.
+- Le lien envoyé est `${FRONTEND_URL}/confirmation-email?token=...` : la page correspondante existe côté frontend (`ConfirmationEmail`), elle appelle `POST /auth/confirm-email`.
+- Les emails partent après le commit de la transaction. Une panne SMTP est journalisée sans faire échouer l'inscription (l'utilisateur peut redemander un email).
+- En développement, `make db` / `make run` lancent **Mailpit** : les emails sont lisibles sur http://localhost:8025. Après un `git pull`, lancer `make env-complete` pour ajouter les nouvelles clés à votre `.env`.
+- `loginUser`, `refreshToken`, `logoutUser` (AL-19) et `forgotPassword`, `resetPassword` (AL-20) répondent 501 dans `AuthController` en attendant leur implémentation.
+- Tests : `./mvnw test` (Mockito, sans base de données).

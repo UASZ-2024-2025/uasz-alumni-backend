@@ -1,6 +1,9 @@
+
 package com.uasz.alumni.user.controller;
 
 import com.uasz.alumni.user.exceptions.NotImplementedYetException;
+import com.uasz.alumni.user.model.UserAccount;
+import com.uasz.alumni.user.service.RegistrationService;
 import com.uasz.alumni.user.spi.api.AuthApi;
 import com.uasz.alumni.user.spi.model.AuthResponse;
 import com.uasz.alumni.user.spi.model.ConfirmEmailRequest;
@@ -13,57 +16,88 @@ import com.uasz.alumni.user.spi.model.RegisterRequest;
 import com.uasz.alumni.user.spi.model.ResendConfirmationRequest;
 import com.uasz.alumni.user.spi.model.ResetPasswordRequest;
 import com.uasz.alumni.user.spi.model.User;
+import com.uasz.alumni.user.utils.UserMapper;
+
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 public class AuthController implements AuthApi {
 
+    private final RegistrationService registration;
+
+    public AuthController(RegistrationService registration) {
+        this.registration = registration;
+    }
+
+    // ================= AL-18 : INSCRIPTION =================
+
     @Override
     public ResponseEntity<User> registerUser(RegisterRequest registerRequest) {
-        // TODO : créer le compte (statut EN_ATTENTE) + envoyer l'email de confirmation -> 201
-        throw new NotImplementedYetException("registerUser");
+        UserAccount account = registration.register(registerRequest);
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(UserMapper.toApi(account));
     }
+
+    @Override
+    public ResponseEntity<MessageResponse> confirmEmail(
+            ConfirmEmailRequest confirmEmailRequest) {
+
+        registration.confirmEmail(confirmEmailRequest.getToken());
+
+        return ResponseEntity.ok(
+                new MessageResponse().message("Compte activé avec succès.")
+        );
+    }
+
+    @Override
+    public ResponseEntity<MessageResponse> resendConfirmation(
+            ResendConfirmationRequest resendConfirmationRequest) {
+
+        registration.resendConfirmation(resendConfirmationRequest.getEmail());
+
+        return ResponseEntity.ok(
+                new MessageResponse().message(
+                        "Si un compte en attente existe pour cette adresse, "
+                        + "un email de confirmation vient d'être envoyé."
+                )
+        );
+    }
+
+    // ================= AL-19 : AUTHENTIFICATION =================
 
     @Override
     public ResponseEntity<AuthResponse> loginUser(LoginRequest loginRequest) {
-        // TODO : vérifier identifiants/statut, émettre accessToken + refreshToken -> 200 / 401 / 403
-        throw new NotImplementedYetException("loginUser");
+        throw new NotImplementedYetException("AL-19");
     }
 
     @Override
-    public ResponseEntity<AuthResponse> refreshToken(RefreshTokenRequest refreshTokenRequest) {
-        // TODO : valider le refresh token, émettre un nouveau jeton -> 200 / 401
-        throw new NotImplementedYetException("refreshToken");
+    public ResponseEntity<AuthResponse> refreshToken(
+            RefreshTokenRequest refreshTokenRequest) {
+
+        throw new NotImplementedYetException("AL-19");
     }
 
     @Override
     public ResponseEntity<Void> logoutUser(LogoutRequest logoutRequest) {
-        // TODO : invalider le refresh token -> 204
-        throw new NotImplementedYetException("logoutUser");
+        throw new NotImplementedYetException("AL-19");
+    }
+
+    // ================= AL-20 : MOT DE PASSE =================
+
+    @Override
+    public ResponseEntity<MessageResponse> forgotPassword(
+            ForgotPasswordRequest forgotPasswordRequest) {
+
+        throw new NotImplementedYetException("AL-20");
     }
 
     @Override
-    public ResponseEntity<MessageResponse> forgotPassword(ForgotPasswordRequest forgotPasswordRequest) {
-        // TODO : réponse générique (anti-énumération) + email de réinitialisation -> 200
-        throw new NotImplementedYetException("forgotPassword");
-    }
+    public ResponseEntity<MessageResponse> resetPassword(
+            ResetPasswordRequest resetPasswordRequest) {
 
-    @Override
-    public ResponseEntity<MessageResponse> resetPassword(ResetPasswordRequest resetPasswordRequest) {
-        // TODO : valider le token, appliquer la politique de mot de passe -> 200 / 400 / 422
-        throw new NotImplementedYetException("resetPassword");
-    }
-
-    @Override
-    public ResponseEntity<MessageResponse> confirmEmail(ConfirmEmailRequest confirmEmailRequest) {
-        // TODO : valider le token, passer le compte à ACTIF -> 200 / 400
-        throw new NotImplementedYetException("confirmEmail");
-    }
-
-    @Override
-    public ResponseEntity<MessageResponse> resendConfirmation(ResendConfirmationRequest resendConfirmationRequest) {
-        // TODO : renvoyer l'email de confirmation -> 200 / 409 (déjà activé)
-        throw new NotImplementedYetException("resendConfirmation");
+        throw new NotImplementedYetException("AL-20");
     }
 }
