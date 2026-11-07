@@ -12,6 +12,15 @@ Plateforme Alumni UASZ : architecture microservices, approche **contract first**
 | `notification-messaging-service` | 8085 | messagerie privée, groupes, notifications            |
 | `contracts`                      |      | contrats OpenAPI (source de vérité)                  |
 
+## Documentation d'architecture
+
+Voir **[`docs/`](docs/README.md)** :
+
+- [Justification de l'architecture](docs/architecture.md) : exigences, monolithe modulaire vs microservices, stack, composants et interfaces
+- Diagrammes UML : [composants](docs/diagrams/composants.md), [packages](docs/diagrams/packages.md), [déploiement](docs/diagrams/deploiement.md), [classes par service](docs/diagrams/classes.md)
+- Décisions d'architecture : [ADR](docs/adr/README.md)
+- Compléments : [cas d'utilisation](docs/diagrams/cas-utilisation.md), [séquences](docs/diagrams/sequences.md)
+
 ## Première installation
 
 ```bash
