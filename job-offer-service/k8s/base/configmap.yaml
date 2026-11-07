@@ -9,3 +9,5 @@ data:
   # URL de production des contrats : https://api.alumni-uasz.sn/job-offer-service/v1
   API_PREFIX: /job-offer-service/v1
   JWT_ISSUER: alumni-uasz-user
+  # Le Service K8s expose le port 80 (targetPort = port du conteneur)
+  NOTIFICATION_SERVICE_URL: http://notification-messaging-service/notification-messaging-service/v1
