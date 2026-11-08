@@ -1,0 +1,27 @@
+# Profil de test : tout est en dur (le application.yaml principal n'a aucune valeur par défaut).
+server:
+  port: 0
+  forward-headers-strategy: none
+spring:
+  datasource:
+    url: jdbc:h2:mem:joboffer;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ""
+security:
+  api:
+    prefix: /v1
+  cors:
+    allowed-origins: http://localhost:4200
+jwt:
+  secret: dGVzdHMtb25seS1zZWNyZXQtMDEyMzQ1Njc4OS1hYmNkZWZnaGlqa2xtbm9w
+  issuer: alumni-uasz-user
+notification:
+  # remplacé par l'URL du faux service de notification (@DynamicPropertySource)
+  base-url: http://127.0.0.1:1/v1
+  connect-timeout: 300ms
+  read-timeout: 500ms
+  retry:
+    max-retries: 3
+    delay-ms: 20
+    multiplier: 2
+    max-delay-ms: 100

@@ -41,6 +41,12 @@
       <artifactId>job-offer-service-spi</artifactId>
       <version>${alumni.spi.version}</version>
     </dependency>
+    <!-- Client : contrat de notification-messaging-service (POST /notifications/send) -->
+    <dependency>
+      <groupId>com.uasz.alumni</groupId>
+      <artifactId>notification-messaging-service-spi</artifactId>
+      <version>${alumni.spi.version}</version>
+    </dependency>
 
     <!-- Web / API REST -->
     <dependency>
@@ -56,6 +62,12 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-security</artifactId>
+    </dependency>
+
+    <!-- Validation des JWT (HS256, secret partagé) et jetons de service -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
     </dependency>
 
     <!-- Observabilité : health, probes Kubernetes -->
@@ -82,6 +94,28 @@
       <groupId>org.postgresql</groupId>
       <artifactId>postgresql</artifactId>
       <scope>runtime</scope>
+    </dependency>
+
+    <!-- Tests -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-webmvc-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.h2database</groupId>
+      <artifactId>h2</artifactId>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 

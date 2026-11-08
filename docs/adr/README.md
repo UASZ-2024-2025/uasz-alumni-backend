@@ -22,7 +22,8 @@ système est ainsi, pas seulement **comment** il est fait.
 | [0003](0003-monorepo.md) | Monorepo unique pour les services, les contrats et l'infrastructure | Accepté | 2026-11-01 |
 | [0004](0004-base-de-donnees-par-service.md) | Une base PostgreSQL par service, schéma géré par Flyway | Accepté | 2026-11-01 |
 | [0005](0005-authentification-jwt.md) | Authentification stateless par JWT signé avec un secret partagé (HS256) | Accepté, à réévaluer | 2026-11-01 |
-| [0006](0006-communication-rest-synchrone.md) | Communication entre services en REST synchrone (pas de broker en v1) | Accepté, à réévaluer | 2026-11-07 |
+| [0006](0006-communication-rest-synchrone.md) | Communication entre services en REST (pas de broker en v1), avec timeouts et retry | Accepté, à réévaluer | 2026-11-07 |
 | [0007](0007-distribution-spis-depot-maven-git.md) | Distribution des SPIs par un dépôt Maven versionné dans Git | Accepté | 2026-11-01 |
 | [0008](0008-deploiement-docker-kubernetes.md) | Conteneurisation Docker et déploiement Kubernetes (kustomize, kind en local) | Accepté | 2026-11-01 |
 | [0009](0009-stack-java-spring-boot.md) | Java 21 et Spring Boot comme stack backend commune | Accepté | 2026-11-01 |
+| [0010](0010-jeton-de-service.md) | Authentification des appels inter-services par jeton de service | Accepté | 2026-11-07 |

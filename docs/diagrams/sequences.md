@@ -1,7 +1,8 @@
 # Diagrammes de séquence des flux clés
 
 Flux cibles décrits à partir des contrats OpenAPI. Les appels de service à service sont en REST
-synchrone, avec propagation du JWT de l'appelant.
+authentifiés par un jeton de service (ADR-0010) ; les notifications partent de façon asynchrone après le commit,
+avec timeout et retry (ADR-0006).
 
 ## 1. Inscription et activation du compte
 
@@ -75,11 +76,27 @@ sequenceDiagram
     end
 
     R->>F: Examine les candidatures
-    F->>J: PATCH /applications/{id}/status {status: SHORTLISTED}
-    J->>JDB: UPDATE application
-    J->>N: POST /notifications/send (userId = étudiant, APPLICATION_STATUS_CHANGED)
-    J-->>F: 200 Application
-    N-->>E: Notification in-app / email
+    F->>J: PATCH /applications/{id}/status {status: SHORTLISTED} + JWT
+    J->>J: Vérifie le JWT : publieur de l'offre ou administrateur
+    J->>JDB: UPDATE application (transaction)
+    J->>J: Publie ApplicationStatusChanged
+    J-->>F: 200 Application (n'attend pas la notification)
+
+    Note over J,N: Après le commit, sur un autre thread (@Async)
+    J->>J: Jeton de service (iss=alumni-uasz-internal,<br/>sub=job-offer-service, aud=notification-messaging-service, role=SERVICE)
+    loop jusqu'à 4 tentatives (timeouts 2 s / 3 s, délais 500 ms → 1 s → 2 s)
+        J->>N: POST /notifications/send {userId = étudiant, APPLICATION_STATUS_CHANGED}
+        alt 201 Created
+            N-->>J: Notification
+        else réseau, timeout, 5xx ou 429
+            N--xJ: erreur transitoire, nouvelle tentative
+        end
+    end
+    opt toutes les tentatives échouent, ou erreur 4xx
+        J->>J: Journalise l'échec (le statut reste enregistré)
+    end
+    E->>N: GET /notifications + JWT
+    N-->>E: Notification « Votre candidature a été mise à jour »
 ```
 
 ## 3. Matching étudiant → offres

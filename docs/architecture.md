@@ -156,7 +156,7 @@ Nous retenons une architecture en **5 microservices**. Raisons :
 
 ## 4. Stack technique retenue
 
-> Voir les ADR [0002](adr/0002-contract-first-openapi.md) à [0009](adr/0009-stack-java-spring-boot.md).
+> Voir les ADR [0002](adr/0002-contract-first-openapi.md) à [0010](adr/0010-jeton-de-service.md).
 
 | Couche | Choix | Justification |
 | --- | --- | --- |
@@ -194,7 +194,10 @@ Voir le [diagramme de composants](diagrams/composants.md) et le [diagramme de pa
 
 - **Front → services** : REST/JSON via l'ingress, avec un en-tête `Authorization: Bearer <JWT>` (sauf pour les
   endpoints publics : `/auth/*`, consultation et recherche d'offres).
-- **Services → services** : REST/JSON synchrone, avec propagation du JWT de l'appelant. Les dépendances
+- **Services → services** : REST/JSON, authentifié par un **jeton de service** propre à l'appelant (le JWT de
+  l'utilisateur n'est jamais relayé), voir l'[ADR-0010](adr/0010-jeton-de-service.md). Les lectures sont
+  synchrones. Les événements (notifications) partent de façon asynchrone après le commit, avec timeout et retry, et
+  ne bloquent jamais le flux métier, voir l'[ADR-0006](adr/0006-communication-rest-synchrone.md). Les dépendances
   prévues sont les suivantes :
 
 | Consommateur | Fournisseur | Usage |
@@ -233,6 +236,10 @@ utils
   (`JWT_SECRET`, Base64 de 32 octets minimum).
 - **Autorisation** : le rôle (`ETUDIANT`, `ALUMNI`, `ENSEIGNANT`, `ADMINISTRATEUR`) est porté par le JWT et
   contrôlé dans chaque service.
+- **Appels inter-services** : jeton de service signé (émetteur `alumni-uasz-internal`, `sub` = service
+  appelant, `aud` = service appelé, rôle `SERVICE`, durée de vie de 5 min). Les endpoints internes comme
+  `POST /notifications/send` exigent ce rôle, et les endpoints utilisateurs le refusent
+  ([ADR-0010](adr/0010-jeton-de-service.md)).
 - **Stateless** : pas de session HTTP ; CSRF, formulaire de connexion et HTTP Basic désactivés.
 - **Secrets** : fichier `.env` local non versionné et généré par `make setup` ; *Secrets* Kubernetes en
   cluster.
@@ -257,7 +264,7 @@ Voir le [diagramme de déploiement](diagrams/deploiement.md).
 | --- | --- | --- |
 | Rôle « Entreprise partenaire » | Acteur du cahier des besoins (AL-62), et les contrats parlent de propositions « par un Alumni ou Entreprise », mais `RoleName` ne contient pas `ENTREPRISE` | Ajouter `ENTREPRISE` à `RoleName` et relier le compte à une `Company` (contrat `user-service` 1.1.0, à décider en équipe) |
 | RGPD | Pas encore d'export des données personnelles ni de règles de conservation ; la suppression d'un compte n'est pas propagée aux autres services | Endpoint d'export, durée de conservation, événement `UserDeleted` traité par chaque service |
-| Communication asynchrone | Les notifications passent par un appel REST synchrone | Introduire un broker (RabbitMQ ou Kafka) pour les événements (`ApplicationStatusChanged`, `OfferPublished`…) |
+| Communication asynchrone | Les notifications passent par un appel REST (asynchrone après commit, avec retry) : une notification peut être perdue si le service reste longtemps indisponible | Introduire un broker (RabbitMQ ou Kafka) pour les événements (`ApplicationStatusChanged`, `OfferPublished`…) |
 | API Gateway | L'ingress fait seulement du routage | Gateway (Spring Cloud Gateway) pour la limitation de débit et la vérification centralisée du JWT, si besoin |
 | Observabilité | Seul Actuator `health/info` est exposé | Prometheus et Grafana, logs centralisés, traçage (OpenTelemetry) |
 | Stockage des fichiers | `CvResponse.fileUrl`, `logoUrl` | Stockage objet (MinIO ou S3) |

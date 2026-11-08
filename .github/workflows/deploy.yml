@@ -43,6 +43,8 @@ jobs:
             job-offer-service:
               - 'job-offer-service/**'
               - 'spis/repo/com/uasz/alumni/job-offer-service-spi/**'
+              # client de notification-messaging-service (contrat consommé)
+              - 'spis/repo/com/uasz/alumni/notification-messaging-service-spi/**'
               - 'spis/repo/com/uasz/alumni/alumni-spis/**'
               - 'docker/**'
             analytics-matching-service:

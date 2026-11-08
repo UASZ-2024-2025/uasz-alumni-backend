@@ -40,3 +40,20 @@ jwt:
   # Base64, 32 octets minimum
   secret: ${JWT_SECRET}
   issuer: ${JWT_ISSUER}
+
+# Jetons de service pour les appels inter-services (ADR-0010) : émetteur interne, distinct de user-service
+service-token:
+  issuer: alumni-uasz-internal
+  ttl: 5m
+
+# Client de notification-messaging-service (ADR-0006 : REST, timeouts, retry, non bloquant)
+notification:
+  base-url: ${NOTIFICATION_SERVICE_URL}
+  connect-timeout: 2s
+  read-timeout: 3s
+  retry:
+    # 1 essai + 3 retries, délais 500 ms -> 1 s -> 2 s (plafond 5 s)
+    max-retries: 3
+    delay-ms: 500
+    multiplier: 2
+    max-delay-ms: 5000

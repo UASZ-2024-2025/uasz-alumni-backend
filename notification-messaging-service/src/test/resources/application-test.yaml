@@ -1,0 +1,17 @@
+# Profil de test : tout est en dur (le application.yaml principal n'a aucune valeur par défaut).
+server:
+  port: 0
+  forward-headers-strategy: none
+spring:
+  datasource:
+    url: jdbc:h2:mem:notifications;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ""
+security:
+  api:
+    prefix: /v1
+  cors:
+    allowed-origins: http://localhost:4200
+jwt:
+  secret: dGVzdHMtb25seS1zZWNyZXQtMDEyMzQ1Njc4OS1hYmNkZWZnaGlqa2xtbm9w
+  issuer: alumni-uasz-user

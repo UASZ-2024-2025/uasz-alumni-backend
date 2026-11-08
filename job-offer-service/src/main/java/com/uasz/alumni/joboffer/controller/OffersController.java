@@ -1,6 +1,9 @@
 package com.uasz.alumni.joboffer.controller;
 
+import com.uasz.alumni.joboffer.dto.JobOfferMapper;
 import com.uasz.alumni.joboffer.exceptions.NotImplementedYetException;
+import com.uasz.alumni.joboffer.security.CurrentUserProvider;
+import com.uasz.alumni.joboffer.service.OfferService;
 import com.uasz.alumni.joboffer.spi.api.OffersApi;
 import com.uasz.alumni.joboffer.spi.model.JobOffer;
 import com.uasz.alumni.joboffer.spi.model.JobOfferCreateRequest;
@@ -11,11 +14,21 @@ import com.uasz.alumni.joboffer.spi.model.OfferStatus;
 import com.uasz.alumni.joboffer.spi.model.OfferType;
 import com.uasz.alumni.joboffer.spi.model.RemoteType;
 import java.util.UUID;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 public class OffersController implements OffersApi {
+
+    private final OfferService offers;
+    private final CurrentUserProvider currentUser;
+
+    public OffersController(OfferService offers, CurrentUserProvider currentUser) {
+        this.offers = offers;
+        this.currentUser = currentUser;
+    }
 
     @Override
     public ResponseEntity<JobOfferPagedResponse> searchOffers(String query, OfferType type, UUID companyId, String location,
@@ -26,15 +39,16 @@ public class OffersController implements OffersApi {
     }
 
     @Override
+    @PreAuthorize("hasAnyRole('ALUMNI', 'ENSEIGNANT', 'ADMINISTRATEUR')")
     public ResponseEntity<JobOffer> createOffer(JobOfferCreateRequest jobOfferCreateRequest) {
-        // TODO : publier une offre (publisherId = utilisateur courant) -> 201 / 400 / 403
-        throw new NotImplementedYetException("createOffer");
+        // Rôle ENTREPRISE à ajouter quand il existera dans le contrat user-service (architecture.md §8)
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(JobOfferMapper.toDto(offers.create(currentUser.require(), jobOfferCreateRequest)));
     }
 
     @Override
     public ResponseEntity<JobOffer> getOfferById(UUID id) {
-        // TODO : détails (endpoint public) -> 200 / 404
-        throw new NotImplementedYetException("getOfferById");
+        return ResponseEntity.ok(JobOfferMapper.toDto(offers.get(id)));
     }
 
     @Override
