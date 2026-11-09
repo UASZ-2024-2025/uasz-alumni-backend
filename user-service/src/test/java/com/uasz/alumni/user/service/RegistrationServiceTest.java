@@ -12,6 +12,7 @@ import com.uasz.alumni.user.config.AppProperties;
 import com.uasz.alumni.user.exceptions.AccountAlreadyActiveException;
 import com.uasz.alumni.user.exceptions.EmailAlreadyUsedException;
 import com.uasz.alumni.user.exceptions.InvalidOrExpiredTokenException;
+import com.uasz.alumni.user.exceptions.InvalidRegistrationDataException;
 import com.uasz.alumni.user.exceptions.RoleNotAllowedException;
 import com.uasz.alumni.user.model.EmailConfirmationToken;
 import com.uasz.alumni.user.model.UserAccount;
@@ -111,6 +112,58 @@ class RegistrationServiceTest {
         assertThatThrownBy(() -> service.register(request("awa.diop@uasz.sn", RoleName.ENSEIGNANT)))
                 .isInstanceOf(EmailAlreadyUsedException.class);
         verifyNoInteractions(events);
+    }
+
+    @Test
+    void register_rethrowsIntegrityViolationsThatAreNotAboutTheEmail() {
+        when(users.existsByEmail("awa.diop@uasz.sn")).thenReturn(false);
+        when(passwordEncoder.encode("motdepasse1")).thenReturn("HASH");
+        when(users.saveAndFlush(any(UserAccount.class))).thenThrow(new DataIntegrityViolationException("ck_users_role"));
+
+        assertThatThrownBy(() -> service.register(request("awa.diop@uasz.sn", RoleName.ALUMNI)))
+                .isInstanceOf(DataIntegrityViolationException.class)
+                .isNotInstanceOf(EmailAlreadyUsedException.class);
+        verifyNoInteractions(events);
+    }
+
+    @Test
+    void register_refusesNameLongerThanTheColumn() {
+        RegisterRequest longName = new RegisterRequest("D".repeat(101), "Awa", "awa.diop@uasz.sn", "motdepasse1", RoleName.ALUMNI);
+
+        assertThatThrownBy(() -> service.register(longName)).isInstanceOf(InvalidRegistrationDataException.class);
+        verifyNoInteractions(users, tokens, events, passwordEncoder);
+    }
+
+    @Test
+    void register_refusesBlankName() {
+        RegisterRequest blankName = new RegisterRequest("Diop", "   ", "awa.diop@uasz.sn", "motdepasse1", RoleName.ALUMNI);
+
+        assertThatThrownBy(() -> service.register(blankName)).isInstanceOf(InvalidRegistrationDataException.class);
+        verifyNoInteractions(users, tokens, events, passwordEncoder);
+    }
+
+    @Test
+    void register_refusesPasswordOver72Bytes() {
+        RegisterRequest tooLong = new RegisterRequest("Diop", "Awa", "awa.diop@uasz.sn", "a".repeat(73), RoleName.ALUMNI);
+        // 37 caractères de 2 octets = 74 octets : la limite est en octets, pas en caractères
+        RegisterRequest tooManyBytes = new RegisterRequest("Diop", "Awa", "awa.diop@uasz.sn", "é".repeat(37), RoleName.ALUMNI);
+
+        assertThatThrownBy(() -> service.register(tooLong)).isInstanceOf(InvalidRegistrationDataException.class);
+        assertThatThrownBy(() -> service.register(tooManyBytes)).isInstanceOf(InvalidRegistrationDataException.class);
+        verifyNoInteractions(users, tokens, events, passwordEncoder);
+    }
+
+    @Test
+    void register_acceptsPasswordOfExactly72Bytes() {
+        String password = "a".repeat(72);
+        when(users.existsByEmail("awa.diop@uasz.sn")).thenReturn(false);
+        when(passwordEncoder.encode(password)).thenReturn("HASH");
+        when(users.saveAndFlush(any(UserAccount.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        UserAccount created = service.register(
+                new RegisterRequest("Diop", "Awa", "awa.diop@uasz.sn", password, RoleName.ALUMNI));
+
+        assertThat(created.getPasswordHash()).isEqualTo("HASH");
     }
 
     // ───── confirmEmail ─────

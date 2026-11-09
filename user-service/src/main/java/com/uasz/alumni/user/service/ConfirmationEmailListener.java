@@ -27,7 +27,7 @@ public class ConfirmationEmailListener {
         try {
             emailService.sendConfirmationEmail(event.email(), event.firstName(), event.token());
         } catch (RuntimeException e) {
-            log.error("Échec d'envoi de l'email de confirmation à {} : {}", event.email(), e.getMessage());
+            log.error("Échec d'envoi de l'email de confirmation ({})", e.getClass().getSimpleName());
         }
     }
 }
