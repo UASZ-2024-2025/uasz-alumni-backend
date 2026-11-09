@@ -64,11 +64,21 @@ public class RegistrationService {
     /** Crée le compte au statut EN_ATTENTE et déclenche l'envoi du lien de confirmation. */
     @Transactional
     public UserAccount register(RegisterRequest request) {
-        if (!SELF_REGISTRATION_ROLES.contains(request.getRole())) {
+        if (request == null) {
+            throw new InvalidRegistrationDataException("La demande d'inscription est obligatoire.");
+        }
+        // champs absents ou hors limites : 400 métier, jamais de NullPointerException (500)
+        String firstName = requireName(request.getFirstName(), "prénom");
+        String lastName = requireName(request.getLastName(), "nom");
+        String email = requireEmail(request.getEmail());
+        requirePassword(request.getPassword());
+        RoleName role = request.getRole();
+        if (role == null) {
+            throw new InvalidRegistrationDataException("Le rôle est obligatoire.");
+        }
+        if (!SELF_REGISTRATION_ROLES.contains(role)) {
             throw new RoleNotAllowedException();
         }
-        String email = normalizeEmail(request.getEmail());
-        validate(request, email);
         if (users.existsByEmail(email)) {
             throw new EmailAlreadyUsedException();
         }
@@ -76,9 +86,9 @@ public class RegistrationService {
         UserAccount account = new UserAccount(
                 email,
                 passwordEncoder.encode(request.getPassword()),
-                request.getFirstName().trim(),
-                request.getLastName().trim(),
-                request.getRole(),
+                firstName,
+                lastName,
+                role,
                 UserStatus.EN_ATTENTE);
         try {
             // flush immédiat : une inscription concurrente avec le même email échoue ici (contrainte unique)
@@ -98,6 +108,9 @@ public class RegistrationService {
     /** Active le compte si le jeton est valide, non expiré et non utilisé. */
     @Transactional
     public void confirmEmail(String rawToken) {
+        if (rawToken == null) {
+            throw new InvalidOrExpiredTokenException();
+        }
         Instant now = clock.instant();
         EmailConfirmationToken token = tokens.findByTokenHashWithUser(TokenUtils.sha256Hex(rawToken.trim()))
                 .orElseThrow(InvalidOrExpiredTokenException::new);
@@ -120,6 +133,9 @@ public class RegistrationService {
      */
     @Transactional
     public void resendConfirmation(String rawEmail) {
+        if (rawEmail == null || rawEmail.isBlank()) {
+            throw new InvalidRegistrationDataException("L'adresse email est obligatoire.");
+        }
         users.findByEmail(normalizeEmail(rawEmail)).ifPresent(account -> {
             if (account.getStatus() == UserStatus.ACTIF) {
                 throw new AccountAlreadyActiveException();
@@ -144,32 +160,54 @@ public class RegistrationService {
         events.publishEvent(new ConfirmationEmailRequested(account.getEmail(), account.getFirstName(), rawToken));
     }
 
-    /** Refuse en 400 ce que la base rejetterait (colonnes limitées) ou que BCrypt ne sait pas hacher. */
-    private static void validate(RegisterRequest request, String email) {
-        requireName(request.getFirstName(), "prénom");
-        requireName(request.getLastName(), "nom");
+    /** Nom ou prénom : obligatoire (ni absent ni composé d'espaces) et limité à la taille de la colonne. */
+    private static String requireName(String value, String label) {
+        String trimmed = value == null ? "" : value.trim();
+        if (trimmed.isEmpty()) {
+            throw new InvalidRegistrationDataException("Le " + label + " est obligatoire.");
+        }
+        if (trimmed.length() > NAME_MAX_LENGTH) {
+            throw new InvalidRegistrationDataException(
+                    "Le " + label + " ne doit pas dépasser " + NAME_MAX_LENGTH + " caractères.");
+        }
+        return trimmed;
+    }
+
+    private static String requireEmail(String value) {
+        if (value == null || value.isBlank()) {
+            throw new InvalidRegistrationDataException("L'adresse email est obligatoire.");
+        }
+        String email = normalizeEmail(value);
         if (email.length() > EMAIL_MAX_LENGTH) {
             throw new InvalidRegistrationDataException(
                     "L'adresse email ne doit pas dépasser " + EMAIL_MAX_LENGTH + " caractères.");
         }
-        if (request.getPassword().getBytes(StandardCharsets.UTF_8).length > PASSWORD_MAX_BYTES) {
+        return email;
+    }
+
+    /** BCrypt ne lit que 72 octets : la limite se compte en octets UTF-8, pas en caractères. */
+    private static void requirePassword(String value) {
+        if (value == null || value.isEmpty()) {
+            throw new InvalidRegistrationDataException("Le mot de passe est obligatoire.");
+        }
+        if (value.getBytes(StandardCharsets.UTF_8).length > PASSWORD_MAX_BYTES) {
             throw new InvalidRegistrationDataException(
                     "Le mot de passe ne doit pas dépasser " + PASSWORD_MAX_BYTES + " octets.");
         }
     }
 
-    private static void requireName(String value, String label) {
-        String trimmed = value.trim();
-        if (trimmed.isEmpty() || trimmed.length() > NAME_MAX_LENGTH) {
-            throw new InvalidRegistrationDataException(
-                    "Le " + label + " est obligatoire et ne doit pas dépasser " + NAME_MAX_LENGTH + " caractères.");
-        }
-    }
-
+    /**
+     * Vrai si l'erreur vient de la contrainte d'unicité de l'email. On lit d'abord le nom de contrainte
+     * fourni par Hibernate ; à défaut, on cherche le nom dans les messages (sans tenir compte de la casse).
+     */
     private static boolean violatesEmailUniqueness(Throwable error) {
         for (Throwable t = error; t != null; t = t.getCause() == t ? null : t.getCause()) {
+            if (t instanceof org.hibernate.exception.ConstraintViolationException violation
+                    && violation.getConstraintName() != null) {
+                return violation.getConstraintName().toLowerCase(Locale.ROOT).contains(EMAIL_UNIQUE_CONSTRAINT);
+            }
             String message = t.getMessage();
-            if (message != null && message.contains(EMAIL_UNIQUE_CONSTRAINT)) {
+            if (message != null && message.toLowerCase(Locale.ROOT).contains(EMAIL_UNIQUE_CONSTRAINT)) {
                 return true;
             }
         }

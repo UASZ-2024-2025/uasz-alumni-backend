@@ -166,6 +166,59 @@ class RegistrationServiceTest {
         assertThat(created.getPasswordHash()).isEqualTo("HASH");
     }
 
+    @Test
+    void register_refusesNullFieldsWithBusinessErrorInsteadOfNullPointer() {
+        RegisterRequest noFirstName = new RegisterRequest("Diop", null, "awa.diop@uasz.sn", "motdepasse1", RoleName.ALUMNI);
+        RegisterRequest noLastName = new RegisterRequest(null, "Awa", "awa.diop@uasz.sn", "motdepasse1", RoleName.ALUMNI);
+        RegisterRequest noEmail = new RegisterRequest("Diop", "Awa", null, "motdepasse1", RoleName.ALUMNI);
+        RegisterRequest noPassword = new RegisterRequest("Diop", "Awa", "awa.diop@uasz.sn", null, RoleName.ALUMNI);
+        RegisterRequest noRole = new RegisterRequest("Diop", "Awa", "awa.diop@uasz.sn", "motdepasse1", null);
+
+        assertThatThrownBy(() -> service.register(noFirstName))
+                .isInstanceOf(InvalidRegistrationDataException.class).hasMessageContaining("prénom");
+        assertThatThrownBy(() -> service.register(noLastName))
+                .isInstanceOf(InvalidRegistrationDataException.class).hasMessageContaining("nom");
+        assertThatThrownBy(() -> service.register(noEmail))
+                .isInstanceOf(InvalidRegistrationDataException.class).hasMessageContaining("email");
+        assertThatThrownBy(() -> service.register(noPassword))
+                .isInstanceOf(InvalidRegistrationDataException.class).hasMessageContaining("mot de passe");
+        assertThatThrownBy(() -> service.register(noRole))
+                .isInstanceOf(InvalidRegistrationDataException.class).hasMessageContaining("rôle");
+        assertThatThrownBy(() -> service.register(null)).isInstanceOf(InvalidRegistrationDataException.class);
+        verifyNoInteractions(users, tokens, events, passwordEncoder);
+    }
+
+    @Test
+    void register_distinguishesMissingFromTooLongName() {
+        RegisterRequest blank = new RegisterRequest("Diop", "  ", "awa.diop@uasz.sn", "motdepasse1", RoleName.ALUMNI);
+        RegisterRequest tooLong = new RegisterRequest("D".repeat(101), "Awa", "awa.diop@uasz.sn", "motdepasse1", RoleName.ALUMNI);
+
+        assertThatThrownBy(() -> service.register(blank)).hasMessage("Le prénom est obligatoire.");
+        assertThatThrownBy(() -> service.register(tooLong)).hasMessage("Le nom ne doit pas dépasser 100 caractères.");
+    }
+
+    @Test
+    void register_recognisesEmailConstraintRegardlessOfCase() {
+        when(users.existsByEmail("awa.diop@uasz.sn")).thenReturn(false);
+        when(passwordEncoder.encode("motdepasse1")).thenReturn("HASH");
+        when(users.saveAndFlush(any(UserAccount.class)))
+                .thenThrow(new DataIntegrityViolationException("ERROR: duplicate key value violates unique constraint \"UQ_USERS_EMAIL\""));
+
+        assertThatThrownBy(() -> service.register(request("awa.diop@uasz.sn", RoleName.ALUMNI)))
+                .isInstanceOf(EmailAlreadyUsedException.class);
+    }
+
+    @Test
+    void confirmEmail_rejectsNullToken() {
+        assertThatThrownBy(() -> service.confirmEmail(null)).isInstanceOf(InvalidOrExpiredTokenException.class);
+    }
+
+    @Test
+    void resendConfirmation_refusesMissingEmail() {
+        assertThatThrownBy(() -> service.resendConfirmation(null)).isInstanceOf(InvalidRegistrationDataException.class);
+        assertThatThrownBy(() -> service.resendConfirmation("  ")).isInstanceOf(InvalidRegistrationDataException.class);
+    }
+
     // ───── confirmEmail ─────
 
     @Test
