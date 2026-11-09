@@ -15,7 +15,31 @@ Plateforme Alumni UASZ : architecture microservices, approche **Contract First**
 | `contracts` | — | Contrats OpenAPI (source de vérité) |
 | `spis` | — | Interfaces et modèles d'API générés depuis les contrats |
 
-## Première installation
+## Lancer le projet
+
+Prérequis : Docker (Compose v2.17+) et Git Bash sous Windows.
+
+```bash
+cd deploy
+./setup.sh                  # 1re fois : crée .env (mots de passe, secret JWT, Brevo facultatif)
+docker compose up -d --build
+```
+
+| Service                    | URL                                 |
+| -------------------------- | ----------------------------------- |
+| Frontend                   | http://localhost:4200               |
+| Microservices              | http://localhost:8081 à 8085 (`/v1`) |
+| Emails de test (Mailpit)   | http://localhost:8025               |
+
+- Une base PostgreSQL par service (non exposée sur l'hôte, volumes conservés entre deux lancements).
+- Emails : Mailpit par défaut. Pour de vrais envois via **Brevo**, renseigner `MAIL_*` dans `deploy/.env` (voir `.env.example`), puis `docker compose up -d user-service`.
+- Le frontend est construit depuis son dépôt Git (`FRONTEND_CONTEXT`, branche `develop`), ou depuis un chemin local.
+- `docker compose logs -f <service>` : logs ; `docker compose down` : arrêt ; `docker compose down -v` : arrêt + suppression des bases.
+- Ne pas lancer en même temps les `make up` des services : ils utilisent les mêmes ports.
+
+## Développer un microservice
+
+### Première installation
 
 Avant de démarrer les services, il faut installer les dépendances et générer le secret JWT partagé.
 
@@ -31,7 +55,7 @@ for s in alumni-student-company job-offer analytics-matching notification-messag
 done
 ```
 
-## Lancer un microservice
+### Lancer un microservice
 
 Depuis le dossier du microservice concerné :
 
