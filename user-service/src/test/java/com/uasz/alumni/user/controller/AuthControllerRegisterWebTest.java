@@ -12,7 +12,11 @@ import com.uasz.alumni.user.config.ApiPrefixConfig;
 import com.uasz.alumni.user.config.AppProperties;
 import com.uasz.alumni.user.config.SecurityConfig;
 import com.uasz.alumni.user.exceptions.GlobalExceptionHandler;
+import com.uasz.alumni.user.model.EmailConfirmationToken;
 import com.uasz.alumni.user.model.UserAccount;
+import com.uasz.alumni.user.spi.model.RoleName;
+import com.uasz.alumni.user.spi.model.UserStatus;
+import java.util.Optional;
 import com.uasz.alumni.user.repository.EmailConfirmationTokenRepository;
 import com.uasz.alumni.user.repository.UserAccountRepository;
 import com.uasz.alumni.user.service.RegistrationService;
@@ -135,6 +139,81 @@ class AuthControllerRegisterWebTest {
         send("pas du json")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("MALFORMED_REQUEST"));
+    }
+
+    // ───── confirm-email, resend-confirmation, login (endpoints voisins, même contexte) ─────
+
+    @Test
+    void confirmEmail_returns200AndActivatesTheAccount() throws Exception {
+        Instant now = Instant.parse("2026-11-04T20:00:00Z");
+        UserAccount account = new UserAccount("awa.diop@uasz.sn", "HASH", "Awa", "Diop",
+                RoleName.ALUMNI, UserStatus.EN_ATTENTE, now);
+        EmailConfirmationToken token = new EmailConfirmationToken(account, "h".repeat(64), now, now.plusSeconds(3600));
+        when(tokens.findByTokenHashWithUser(any())).thenReturn(Optional.of(token));
+
+        sendTo("/v1/auth/confirm-email", "{\"token\":\"" + "a".repeat(43) + "\"}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("Compte activé avec succès."));
+    }
+
+    @Test
+    void confirmEmail_returns400WhenTokenIsUnknown() throws Exception {
+        when(tokens.findByTokenHashWithUser(any())).thenReturn(Optional.empty());
+
+        sendTo("/v1/auth/confirm-email", "{\"token\":\"" + "a".repeat(43) + "\"}")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_OR_EXPIRED_TOKEN"));
+    }
+
+    @Test
+    void resendConfirmation_returns200WithoutRevealingUnknownAddresses() throws Exception {
+        when(users.findByEmail("inconnu@uasz.sn")).thenReturn(Optional.empty());
+
+        sendTo("/v1/auth/resend-confirmation", "{\"email\":\"inconnu@uasz.sn\"}")
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void resendConfirmation_returns409WhenAccountIsAlreadyActive() throws Exception {
+        Instant now = Instant.parse("2026-11-04T20:00:00Z");
+        UserAccount active = new UserAccount("awa.diop@uasz.sn", "HASH", "Awa", "Diop",
+                RoleName.ALUMNI, UserStatus.ACTIF, now);
+        when(users.findByEmail("awa.diop@uasz.sn")).thenReturn(Optional.of(active));
+
+        sendTo("/v1/auth/resend-confirmation", "{\"email\":\"awa.diop@uasz.sn\"}")
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("ACCOUNT_ALREADY_ACTIVE"));
+    }
+
+    @Test
+    void login_returns501UntilAl19() throws Exception {
+        sendTo("/v1/auth/login", "{\"email\":\"awa.diop@uasz.sn\",\"password\":\"motdepasse1\"}")
+                .andExpect(status().isNotImplemented())
+                .andExpect(jsonPath("$.code").value("NOT_IMPLEMENTED"));
+    }
+
+    // ───── erreurs non prévues : jamais de détail technique côté client ─────
+
+    @Test
+    void unexpectedError_returns500WithoutTechnicalDetails() throws Exception {
+        when(users.existsByEmail("awa.diop@uasz.sn")).thenThrow(new IllegalStateException("détail interne secret"));
+
+        send(body("Diop", "Awa", "awa.diop@uasz.sn", "motdepasse1", "ALUMNI"))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.code").value("INTERNAL_ERROR"))
+                .andExpect(jsonPath("$.message", not(containsString("secret"))));
+    }
+
+    @Test
+    void wrongHttpMethod_returns405WithReadableMessage() throws Exception {
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(URL))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(jsonPath("$.code").value("METHOD_NOT_ALLOWED"))
+                .andExpect(jsonPath("$.message", not(containsString("com.uasz"))));
+    }
+
+    private ResultActions sendTo(String path, String json) throws Exception {
+        return mvc.perform(post(path).contentType(MediaType.APPLICATION_JSON).content(json));
     }
 
     private ResultActions send(String json) throws Exception {
