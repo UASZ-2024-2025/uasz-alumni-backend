@@ -89,7 +89,8 @@ public class RegistrationService {
                 firstName,
                 lastName,
                 role,
-                UserStatus.EN_ATTENTE);
+                UserStatus.EN_ATTENTE,
+                clock.instant());
         try {
             // flush immédiat : une inscription concurrente avec le même email échoue ici (contrainte unique)
             users.saveAndFlush(account);

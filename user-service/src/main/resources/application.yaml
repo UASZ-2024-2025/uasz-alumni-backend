@@ -57,3 +57,7 @@ app:
   mail-from: ${MAIL_FROM}
   # Durée de validité du lien de confirmation (format Spring : 30m, 24h, 2d)
   confirmation-ttl: ${EMAIL_CONFIRMATION_TTL}
+  # Limitation de débit (par IP) sur register et resend-confirmation : max-requests par fenêtre de window-seconds
+  rate-limit:
+    max-requests: ${RATE_LIMIT_MAX_REQUESTS:10}
+    window-seconds: ${RATE_LIMIT_WINDOW_SECONDS:60}

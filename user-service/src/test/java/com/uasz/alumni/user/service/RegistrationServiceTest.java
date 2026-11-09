@@ -322,7 +322,7 @@ class RegistrationServiceTest {
     }
 
     private static UserAccount account(UserStatus status) {
-        return new UserAccount("awa.diop@uasz.sn", "HASH", "Awa", "Diop", RoleName.ALUMNI, status);
+        return new UserAccount("awa.diop@uasz.sn", "HASH", "Awa", "Diop", RoleName.ALUMNI, status, NOW);
     }
 
     private static EmailConfirmationToken tokenFor(UserAccount account, String rawToken, Instant expiresAt) {

@@ -2,6 +2,7 @@ package com.uasz.alumni.user.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -22,8 +23,10 @@ public class ConfirmationEmailListener {
         this.emailService = emailService;
     }
 
+    /** Exécuté sur le pool « mailExecutor » : la requête HTTP n'attend pas le serveur SMTP. */
+    @Async("mailExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    void onConfirmationEmailRequested(ConfirmationEmailRequested event) {
+    public void onConfirmationEmailRequested(ConfirmationEmailRequested event) {
         try {
             emailService.sendConfirmationEmail(event.email(), event.firstName(), event.token());
         } catch (RuntimeException e) {
