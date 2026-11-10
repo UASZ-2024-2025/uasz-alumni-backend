@@ -12,7 +12,6 @@ POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 EOF
 cat > "$D/app.env" <<EOF
 JWT_SECRET=${JWT_SECRET}
-BOOTSTRAP_ADMIN_PASSWORD=${BOOTSTRAP_ADMIN_PASSWORD}
 EOF
 info "Écrit : $D/db.env et $D/app.env"
 info "Déploiement : ../alumni-uasz-infra/scripts/deploy-service.sh user-service"

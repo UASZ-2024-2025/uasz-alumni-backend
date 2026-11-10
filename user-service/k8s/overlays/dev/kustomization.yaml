@@ -15,7 +15,7 @@ configMapGenerator:
       - CORS_ALLOWED_ORIGINS=http://localhost:4200
 # Secrets générés par `make k8s-secrets` à partir de .env (fichiers ignorés par git) :
 #   db.env  : POSTGRES_USER, POSTGRES_PASSWORD
-#   app.env : JWT_SECRET, BOOTSTRAP_ADMIN_PASSWORD
+#   app.env : JWT_SECRET
 secretGenerator:
   - name: user-service-db
     envs:

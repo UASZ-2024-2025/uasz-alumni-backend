@@ -18,9 +18,6 @@ public final class UserMapper {
                 .lastName(account.getLastName())
                 .role(account.getRole())
                 .status(account.getStatus())
-                .phone(account.getPhone())
-                .gender(account.getGender())
-                .birthDate(account.getBirthDate())
                 .createdAt(account.getCreatedAt() == null ? null : account.getCreatedAt().atOffset(ZoneOffset.UTC));
     }
 }

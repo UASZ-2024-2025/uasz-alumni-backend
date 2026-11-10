@@ -14,7 +14,7 @@ MODE="${1:-}"
 case "$MODE" in ''|--force|--complete|--jwt-only) ;; *) fail "option inconnue : $MODE" ;; esac
 [ -f .env.example ] || fail ".env.example introuvable"
 
-SECRET_KEYS=(POSTGRES_PASSWORD JWT_SECRET BOOTSTRAP_ADMIN_PASSWORD)
+SECRET_KEYS=(POSTGRES_PASSWORD JWT_SECRET)
 
 get_var() { # fichier clé -> valeur brute (espaces conservés)
     local line
@@ -27,9 +27,6 @@ set_var() { # clé valeur -> remplace la ligne CLE=... de .env (sans souci d'éc
         index($0,k"=")==1 && !d {print k"="v; d=1; next} {print}' .env > .env.tmp
     mv .env.tmp .env
 }
-
-# Mot de passe de l'admin initial : conforme à la politique (lettre + chiffre, 8 à 72 octets)
-new_admin_password() { printf '%sAa1' "$(openssl rand -base64 18 | tr -d '=+/\n')"; }
 
 example_keys() {
     local line
@@ -94,9 +91,6 @@ if [ "$MODE" = "--complete" ]; then
     if [ "$(get_var .env POSTGRES_PASSWORD)" = "CHANGE_ME" ]; then
         warn "POSTGRES_PASSWORD vaut CHANGE_ME : lancez 'make env' puis 'make reset-db'"
     fi
-    if [[ "$(get_var .env BOOTSTRAP_ADMIN_PASSWORD)" == CHANGE_ME* ]]; then
-        set_var BOOTSTRAP_ADMIN_PASSWORD "$(new_admin_password)"; info "BOOTSTRAP_ADMIN_PASSWORD généré"
-    fi
     exit 0
 fi
 
@@ -134,8 +128,6 @@ fi
 # Mot de passe sans caractère | & = + /
 set_var POSTGRES_PASSWORD "$(openssl rand -base64 24 | tr -d '=+/\n')"
 set_var JWT_SECRET "$JWT_VALUE"
-set_var BOOTSTRAP_ADMIN_PASSWORD "$(new_admin_password)"
-info "Mot de passe de l'administrateur initial : voir BOOTSTRAP_ADMIN_PASSWORD dans .env"
 chmod 600 .env
 
 if [ "$JWT_MODE" = "generate" ]; then

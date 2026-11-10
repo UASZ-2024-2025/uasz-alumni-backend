@@ -50,20 +50,6 @@ jwt:
   # Base64, 32 octets minimum
   secret: ${JWT_SECRET}
   issuer: ${JWT_ISSUER}
-  # Durée de vie de l'access token (format Spring : 15m, 1h)
-  access-ttl: ${JWT_ACCESS_TTL}
-
-auth:
-  refresh-ttl: ${REFRESH_TOKEN_TTL}
-  password-reset-ttl: ${PASSWORD_RESET_TTL}
-  max-failed-attempts: ${MAX_FAILED_ATTEMPTS}
-  lock-duration: ${LOCK_DURATION}
-  # Premier ADMINISTRATEUR créé au démarrage s'il n'en existe aucun d'actif (ignoré si email ou mot de passe vide)
-  bootstrap-admin:
-    email: ${BOOTSTRAP_ADMIN_EMAIL:}
-    password: ${BOOTSTRAP_ADMIN_PASSWORD:}
-    first-name: ${BOOTSTRAP_ADMIN_FIRST_NAME}
-    last-name: ${BOOTSTRAP_ADMIN_LAST_NAME}
 
 app:
   # URL publique du frontend : base des liens envoyés par email (/confirmation-email?token=...)

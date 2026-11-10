@@ -6,7 +6,7 @@
   <parent>
     <groupId>com.uasz.alumni</groupId>
     <artifactId>alumni-spis</artifactId>
-    <version>1.1.0</version>
+    <version>1.0.0</version>
   </parent>
 
   <artifactId>user-service-spi</artifactId>

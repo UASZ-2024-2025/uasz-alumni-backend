@@ -1,14 +1,11 @@
+
 package com.uasz.alumni.user.controller;
 
+import com.uasz.alumni.user.exceptions.NotImplementedYetException;
 import com.uasz.alumni.user.model.UserAccount;
-import com.uasz.alumni.user.security.CurrentUser;
-import com.uasz.alumni.user.service.AuthService;
-import com.uasz.alumni.user.service.AuthSession;
-import com.uasz.alumni.user.service.PasswordService;
 import com.uasz.alumni.user.service.RegistrationService;
 import com.uasz.alumni.user.spi.api.AuthApi;
 import com.uasz.alumni.user.spi.model.AuthResponse;
-import com.uasz.alumni.user.spi.model.ChangePasswordRequest;
 import com.uasz.alumni.user.spi.model.ConfirmEmailRequest;
 import com.uasz.alumni.user.spi.model.ForgotPasswordRequest;
 import com.uasz.alumni.user.spi.model.LoginRequest;
@@ -20,6 +17,7 @@ import com.uasz.alumni.user.spi.model.ResendConfirmationRequest;
 import com.uasz.alumni.user.spi.model.ResetPasswordRequest;
 import com.uasz.alumni.user.spi.model.User;
 import com.uasz.alumni.user.utils.UserMapper;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
@@ -28,16 +26,9 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController implements AuthApi {
 
     private final RegistrationService registration;
-    private final AuthService auth;
-    private final PasswordService passwords;
-    private final CurrentUser currentUser;
 
-    public AuthController(RegistrationService registration, AuthService auth,
-                          PasswordService passwords, CurrentUser currentUser) {
+    public AuthController(RegistrationService registration) {
         this.registration = registration;
-        this.auth = auth;
-        this.passwords = passwords;
-        this.currentUser = currentUser;
     }
 
     // ================= AL-18 : INSCRIPTION =================
@@ -79,51 +70,34 @@ public class AuthController implements AuthApi {
 
     @Override
     public ResponseEntity<AuthResponse> loginUser(LoginRequest loginRequest) {
-        return ResponseEntity.ok(toResponse(auth.login(loginRequest.getEmail(), loginRequest.getPassword())));
+        throw new NotImplementedYetException("AL-19");
     }
 
     @Override
-    public ResponseEntity<AuthResponse> refreshToken(RefreshTokenRequest refreshTokenRequest) {
-        return ResponseEntity.ok(toResponse(auth.refresh(refreshTokenRequest.getRefreshToken())));
+    public ResponseEntity<AuthResponse> refreshToken(
+            RefreshTokenRequest refreshTokenRequest) {
+
+        throw new NotImplementedYetException("AL-19");
     }
 
     @Override
     public ResponseEntity<Void> logoutUser(LogoutRequest logoutRequest) {
-        auth.logout(currentUser.require().id(), logoutRequest.getRefreshToken());
-        return ResponseEntity.noContent().build();
+        throw new NotImplementedYetException("AL-19");
     }
 
     // ================= AL-20 : MOT DE PASSE =================
 
     @Override
-    public ResponseEntity<MessageResponse> forgotPassword(ForgotPasswordRequest forgotPasswordRequest) {
-        passwords.forgotPassword(forgotPasswordRequest.getEmail());
+    public ResponseEntity<MessageResponse> forgotPassword(
+            ForgotPasswordRequest forgotPasswordRequest) {
 
-        return ResponseEntity.ok(new MessageResponse().message(
-                "Si un compte correspond à cette adresse, un email de réinitialisation vient d'être envoyé."));
+        throw new NotImplementedYetException("AL-20");
     }
 
     @Override
-    public ResponseEntity<MessageResponse> resetPassword(ResetPasswordRequest resetPasswordRequest) {
-        passwords.resetPassword(resetPasswordRequest.getToken(), resetPasswordRequest.getNewPassword());
+    public ResponseEntity<MessageResponse> resetPassword(
+            ResetPasswordRequest resetPasswordRequest) {
 
-        return ResponseEntity.ok(new MessageResponse().message("Mot de passe réinitialisé avec succès."));
-    }
-
-    @Override
-    public ResponseEntity<MessageResponse> changePassword(ChangePasswordRequest changePasswordRequest) {
-        passwords.changePassword(currentUser.require().id(),
-                changePasswordRequest.getCurrentPassword(), changePasswordRequest.getNewPassword());
-
-        return ResponseEntity.ok(new MessageResponse().message(
-                "Mot de passe modifié. Veuillez vous reconnecter."));
-    }
-
-    private static AuthResponse toResponse(AuthSession session) {
-        return new AuthResponse()
-                .accessToken(session.accessToken())
-                .refreshToken(session.refreshToken())
-                .expiresIn((int) session.expiresInSeconds())
-                .user(UserMapper.toApi(session.user()));
+        throw new NotImplementedYetException("AL-20");
     }
 }
