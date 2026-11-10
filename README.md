@@ -15,6 +15,15 @@ Plateforme Alumni UASZ : architecture microservices, approche **Contract First**
 | `contracts` | — | Contrats OpenAPI (source de vérité) |
 | `spis` | — | Interfaces et modèles d'API générés depuis les contrats |
 
+## Documentation d'architecture
+
+Voir **[`docs/`](docs/README.md)** :
+
+- [Justification de l'architecture](docs/architecture.md) : exigences, monolithe modulaire vs microservices, stack, composants et interfaces
+- Diagrammes UML : [composants](docs/diagrams/composants.md), [packages](docs/diagrams/packages.md), [déploiement](docs/diagrams/deploiement.md), [classes par service](docs/diagrams/classes.md)
+- Décisions d'architecture : [ADR](docs/adr/README.md)
+- Compléments : [cas d'utilisation](docs/diagrams/cas-utilisation.md), [séquences](docs/diagrams/sequences.md)
+
 ## Première installation
 
 Avant de démarrer les services, il faut installer les dépendances et générer le secret JWT partagé.

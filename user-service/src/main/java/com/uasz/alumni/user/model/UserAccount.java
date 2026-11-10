@@ -9,8 +9,6 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
@@ -61,31 +59,23 @@ public class UserAccount {
     }
 
     public UserAccount(String email, String passwordHash, String firstName, String lastName,
-                       RoleName role, UserStatus status) {
+                       RoleName role, UserStatus status, Instant now) {
         this.email = email;
         this.passwordHash = passwordHash;
         this.firstName = firstName;
         this.lastName = lastName;
         this.role = role;
         this.status = status;
-    }
-
-    @PrePersist
-    void onCreate() {
-        Instant now = Instant.now();
+        // les dates viennent de l'horloge du service (Clock), pas de Instant.now(), pour rester testables
         this.createdAt = now;
         this.updatedAt = now;
-    }
-
-    @PreUpdate
-    void onUpdate() {
-        this.updatedAt = Instant.now();
     }
 
     /** Active le compte après confirmation de l'adresse email. */
     public void activate(Instant verifiedAt) {
         this.status = UserStatus.ACTIF;
         this.emailVerifiedAt = verifiedAt;
+        this.updatedAt = verifiedAt;
     }
 
     public UUID getId() { return id; }
