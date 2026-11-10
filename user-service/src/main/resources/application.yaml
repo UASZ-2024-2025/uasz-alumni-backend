@@ -50,6 +50,20 @@ jwt:
   # Base64, 32 octets minimum
   secret: ${JWT_SECRET}
   issuer: ${JWT_ISSUER}
+  # Durée de vie de l'access token (format Spring : 15m, 1h)
+  access-ttl: ${JWT_ACCESS_TTL}
+
+auth:
+  refresh-ttl: ${REFRESH_TOKEN_TTL}
+  password-reset-ttl: ${PASSWORD_RESET_TTL}
+  max-failed-attempts: ${MAX_FAILED_ATTEMPTS}
+  lock-duration: ${LOCK_DURATION}
+  # Premier ADMINISTRATEUR créé au démarrage s'il n'en existe aucun d'actif (ignoré si email ou mot de passe vide)
+  bootstrap-admin:
+    email: ${BOOTSTRAP_ADMIN_EMAIL:}
+    password: ${BOOTSTRAP_ADMIN_PASSWORD:}
+    first-name: ${BOOTSTRAP_ADMIN_FIRST_NAME}
+    last-name: ${BOOTSTRAP_ADMIN_LAST_NAME}
 
 app:
   # URL publique du frontend : base des liens envoyés par email (/confirmation-email?token=...)
@@ -57,7 +71,10 @@ app:
   mail-from: ${MAIL_FROM}
   # Durée de validité du lien de confirmation (format Spring : 30m, 24h, 2d)
   confirmation-ttl: ${EMAIL_CONFIRMATION_TTL}
-  # Limitation de débit (par IP) sur register et resend-confirmation : max-requests par fenêtre de window-seconds
+  # Limitation de débit par IP, par fenêtre de window-seconds.
+  #  - max-requests : register, resend-confirmation, forgot-password, reset-password
+  #  - login-max-requests : login, refresh-token (plus haut : plusieurs utilisateurs peuvent partager l'IP du campus)
   rate-limit:
     max-requests: ${RATE_LIMIT_MAX_REQUESTS:10}
+    login-max-requests: ${RATE_LIMIT_LOGIN_MAX_REQUESTS:30}
     window-seconds: ${RATE_LIMIT_WINDOW_SECONDS:60}

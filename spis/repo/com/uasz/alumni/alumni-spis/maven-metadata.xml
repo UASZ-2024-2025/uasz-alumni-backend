@@ -3,10 +3,11 @@
   <groupId>com.uasz.alumni</groupId>
   <artifactId>alumni-spis</artifactId>
   <versioning>
-    <release>1.0.0</release>
+    <release>1.1.0</release>
     <versions>
       <version>1.0.0</version>
+      <version>1.1.0</version>
     </versions>
-    <lastUpdated>20261101132336</lastUpdated>
+    <lastUpdated>20261110175536</lastUpdated>
   </versioning>
 </metadata>

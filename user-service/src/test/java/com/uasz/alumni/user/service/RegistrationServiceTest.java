@@ -155,7 +155,7 @@ class RegistrationServiceTest {
 
     @Test
     void register_acceptsPasswordOfExactly72Bytes() {
-        String password = "a".repeat(72);
+        String password = "a".repeat(71) + "1"; // 72 octets, avec une lettre et un chiffre (PasswordPolicy)
         when(users.existsByEmail("awa.diop@uasz.sn")).thenReturn(false);
         when(passwordEncoder.encode(password)).thenReturn("HASH");
         when(users.saveAndFlush(any(UserAccount.class))).thenAnswer(inv -> inv.getArgument(0));

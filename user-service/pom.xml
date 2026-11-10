@@ -18,7 +18,8 @@
 
   <properties>
     <java.version>21</java.version>
-    <alumni.spi.version>1.0.0</alumni.spi.version>
+    <alumni.spi.version>1.1.0</alumni.spi.version>
+    <jjwt.version>0.12.6</jjwt.version>
   </properties>
 
   <repositories>
@@ -56,6 +57,25 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-security</artifactId>
+    </dependency>
+
+    <!-- JWT (émission et validation des access tokens) -->
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-api</artifactId>
+      <version>${jjwt.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-impl</artifactId>
+      <version>${jjwt.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-jackson</artifactId>
+      <version>${jjwt.version}</version>
+      <scope>runtime</scope>
     </dependency>
 
     <!-- Envoi d'emails (confirmation de compte, réinitialisation de mot de passe) -->
@@ -100,6 +120,12 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-webmvc-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- SecurityMockMvcRequestPostProcessors (tests de contrôleur authentifiés) -->
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-test</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>

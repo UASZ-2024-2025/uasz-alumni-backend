@@ -37,3 +37,4 @@ build/
 *.log
 k8s/overlays/dev/*.env
 backups/
+.sonar/

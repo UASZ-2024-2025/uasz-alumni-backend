@@ -53,5 +53,5 @@ k8s/overlays/prod  image GHCR, configuration de production (secrets hors dépôt
 - Le lien envoyé est `${FRONTEND_URL}/confirmation-email?token=...` : la page correspondante existe côté frontend (`ConfirmationEmail`), elle appelle `POST /auth/confirm-email`.
 - Les emails partent après le commit de la transaction. Une panne SMTP est journalisée sans faire échouer l'inscription (l'utilisateur peut redemander un email).
 - En développement, `make db` / `make run` lancent **Mailpit** : les emails sont lisibles sur http://localhost:8025. Après un `git pull`, lancer `make env-complete` pour ajouter les nouvelles clés à votre `.env`.
-- `loginUser`, `refreshToken`, `logoutUser` (AL-19) et `forgotPassword`, `resetPassword` (AL-20) répondent 501 dans `AuthController` en attendant leur implémentation.
+- Authentification (AL-19) et mot de passe (AL-20) sont implémentés : login (verrouillage après N échecs), refresh token avec rotation et détection de réutilisation, logout, forgot/reset/change-password, administration des utilisateurs. Le premier ADMINISTRATEUR est créé au démarrage depuis `BOOTSTRAP_ADMIN_*`.
 - Tests : `./mvnw test` (Mockito, sans base de données).

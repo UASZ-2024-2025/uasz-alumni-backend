@@ -19,6 +19,13 @@ import com.uasz.alumni.user.spi.model.UserStatus;
 import java.util.Optional;
 import com.uasz.alumni.user.repository.EmailConfirmationTokenRepository;
 import com.uasz.alumni.user.repository.UserAccountRepository;
+import com.uasz.alumni.user.exceptions.InvalidCredentialsException;
+import com.uasz.alumni.user.jwt.JwtService;
+import com.uasz.alumni.user.security.CurrentUser;
+import com.uasz.alumni.user.security.RestSecurityErrorHandler;
+import com.uasz.alumni.user.service.AuthService;
+import com.uasz.alumni.user.service.AuthSession;
+import com.uasz.alumni.user.service.PasswordService;
 import com.uasz.alumni.user.service.RegistrationService;
 import java.time.Clock;
 import java.time.Duration;
@@ -43,8 +50,10 @@ import org.springframework.test.web.servlet.ResultActions;
 @WebMvcTest(controllers = AuthController.class, properties = {
         "security.api.prefix=/v1",
         "app.rate-limit.max-requests=1000",
+        "app.rate-limit.login-max-requests=1000",
         "security.cors.allowed-origins=http://localhost:4200"})
-@Import({SecurityConfig.class, ApiPrefixConfig.class, GlobalExceptionHandler.class, RegistrationService.class})
+@Import({SecurityConfig.class, ApiPrefixConfig.class, GlobalExceptionHandler.class, RegistrationService.class,
+        CurrentUser.class, RestSecurityErrorHandler.class})
 class AuthControllerRegisterWebTest {
 
     private static final String URL = "/v1/auth/register";
@@ -67,6 +76,10 @@ class AuthControllerRegisterWebTest {
     @MockitoBean UserAccountRepository users;
     @MockitoBean EmailConfirmationTokenRepository tokens;
     @MockitoBean PasswordEncoder passwordEncoder;
+    // requis par AuthController (AL-19/AL-20) et SecurityConfig ; non testés ici
+    @MockitoBean AuthService authService;
+    @MockitoBean PasswordService passwordService;
+    @MockitoBean JwtService jwtService;
 
     @Test
     void register_returns201() throws Exception {
@@ -186,10 +199,28 @@ class AuthControllerRegisterWebTest {
     }
 
     @Test
-    void login_returns501UntilAl19() throws Exception {
+    void login_returns200WithTokens() throws Exception {
+        Instant now = Instant.parse("2026-11-04T20:00:00Z");
+        UserAccount account = new UserAccount("awa.diop@uasz.sn", "HASH", "Awa", "Diop",
+                RoleName.ALUMNI, UserStatus.ACTIF, now);
+        when(authService.login("awa.diop@uasz.sn", "motdepasse1"))
+                .thenReturn(new AuthSession("ACCESS", "REFRESH", 900L, account));
+
         sendTo("/v1/auth/login", "{\"email\":\"awa.diop@uasz.sn\",\"password\":\"motdepasse1\"}")
-                .andExpect(status().isNotImplemented())
-                .andExpect(jsonPath("$.code").value("NOT_IMPLEMENTED"));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").value("ACCESS"))
+                .andExpect(jsonPath("$.refreshToken").value("REFRESH"))
+                .andExpect(jsonPath("$.user.email").value("awa.diop@uasz.sn"))
+                .andExpect(jsonPath("$.user.passwordHash").doesNotExist());
+    }
+
+    @Test
+    void login_returns401WhenCredentialsAreInvalid() throws Exception {
+        when(authService.login("awa.diop@uasz.sn", "mauvais1")).thenThrow(new InvalidCredentialsException());
+
+        sendTo("/v1/auth/login", "{\"email\":\"awa.diop@uasz.sn\",\"password\":\"mauvais1\"}")
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
     }
 
     // ───── erreurs non prévues : jamais de détail technique côté client ─────
@@ -206,7 +237,11 @@ class AuthControllerRegisterWebTest {
 
     @Test
     void wrongHttpMethod_returns405WithReadableMessage() throws Exception {
-        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(URL))
+        // Utilisateur authentifié : sinon SecurityConfig répond 401 avant que Spring MVC ne produise le 405
+        // (seul POST est public sur /auth/register).
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(URL)
+                        .with(org.springframework.security.test.web.servlet.request
+                                .SecurityMockMvcRequestPostProcessors.user("x")))
                 .andExpect(status().isMethodNotAllowed())
                 .andExpect(jsonPath("$.code").value("METHOD_NOT_ALLOWED"))
                 .andExpect(jsonPath("$.message", not(containsString("com.uasz"))));

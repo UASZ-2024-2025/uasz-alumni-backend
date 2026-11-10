@@ -45,7 +45,15 @@ done
 Depuis le dossier du microservice concerné :
 
 ```bash
+# si vous etes encore en possession de l'ancien contenu de .env sans mailpit et les autres variables
+# il faudra vous en assurer en verifiant votre fichier .env dans user-service
+# si le fichier est complet alors vous pouvez sauter cette etape, sinon faites-le.
+cd user-service
+make env-complete
+
+
 cd chemin_du_microservice
+make env-complete  # si vous etes encore en possession de l'ancien contenu de .env sans mailpit et les autres variables
 make up
 ```
 
