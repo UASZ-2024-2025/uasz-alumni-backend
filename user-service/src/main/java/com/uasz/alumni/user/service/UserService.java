@@ -76,6 +76,12 @@ public class UserService {
     /** Création par un ADMINISTRATEUR : mot de passe aléatoire inconnu de tous, l'utilisateur le définit via le lien reçu. */
     @Transactional
     public UserAccount create(UserCreateRequest request) {
+        if (request.getFirstName() == null || request.getFirstName().isBlank()) {
+            throw badRequest("firstName ne peut pas être vide.");
+        }
+        if (request.getLastName() == null || request.getLastName().isBlank()) {
+            throw badRequest("lastName ne peut pas être vide.");
+        }
         String email = TextUtils.normalizeEmail(request.getEmail());
         if (users.existsByEmail(email)) {
             throw new EmailAlreadyUsedException();

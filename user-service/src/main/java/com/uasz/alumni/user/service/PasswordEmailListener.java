@@ -22,7 +22,7 @@ public class PasswordEmailListener {
         this.emailService = emailService;
     }
 
-    @Async
+    @Async("mailExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onPasswordEmailRequested(PasswordEmailRequested event) {
         try {
@@ -37,7 +37,7 @@ public class PasswordEmailListener {
         }
     }
 
-    @Async
+    @Async("mailExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onPasswordChanged(PasswordChangedNotice event) {
         try {

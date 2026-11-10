@@ -117,4 +117,15 @@ class AdminBootstrapTest {
 
         verify(users).saveAndFlush(any(UserAccount.class));
     }
+
+    @ParameterizedTest
+    @CsvSource(value = {"'',Alumni", "' ',Alumni", "Admin,''", "Admin,' '"})
+    void isSkipped_whenNamesAreBlank(String firstName, String lastName) {
+        AuthProperties props = new AuthProperties(Duration.ofDays(7), Duration.ofHours(1), 5, Duration.ofMinutes(15),
+                new AuthProperties.BootstrapAdmin("admin@alumni-uasz.sn", "Secret123abc", firstName, lastName));
+
+        new AdminBootstrap(props, users, encoder, audit, clock()).run(null);
+
+        verifyNoInteractions(users, encoder, audit);
+    }
 }

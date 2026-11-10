@@ -50,6 +50,7 @@ import org.springframework.test.web.servlet.ResultActions;
 @WebMvcTest(controllers = AuthController.class, properties = {
         "security.api.prefix=/v1",
         "app.rate-limit.max-requests=1000",
+        "app.rate-limit.login-max-requests=1000",
         "security.cors.allowed-origins=http://localhost:4200"})
 @Import({SecurityConfig.class, ApiPrefixConfig.class, GlobalExceptionHandler.class, RegistrationService.class,
         CurrentUser.class, RestSecurityErrorHandler.class})

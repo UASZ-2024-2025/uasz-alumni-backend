@@ -49,6 +49,11 @@ public class AdminBootstrap implements ApplicationRunner {
                     + "(8 à 72 octets, une lettre et un chiffre). Lancez 'make env-complete'.");
             return;
         }
+        if (isBlank(cfg.firstName()) || isBlank(cfg.lastName())) {
+            log.error("Bootstrap ADMINISTRATEUR ignoré : BOOTSTRAP_ADMIN_FIRST_NAME / "
+                    + "BOOTSTRAP_ADMIN_LAST_NAME sont vides.");
+            return;
+        }
         if (users.countByRoleAndStatus(RoleName.ADMINISTRATEUR, UserStatus.ACTIF) > 0) {
             return;
         }

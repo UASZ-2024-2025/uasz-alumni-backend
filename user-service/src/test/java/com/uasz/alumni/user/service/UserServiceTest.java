@@ -45,6 +45,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import com.uasz.alumni.user.exceptions.ApiException;
 
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {
@@ -221,6 +224,24 @@ class UserServiceTest {
         assertThatThrownBy(() -> service.create(createRequest())).isInstanceOf(EmailAlreadyUsedException.class);
 
         verifyNoInteractions(passwords);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", "   "})
+    void create_blankFirstName_isRefusedWith400(String blank) {
+        assertThatThrownBy(() -> service.create(createRequest().firstName(blank)))
+                .isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.getStatus().value()).isEqualTo(400));
+
+        verifyNoInteractions(users, encoder, passwords);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", "   "})
+    void create_blankLastName_isRefusedWith400(String blank) {
+        assertThatThrownBy(() -> service.create(createRequest().lastName(blank)))
+                .isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.getStatus().value()).isEqualTo(400));
+
+        verifyNoInteractions(users, encoder, passwords);
     }
 
     // ───── update ─────
