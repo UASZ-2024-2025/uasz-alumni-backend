@@ -5,15 +5,15 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableAsync;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
-import java.util.concurrent.ThreadPoolExecutor;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-/** Beans transverses : propriétés, horloge (injectable dans les tests) et hachage des mots de passe. */
+/** Beans transverses : propriétés, horloge (injectable dans les tests), hachage des mots de passe. */
 @Configuration
-@EnableConfigurationProperties(AppProperties.class)
 @EnableAsync
+@EnableScheduling
+@EnableConfigurationProperties({AppProperties.class, JwtProperties.class, AuthProperties.class})
 public class AppConfig {
 
     @Bean
@@ -23,23 +23,7 @@ public class AppConfig {
 
     @Bean
     PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
-
-    /**
-     * Pool dédié à l'envoi des emails. File bornée ; si elle est pleine, l'envoi se fait dans le fil
-     * appelant (CallerRunsPolicy) plutôt que d'être perdu.
-     */
-    @Bean(name = "mailExecutor")
-    ThreadPoolTaskExecutor mailExecutor() {
-        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setThreadNamePrefix("mail-");
-        executor.setCorePoolSize(2);
-        executor.setMaxPoolSize(4);
-        executor.setQueueCapacity(100);
-        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
-        executor.setWaitForTasksToCompleteOnShutdown(true);
-        executor.setAwaitTerminationSeconds(20);
-        return executor;
+        // coût 12 ; les anciens hashes (coût 10) restent valides
+        return new BCryptPasswordEncoder(12);
     }
 }

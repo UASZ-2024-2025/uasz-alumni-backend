@@ -6,6 +6,7 @@ import com.uasz.alumni.user.exceptions.EmailAlreadyUsedException;
 import com.uasz.alumni.user.exceptions.InvalidOrExpiredTokenException;
 import com.uasz.alumni.user.exceptions.InvalidRegistrationDataException;
 import com.uasz.alumni.user.exceptions.RoleNotAllowedException;
+import com.uasz.alumni.user.exceptions.WeakPasswordException;
 import com.uasz.alumni.user.model.EmailConfirmationToken;
 import com.uasz.alumni.user.model.UserAccount;
 import com.uasz.alumni.user.repository.EmailConfirmationTokenRepository;
@@ -13,6 +14,7 @@ import com.uasz.alumni.user.repository.UserAccountRepository;
 import com.uasz.alumni.user.spi.model.RegisterRequest;
 import com.uasz.alumni.user.spi.model.RoleName;
 import com.uasz.alumni.user.spi.model.UserStatus;
+import com.uasz.alumni.user.utils.PasswordPolicy;
 import com.uasz.alumni.user.utils.TokenUtils;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
@@ -22,6 +24,7 @@ import java.util.Locale;
 import java.util.Set;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,7 +35,7 @@ public class RegistrationService {
 
     /** Rôles accessibles à l'auto-inscription. ADMINISTRATEUR est attribué par un administrateur, jamais ici. */
     static final Set<RoleName> SELF_REGISTRATION_ROLES =
-            EnumSet.of(RoleName.ALUMNI, RoleName.ETUDIANT, RoleName.ENSEIGNANT);
+            EnumSet.of(RoleName.ALUMNI, RoleName.ETUDIANT, RoleName.ENSEIGNANT, RoleName.ENTREPRISE);
 
     private static final int NAME_MAX_LENGTH = 100;
     private static final int EMAIL_MAX_LENGTH = 255;
@@ -194,6 +197,9 @@ public class RegistrationService {
         if (value.getBytes(StandardCharsets.UTF_8).length > PASSWORD_MAX_BYTES) {
             throw new InvalidRegistrationDataException(
                     "Le mot de passe ne doit pas dépasser " + PASSWORD_MAX_BYTES + " octets.");
+        }
+        if (!PasswordPolicy.isValid(value)) {
+            throw new WeakPasswordException(HttpStatus.BAD_REQUEST);
         }
     }
 
