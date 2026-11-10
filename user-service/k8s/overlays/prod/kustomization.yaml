@@ -15,4 +15,4 @@ configMapGenerator:
       - CORS_ALLOWED_ORIGINS=https://alumni-uasz.sn
 # Secrets à créer hors dépôt dans le namespace :
 #   user-service-db      : POSTGRES_USER, POSTGRES_PASSWORD
-#   user-service-secrets : JWT_SECRET (IDENTIQUE dans tous les services)
+#   user-service-secrets : JWT_SECRET (IDENTIQUE dans tous les services), BOOTSTRAP_ADMIN_PASSWORD

@@ -12,7 +12,7 @@
 
   <groupId>com.uasz.alumni</groupId>
   <artifactId>alumni-spis</artifactId>
-  <version>1.0.0</version>
+  <version>1.1.0</version>
   <packaging>pom</packaging>
   <name>alumni-spis</name>
   <description>Alumni UASZ - SPIs (interfaces + modeles) generes depuis /contracts</description>
@@ -27,7 +27,7 @@
 
   <properties>
     <java.version>21</java.version>
-    <project.build.outputTimestamp>2026-01-01T00:00:00Z</project.build.outputTimestamp>
+    <project.build.outputTimestamp>2026-11-10T17:31:22Z</project.build.outputTimestamp>
     <openapi-generator.version>7.17.0</openapi-generator.version>
   </properties>
 
