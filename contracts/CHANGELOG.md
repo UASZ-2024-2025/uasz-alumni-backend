@@ -1,5 +1,12 @@
 # Journal des modifications des contrats OpenAPI
 
+## 1.1.0
+
+### alumni-student-company-service
+- **Ajout** du champ `ownerId` (uuid) sur le schéma `Company` : gestionnaire de la fiche entreprise (AL-28).
+- **Ajout** de la réponse `403` sur `createCompany` et `updateCompany`.
+- **Précision** : seul l'administrateur peut modifier `isPartner` (`CompanyUpdateRequest`).
+
 ## 1.0.0 (en attente de revue croisée puis tag `contracts-v1.0.0`)
 
 ### notification-messaging-service
