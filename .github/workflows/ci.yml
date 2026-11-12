@@ -4,6 +4,7 @@ on:
   push:
     branches: [main, develop]
   pull_request:
+    branches: [main, develop]
 
 permissions:
   contents: read
@@ -55,26 +56,31 @@ jobs:
               - 'spis/repo/com/uasz/alumni/user-service-spi/**'
               - 'spis/repo/com/uasz/alumni/alumni-spis/**'
               - 'docker/**'
+              - '.github/workflows/ci.yml'
             alumni-student-company-service:
               - 'alumni-student-company-service/**'
               - 'spis/repo/com/uasz/alumni/alumni-student-company-service-spi/**'
               - 'spis/repo/com/uasz/alumni/alumni-spis/**'
               - 'docker/**'
+              - '.github/workflows/ci.yml'
             job-offer-service:
               - 'job-offer-service/**'
               - 'spis/repo/com/uasz/alumni/job-offer-service-spi/**'
               - 'spis/repo/com/uasz/alumni/alumni-spis/**'
               - 'docker/**'
+              - '.github/workflows/ci.yml'
             analytics-matching-service:
               - 'analytics-matching-service/**'
               - 'spis/repo/com/uasz/alumni/analytics-matching-service-spi/**'
               - 'spis/repo/com/uasz/alumni/alumni-spis/**'
               - 'docker/**'
+              - '.github/workflows/ci.yml'
             notification-messaging-service:
               - 'notification-messaging-service/**'
               - 'spis/repo/com/uasz/alumni/notification-messaging-service-spi/**'
               - 'spis/repo/com/uasz/alumni/alumni-spis/**'
               - 'docker/**'
+              - '.github/workflows/ci.yml'
 
   build:
     needs: changes
@@ -93,9 +99,9 @@ jobs:
           cache: maven
           cache-dependency-path: ${{ matrix.service }}/pom.xml
 
-      - name: Build Maven
+      - name: Build et tests Maven
         working-directory: ${{ matrix.service }}
-        run: ./mvnw -B -DskipTests package
+        run: ./mvnw -B verify
 
       - name: Nom d'image (minuscules)
         run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}/${{ matrix.service }}" >> "$GITHUB_ENV"
@@ -123,3 +129,37 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+  contracts-lint:
+    name: Lint des contrats OpenAPI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: contracts
+        with:
+          filters: |
+            changed:
+              - 'contracts/**'
+      - uses: actions/setup-node@v4
+        if: steps.contracts.outputs.changed == 'true'
+        with:
+          node-version: 20
+      - name: Lint
+        if: steps.contracts.outputs.changed == 'true'
+        run: |
+          files=$(find contracts -type f \( -name '*.yaml' -o -name '*.yml' \))
+          npx --yes @redocly/cli@1 lint $files
+
+  ci-success:
+    name: CI success
+    if: always()
+    needs: [spis-check, changes, build, contracts-lint]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Echec si un job a echoue
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: |
+          echo "Au moins un job a echoue ou a ete annule."
+          exit 1
+      - run: echo "CI verte"
