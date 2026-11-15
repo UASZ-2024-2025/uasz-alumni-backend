@@ -8,6 +8,14 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import java.util.stream.Collectors;
+import org.springframework.context.MessageSourceResolvable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
@@ -23,6 +31,9 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
+    static final String VALIDATION_ERROR = "VALIDATION_ERROR";
+    static final String MALFORMED_REQUEST = "MALFORMED_REQUEST";
+
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(ApiException.class)
@@ -36,6 +47,16 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         throw ex;
     }
 
+    /** Validation Bean Validation déclenchée par @Validated : 400 lisible, sans nom de classe Java. */
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ErrorResponse> handleConstraintViolation(ConstraintViolationException ex) {
+        String details = ex.getConstraintViolations().stream()
+                .map(GlobalExceptionHandler::describe)
+                .sorted()
+                .collect(Collectors.joining(" ; "));
+        return ResponseEntity.badRequest().body(build(VALIDATION_ERROR, validationMessage(details)));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleUnexpected(Exception ex) {
         log.error("Erreur inattendue", ex);
@@ -43,13 +64,53 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 .body(build("INTERNAL_ERROR", "Erreur interne du serveur"));
     }
 
+    /**
+     * Le message renvoyé au client ne contient jamais le texte brut d'une exception (il peut citer des
+     * classes Java ou des détails d'analyse JSON) : uniquement un code et une phrase lisible.
+     */
     @Override
     protected ResponseEntity<Object> handleExceptionInternal(
             Exception ex, Object body, HttpHeaders headers, HttpStatusCode statusCode, WebRequest request) {
-        String message = (body instanceof ProblemDetail pd && pd.getDetail() != null) ? pd.getDetail() : ex.getMessage();
-        HttpStatus resolved = HttpStatus.resolve(statusCode.value());
-        String code = resolved != null ? resolved.name() : "HTTP_" + statusCode.value();
+        String code;
+        String message;
+        if (ex instanceof MethodArgumentNotValidException invalid) {
+            code = VALIDATION_ERROR;
+            message = validationMessage(invalid.getBindingResult().getAllErrors().stream()
+                    .map(GlobalExceptionHandler::describe)
+                    .sorted()
+                    .collect(Collectors.joining(" ; ")));
+        } else if (ex instanceof HandlerMethodValidationException invalid) {
+            code = VALIDATION_ERROR;
+            message = validationMessage(invalid.getAllErrors().stream()
+                    .map(GlobalExceptionHandler::describe)
+                    .sorted()
+                    .collect(Collectors.joining(" ; ")));
+        } else if (ex instanceof HttpMessageNotReadableException) {
+            code = MALFORMED_REQUEST;
+            message = "Corps de la requête illisible ou invalide (JSON mal formé ou valeur non reconnue).";
+        } else {
+            HttpStatus resolved = HttpStatus.resolve(statusCode.value());
+            code = resolved != null ? resolved.name() : "HTTP_" + statusCode.value();
+            message = (body instanceof ProblemDetail pd && pd.getDetail() != null)
+                    ? pd.getDetail()
+                    : (resolved != null ? resolved.getReasonPhrase() : "Erreur");
+        }
         return ResponseEntity.status(statusCode).headers(headers).body(build(code, message));
+    }
+
+    private static String validationMessage(String details) {
+        return details.isEmpty() ? "Données invalides." : "Données invalides : " + details;
+    }
+
+    private static String describe(MessageSourceResolvable error) {
+        String text = error.getDefaultMessage() == null ? "valeur invalide" : error.getDefaultMessage();
+        return error instanceof FieldError field ? field.getField() + " : " + text : text;
+    }
+
+    private static String describe(ConstraintViolation<?> violation) {
+        String path = violation.getPropertyPath().toString();
+        String field = path.substring(path.lastIndexOf('.') + 1);
+        return field + " : " + violation.getMessage();
     }
 
     private static ErrorResponse build(String code, String message) {

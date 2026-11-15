@@ -1,6 +1,6 @@
 package com.uasz.alumni.user.controller;
 
-import com.uasz.alumni.user.repository.RoleRepository;
+import com.uasz.alumni.user.service.RoleService;
 import com.uasz.alumni.user.spi.api.RolesApi;
 import com.uasz.alumni.user.spi.model.Role;
 import com.uasz.alumni.user.utils.UserMapper;
@@ -11,17 +11,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class RolesController implements RolesApi {
 
-    private final RoleRepository roleRepository;
+    private final RoleService roles;
 
-    public RolesController(RoleRepository roleRepository) {
-        this.roleRepository = roleRepository;
+    public RolesController(RoleService roles) {
+        this.roles = roles;
     }
 
     @Override
     public ResponseEntity<List<Role>> listRoles() {
-        List<Role> roles = roleRepository.findAll().stream()
-                .map(UserMapper::toRole)
-                .toList();
-        return ResponseEntity.ok(roles);
+        return ResponseEntity.ok(roles.listRoles());
     }
 }
