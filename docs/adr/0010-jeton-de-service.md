@@ -55,6 +55,17 @@ distribuer).
 **Côté appelant** : `ServiceTokenProvider` produit le jeton, et le client HTTP l'ajoute à chaque appel.
 Le JWT de l'utilisateur n'est **jamais** relayé à un autre service.
 
+**Appels inter-services en place :**
+
+| Appelant | Service appelé | Endpoint interne | Déclencheur |
+| --- | --- | --- | --- |
+| `job-offer-service` | `notification-messaging-service` | `POST /notifications/send` (`SERVICE` ou `ADMINISTRATEUR`) | changement de statut d'une candidature |
+| `user-service` | `alumni-student-company-service` | `POST /internal/profiles` (`SERVICE` seulement) | confirmation de l'email d'un compte ETUDIANT ou ALUMNI (ALUM-83) |
+
+Dans `user-service`, `ServiceTokenProvider` signe avec la bibliothèque jjwt déjà utilisée pour les jetons
+utilisateurs, en imposant **HS256** (les services appelés n'acceptent que cet algorithme). Il refuse de
+démarrer si `service-token.issuer` est égal à `jwt.issuer`.
+
 ## Conséquences
 
 - **Positives**

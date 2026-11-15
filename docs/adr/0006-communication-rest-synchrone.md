@@ -40,9 +40,9 @@ Pour la v1, nous retenons le **REST** pour tous les échanges, avec deux usages 
 | Usage | Exemple | Mode |
 | --- | --- | --- |
 | **Lecture** (l'appelant a besoin de la réponse) | matching : profils et offres | REST synchrone, timeout court, erreur remontée à l'appelant |
-| **Événement** (l'appelant n'a pas besoin de réponse) | changement de statut d'une candidature → notification | REST **asynchrone** : après le commit, sur un autre thread, avec retry ; ne bloque jamais le flux métier |
+| **Événement** (l'appelant n'a pas besoin de réponse) | changement de statut d'une candidature → notification ; activation d'un compte → création du profil | REST **asynchrone** : après le commit, sur un autre thread, avec retry ; ne bloque jamais le flux métier |
 
-**Politique de résilience** (implémentée dans `job-offer-service`, à reprendre dans les autres services) :
+**Politique de résilience** (implémentée dans `job-offer-service` et `user-service`, à reprendre dans les autres services) :
 
 | Mécanisme | Valeur | Rôle |
 | --- | --- | --- |
@@ -50,7 +50,7 @@ Pour la v1, nous retenons le **REST** pour tous les échanges, avec deux usages 
 | Timeout de lecture | 3 s | Un service lent ne bloque pas un thread indéfiniment |
 | Retry | 3 retries (4 tentatives), délais 500 ms, 1 s, 2 s (plafond 5 s) | Absorbe une coupure brève (redémarrage d'un pod) |
 | Erreurs rejouées | réseau / timeout, HTTP 5xx, HTTP 429 | Erreurs **transitoires** uniquement |
-| Erreurs non rejouées | autres HTTP 4xx (400, 401, 403…) | Rejouer une requête invalide ne la rendra pas valide |
+| Erreurs non rejouées | autres HTTP 4xx (400, 401, 403…), HTTP 501 | Rejouer une requête invalide ne la rendra pas valide ; une opération non implémentée non plus |
 | Publication après commit | `@TransactionalEventListener(AFTER_COMMIT)` | Aucune notification pour une modification annulée |
 | Exécution asynchrone | `@Async` | La réponse au recruteur n'attend ni la notification ni les retries |
 | Échec définitif | journalisé en `ERROR` | Le changement de statut n'est jamais annulé |
