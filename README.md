@@ -113,6 +113,39 @@ Les workflows GitHub Actions se trouvent dans :
 
 La CI/CD est configurée pour traiter uniquement les microservices concernés par les modifications.
 
+### CI des Pull Requests (`ci.yml`, `pr-title.yml`)
+
+Déclenchée sur chaque PR vers `develop` et `main` (et sur chaque push sur ces branches) :
+
+| Job | Rôle |
+|---|---|
+| Lint des contrats OpenAPI | `redocly lint contracts/*.yaml` à chaque run ; une erreur bloque, les avertissements non |
+| Generation des SPIs | régénère les SPIs (sans publier) si un contrat ou un `pom.xml` de `spis/` change |
+| Build et tests (`<service>`) | `./mvnw verify` + build de l'image Docker, uniquement pour les services modifiés |
+| CI success | récapitulatif : échoue si l'un des jobs précédents a échoué |
+| Titre de PR (Conventional Commits) | le titre doit suivre `type(scope): description` |
+
+Types de titre acceptés : `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`.
+
+Vérifier les contrats en local avant de pousser :
+
+```bash
+npx --yes @redocly/cli@1 lint contracts/*.yaml
+```
+
+Un endpoint public (sans jeton) doit le déclarer explicitement avec `security: []` ; sinon le lint échoue.
+
+### Protection de branche (réglages du dépôt, admin)
+
+Pour qu'une PR avec un test en échec ne puisse pas être fusionnée :
+
+- **Settings → Rules → Rulesets → `protect-main-develop`** : *Require status checks to pass* avec
+  `CI success` et `Titre de PR (Conventional Commits)`, et *Require branches to be up to date before merging* ;
+- dans le même ruleset, *Allowed merge methods* : **Squash** uniquement ;
+- **Settings → General → Pull Requests → Allow squash merging** : message par défaut = **Pull request title**.
+
+Avec le squash et le titre de PR comme message, chaque commit arrivant sur `develop` respecte Conventional Commits.
+
 ## SPIs — Contract First
 
 Les interfaces et modèles d'API sont générés à partir des contrats OpenAPI présents dans :
