@@ -1,6 +1,6 @@
 package com.uasz.alumni.user.controller;
 
-import com.uasz.alumni.user.exceptions.NotImplementedYetException;
+import com.uasz.alumni.user.service.AuthService;
 import com.uasz.alumni.user.spi.api.AuthApi;
 import com.uasz.alumni.user.spi.model.AuthResponse;
 import com.uasz.alumni.user.spi.model.ConfirmEmailRequest;
@@ -13,57 +13,64 @@ import com.uasz.alumni.user.spi.model.RegisterRequest;
 import com.uasz.alumni.user.spi.model.ResendConfirmationRequest;
 import com.uasz.alumni.user.spi.model.ResetPasswordRequest;
 import com.uasz.alumni.user.spi.model.User;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 public class AuthController implements AuthApi {
 
+    private final AuthService authService;
+
+    public AuthController(AuthService authService) {
+        this.authService = authService;
+    }
+
     @Override
     public ResponseEntity<User> registerUser(RegisterRequest registerRequest) {
-        // TODO : créer le compte (statut EN_ATTENTE) + envoyer l'email de confirmation -> 201
-        throw new NotImplementedYetException("registerUser");
+        User user = authService.registerUser(registerRequest);
+        return ResponseEntity.status(HttpStatus.CREATED).body(user);
     }
 
     @Override
     public ResponseEntity<AuthResponse> loginUser(LoginRequest loginRequest) {
-        // TODO : vérifier identifiants/statut, émettre accessToken + refreshToken -> 200 / 401 / 403
-        throw new NotImplementedYetException("loginUser");
+        AuthResponse response = authService.loginUser(loginRequest);
+        return ResponseEntity.ok(response);
     }
 
     @Override
     public ResponseEntity<AuthResponse> refreshToken(RefreshTokenRequest refreshTokenRequest) {
-        // TODO : valider le refresh token, émettre un nouveau jeton -> 200 / 401
-        throw new NotImplementedYetException("refreshToken");
+        AuthResponse response = authService.refreshToken(refreshTokenRequest);
+        return ResponseEntity.ok(response);
     }
 
     @Override
     public ResponseEntity<Void> logoutUser(LogoutRequest logoutRequest) {
-        // TODO : invalider le refresh token -> 204
-        throw new NotImplementedYetException("logoutUser");
+        authService.logoutUser(logoutRequest);
+        return ResponseEntity.noContent().build();
     }
 
     @Override
     public ResponseEntity<MessageResponse> forgotPassword(ForgotPasswordRequest forgotPasswordRequest) {
-        // TODO : réponse générique (anti-énumération) + email de réinitialisation -> 200
-        throw new NotImplementedYetException("forgotPassword");
+        MessageResponse response = authService.forgotPassword(forgotPasswordRequest);
+        return ResponseEntity.ok(response);
     }
 
     @Override
     public ResponseEntity<MessageResponse> resetPassword(ResetPasswordRequest resetPasswordRequest) {
-        // TODO : valider le token, appliquer la politique de mot de passe -> 200 / 400 / 422
-        throw new NotImplementedYetException("resetPassword");
+        MessageResponse response = authService.resetPassword(resetPasswordRequest);
+        return ResponseEntity.ok(response);
     }
 
     @Override
     public ResponseEntity<MessageResponse> confirmEmail(ConfirmEmailRequest confirmEmailRequest) {
-        // TODO : valider le token, passer le compte à ACTIF -> 200 / 400
-        throw new NotImplementedYetException("confirmEmail");
+        MessageResponse response = authService.confirmEmail(confirmEmailRequest);
+        return ResponseEntity.ok(response);
     }
 
     @Override
     public ResponseEntity<MessageResponse> resendConfirmation(ResendConfirmationRequest resendConfirmationRequest) {
-        // TODO : renvoyer l'email de confirmation -> 200 / 409 (déjà activé)
-        throw new NotImplementedYetException("resendConfirmation");
+        MessageResponse response = authService.resendConfirmation(resendConfirmationRequest);
+        return ResponseEntity.ok(response);
     }
 }

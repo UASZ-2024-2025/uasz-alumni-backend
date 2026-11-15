@@ -1,6 +1,6 @@
 package com.uasz.alumni.user.controller;
 
-import com.uasz.alumni.user.exceptions.NotImplementedYetException;
+import com.uasz.alumni.user.service.UserService;
 import com.uasz.alumni.user.spi.api.UsersApi;
 import com.uasz.alumni.user.spi.model.RoleName;
 import com.uasz.alumni.user.spi.model.User;
@@ -15,33 +15,39 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class UsersController implements UsersApi {
 
+    private final UserService userService;
+
+    public UsersController(UserService userService) {
+        this.userService = userService;
+    }
+
     @Override
     public ResponseEntity<UserPagedResponse> listUsers(RoleName role, UserStatus status, Integer page, Integer size) {
-        // TODO : liste paginée filtrée par rôle/statut (ADMINISTRATEUR)
-        throw new NotImplementedYetException("listUsers");
+        UserPagedResponse response = userService.listUsers(role, status, page, size);
+        return ResponseEntity.ok(response);
     }
 
     @Override
     public ResponseEntity<User> getUserById(UUID id) {
-        // TODO : récupérer l'utilisateur -> 200 / 404
-        throw new NotImplementedYetException("getUserById");
+        User user = userService.getUserById(id);
+        return ResponseEntity.ok(user);
     }
 
     @Override
     public ResponseEntity<User> updateUser(UUID id, UserUpdateRequest userUpdateRequest) {
-        // TODO : mise à jour (soi-même ou ADMINISTRATEUR) -> 200 / 400 / 403 / 404
-        throw new NotImplementedYetException("updateUser");
+        User updated = userService.updateUser(id, userUpdateRequest);
+        return ResponseEntity.ok(updated);
     }
 
     @Override
     public ResponseEntity<Void> deleteUser(UUID id) {
-        // TODO : suppression -> 204 / 403 / 404
-        throw new NotImplementedYetException("deleteUser");
+        userService.deleteUser(id);
+        return ResponseEntity.noContent().build();
     }
 
     @Override
     public ResponseEntity<User> updateUserStatus(UUID id, UserStatusUpdateRequest userStatusUpdateRequest) {
-        // TODO : activer/désactiver/suspendre (ADMINISTRATEUR uniquement) -> 200 / 403 / 404
-        throw new NotImplementedYetException("updateUserStatus");
+        User updated = userService.updateUserStatus(id, userStatusUpdateRequest);
+        return ResponseEntity.ok(updated);
     }
 }
