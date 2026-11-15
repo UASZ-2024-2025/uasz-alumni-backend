@@ -1,6 +1,5 @@
 package com.uasz.alumni.analyticsmatching.controller;
 
-import com.uasz.alumni.analyticsmatching.exceptions.NotImplementedYetException;
 import com.uasz.alumni.analyticsmatching.service.MatchingService;
 import com.uasz.alumni.analyticsmatching.spi.api.MatchingsApi;
 import com.uasz.alumni.analyticsmatching.spi.model.CandidateMatchResult;
@@ -27,6 +26,7 @@ public class MatchingsController implements MatchingsApi {
 
     @Override
     public ResponseEntity<List<CandidateMatchResult>> getMatchingCandidatesForOffer(UUID offerId, Integer minScore) {
-        throw new NotImplementedYetException("getMatchingCandidatesForOffer");
+        List<CandidateMatchResult> results = matchingService.getMatchingCandidatesForOffer(offerId, minScore);
+        return ResponseEntity.ok(results);
     }
 }

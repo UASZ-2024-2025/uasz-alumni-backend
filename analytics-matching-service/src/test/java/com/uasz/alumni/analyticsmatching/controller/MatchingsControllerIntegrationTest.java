@@ -1,5 +1,6 @@
 package com.uasz.alumni.analyticsmatching.controller;
 
+import com.uasz.alumni.alumnistudentcompany.spi.model.AvailabilityStatus;
 import com.uasz.alumni.alumnistudentcompany.spi.model.StudentProfile;
 import com.uasz.alumni.analyticsmatching.client.JobOfferServiceClient;
 import com.uasz.alumni.analyticsmatching.client.StudentServiceClient;
@@ -72,6 +73,10 @@ class MatchingsControllerIntegrationTest {
                 .signWith(Keys.hmacShaKeyFor(keyBytes))
                 .compact();
     }
+
+    // =========================================================================
+    // TÂCHE 2 : GET /v1/analytics/matchings/students/{studentId}
+    // =========================================================================
 
     @Test
     @DisplayName("GET /v1/analytics/matchings/students/{id} - Succès avec calcul de score et tri décroissant")
@@ -186,6 +191,153 @@ class MatchingsControllerIntegrationTest {
     @DisplayName("GET /v1/analytics/matchings/students/{id} - Requête sans authentification renvoie 401 Unauthorized")
     void getMatchingOffers_unauthenticated_returns401() throws Exception {
         mockMvc.perform(get("/v1/analytics/matchings/students/{studentId}", studentId))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code", is("UNAUTHORIZED")));
+    }
+
+    // =========================================================================
+    // TÂCHE 3 : GET /v1/analytics/matchings/offers/{offerId}?minScore=60
+    // =========================================================================
+
+    @Test
+    @DisplayName("GET /v1/analytics/matchings/offers/{id} - Succès par l'auteur : étudiants disponibles uniquement, score >= minScore, tri décroissant")
+    void getMatchingCandidates_authorSuccess_availableOnlyAndSorted() throws Exception {
+        UUID authorId = UUID.randomUUID();
+        UUID offerId = UUID.randomUUID();
+        String authorToken = generateToken(authorId, "recruiter@orange.sn", "ALUMNI");
+
+        JobOffer offer = new JobOffer();
+        offer.setId(offerId);
+        offer.setTitle("Développeur Java / Cloud");
+        offer.setPublisherId(authorId);
+        offer.setRequiredSkills(List.of("Java", "Spring Boot", "Docker"));
+        when(jobOfferServiceClient.getOfferById(offerId)).thenReturn(Optional.of(offer));
+
+        // Candidat 1 : disponible, 100% (Java, Spring Boot, Docker) -> 3/3
+        StudentProfile student1 = new StudentProfile();
+        student1.setId(UUID.randomUUID());
+        student1.setFirstName("Fatou");
+        student1.setLastName("Diop");
+        student1.setSpecialty("Génie Logiciel");
+        student1.setAvailabilityStatus(AvailabilityStatus.AVAILABLE_FOR_JOB);
+        student1.setSkills(List.of("Java", "Spring Boot", "Docker", "Kubernetes"));
+
+        // Candidat 2 : disponible, 67% (Java, Spring Boot) -> 2/3 (>= 60%)
+        StudentProfile student2 = new StudentProfile();
+        student2.setId(UUID.randomUUID());
+        student2.setFirstName("Moussa");
+        student2.setLastName("Sow");
+        student2.setSpecialty("Réseaux & Télécoms");
+        student2.setAvailabilityStatus(AvailabilityStatus.AVAILABLE_IMMEDIATELY);
+        student2.setSkills(List.of("Java", "Spring Boot"));
+
+        // Candidat 3 : disponible, 33% (Java uniquement) -> 1/3 (< 60% -> exclu)
+        StudentProfile student3 = new StudentProfile();
+        student3.setId(UUID.randomUUID());
+        student3.setFirstName("Awa");
+        student3.setLastName("Ndiaye");
+        student3.setSpecialty("Génie Logiciel");
+        student3.setAvailabilityStatus(AvailabilityStatus.AVAILABLE_FOR_INTERNSHIP);
+        student3.setSkills(List.of("Java"));
+
+        // Candidat 4 : 100% de compétences MAIS indisponible (NOT_AVAILABLE) -> doit être exclu
+        StudentProfile student4 = new StudentProfile();
+        student4.setId(UUID.randomUUID());
+        student4.setFirstName("Ibrahima");
+        student4.setLastName("Ba");
+        student4.setSpecialty("Génie Logiciel");
+        student4.setAvailabilityStatus(AvailabilityStatus.NOT_AVAILABLE);
+        student4.setSkills(List.of("Java", "Spring Boot", "Docker"));
+
+        when(studentServiceClient.getAllStudents())
+                .thenReturn(List.of(student1, student2, student3, student4));
+
+        mockMvc.perform(get("/v1/analytics/matchings/offers/{offerId}", offerId)
+                        .param("minScore", "60")
+                        .header("Authorization", "Bearer " + authorToken))
+                .andExpect(status().isOk())
+                // Seuls candidat 1 (100%) et candidat 2 (67%) doivent être retournés
+                .andExpect(jsonPath("$", hasSize(2)))
+                // Triés par score décroissant : Fatou (100%) puis Moussa (67%)
+                .andExpect(jsonPath("$[0].studentName", is("Fatou Diop")))
+                .andExpect(jsonPath("$[0].matchScore", is(100)))
+                .andExpect(jsonPath("$[0].specialty", is("Génie Logiciel")))
+                .andExpect(jsonPath("$[0].matchingSkills", hasSize(3)))
+                .andExpect(jsonPath("$[1].studentName", is("Moussa Sow")))
+                .andExpect(jsonPath("$[1].matchScore", is(67)))
+                .andExpect(jsonPath("$[1].specialty", is("Réseaux & Télécoms")))
+                .andExpect(jsonPath("$[1].matchingSkills", hasSize(2)));
+    }
+
+    @Test
+    @DisplayName("GET /v1/analytics/matchings/offers/{id} - Succès par l'administrateur même s'il n'est pas l'auteur")
+    void getMatchingCandidates_adminSuccess() throws Exception {
+        UUID adminId = UUID.randomUUID();
+        UUID authorId = UUID.randomUUID();
+        UUID offerId = UUID.randomUUID();
+        String adminToken = generateToken(adminId, "admin@uasz.sn", "ADMINISTRATEUR");
+
+        JobOffer offer = new JobOffer();
+        offer.setId(offerId);
+        offer.setTitle("Ingénieur DevOps");
+        offer.setPublisherId(authorId);
+        offer.setRequiredSkills(List.of("Docker", "Kubernetes"));
+        when(jobOfferServiceClient.getOfferById(offerId)).thenReturn(Optional.of(offer));
+
+        StudentProfile student = new StudentProfile();
+        student.setId(UUID.randomUUID());
+        student.setFirstName("Alioune");
+        student.setLastName("Fall");
+        student.setAvailabilityStatus(AvailabilityStatus.AVAILABLE_FOR_JOB);
+        student.setSkills(List.of("Docker", "Kubernetes"));
+        when(studentServiceClient.getAllStudents()).thenReturn(List.of(student));
+
+        mockMvc.perform(get("/v1/analytics/matchings/offers/{offerId}", offerId)
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].studentName", is("Alioune Fall")))
+                .andExpect(jsonPath("$[0].matchScore", is(100)));
+    }
+
+    @Test
+    @DisplayName("GET /v1/analytics/matchings/offers/{id} - Accès refusé (403) si l'utilisateur n'est ni auteur ni administrateur")
+    void getMatchingCandidates_forbiddenIfNotAuthorOrAdmin() throws Exception {
+        UUID authorId = UUID.randomUUID();
+        UUID otherUserId = UUID.randomUUID();
+        UUID offerId = UUID.randomUUID();
+        String otherUserToken = generateToken(otherUserId, "other@univ-zig.sn", "ETUDIANT");
+
+        JobOffer offer = new JobOffer();
+        offer.setId(offerId);
+        offer.setTitle("Stage Data Science");
+        offer.setPublisherId(authorId);
+        when(jobOfferServiceClient.getOfferById(offerId)).thenReturn(Optional.of(offer));
+
+        mockMvc.perform(get("/v1/analytics/matchings/offers/{offerId}", offerId)
+                        .header("Authorization", "Bearer " + otherUserToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code", is("FORBIDDEN")));
+    }
+
+    @Test
+    @DisplayName("GET /v1/analytics/matchings/offers/{id} - CRITÈRE D'ACCEPTATION : 404 si l'offre n'existe pas")
+    void getMatchingCandidates_offerNotFound_returns404() throws Exception {
+        UUID unknownOfferId = UUID.randomUUID();
+        when(jobOfferServiceClient.getOfferById(unknownOfferId)).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/v1/analytics/matchings/offers/{offerId}", unknownOfferId)
+                        .header("Authorization", "Bearer " + validToken))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code", is("NOT_FOUND")));
+    }
+
+    @Test
+    @DisplayName("GET /v1/analytics/matchings/offers/{id} - Requête non authentifiée renvoie 401 Unauthorized")
+    void getMatchingCandidates_unauthenticated_returns401() throws Exception {
+        UUID offerId = UUID.randomUUID();
+
+        mockMvc.perform(get("/v1/analytics/matchings/offers/{offerId}", offerId))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code", is("UNAUTHORIZED")));
     }

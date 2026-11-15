@@ -1,6 +1,9 @@
 package com.uasz.alumni.analyticsmatching.client;
 
+import com.uasz.alumni.alumnistudentcompany.spi.model.StudentPagedResponse;
 import com.uasz.alumni.alumnistudentcompany.spi.model.StudentProfile;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -53,6 +56,27 @@ public class HttpStudentServiceClient implements StudentServiceClient {
         } catch (Exception e) {
             log.error("Erreur lors de l'appel à alumni-student-company-service pour l'étudiant {}", studentId, e);
             return Optional.empty();
+        }
+    }
+
+    @Override
+    public List<StudentProfile> getAllStudents() {
+        try {
+            StudentPagedResponse response = restClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/students")
+                            .queryParam("size", 100)
+                            .build())
+                    .retrieve()
+                    .body(StudentPagedResponse.class);
+
+            if (response != null && response.getContent() != null) {
+                return response.getContent();
+            }
+            return Collections.emptyList();
+        } catch (Exception e) {
+            log.error("Erreur lors de la récupération des étudiants depuis alumni-student-company-service", e);
+            return Collections.emptyList();
         }
     }
 }
