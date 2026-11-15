@@ -50,7 +50,7 @@ et des candidatures, ni indicateur d'insertion professionnelle.
 | Alumni | `ALUMNI` | |
 | Enseignant | `ENSEIGNANT` | |
 | Administrateur | `ADMINISTRATEUR` | |
-| Entreprise partenaire | **absent** | Acteur du cahier des besoins, mais sans rôle dans le contrat `user-service` v1.0.0 (voir §8) |
+| Entreprise partenaire | `ENTREPRISE` | Acteur du cahier des besoins, mais sans rôle dans le contrat `user-service` v1.0.0 (voir §8) |
 
 ### 2.2 Exigences fonctionnelles (par domaine)
 

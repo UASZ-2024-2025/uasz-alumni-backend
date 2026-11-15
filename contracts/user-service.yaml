@@ -77,6 +77,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "423":
+          description: Compte temporairement verrouillé après trop d'échecs de connexion
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /auth/refresh-token:
     post:
       tags:
@@ -222,6 +228,44 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /auth/change-password:
+    post:
+      tags:
+        - Auth
+      summary: Changer son mot de passe (utilisateur connecté)
+      description: |
+        Révoque tous les refresh tokens de l'utilisateur : il doit se reconnecter.
+        Politique : 8 à 72 octets, au moins une lettre et un chiffre.
+      operationId: changePassword
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordRequest"
+        required: true
+      responses:
+        "200":
+          description: Mot de passe modifié
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          description: Mot de passe actuel incorrect ou nouveau mot de passe identique
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          description: Nouveau mot de passe non conforme à la politique de sécurité
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - bearerAuth: []
   /users:
     get:
       tags:
@@ -265,11 +309,44 @@ paths:
           $ref: "#/components/responses/Forbidden"
       security:
         - bearerAuth: []
+    post:
+      tags:
+        - Users
+      summary: Créer un compte utilisateur (ADMINISTRATEUR)
+      description: |
+        Le compte est créé au statut EN_ATTENTE sans mot de passe utilisable. Un email invite
+        l'utilisateur à définir son mot de passe (lien traité par POST /auth/reset-password,
+        qui active le compte).
+      operationId: createUser
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserCreateRequest"
+        required: true
+      responses:
+        "201":
+          description: Compte créé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+      security:
+        - bearerAuth: []
   /users/{id}:
     get:
       tags:
         - Users
       summary: Récupérer un utilisateur par son identifiant
+      description: Réservé à l'utilisateur lui-même ou à un ADMINISTRATEUR.
       operationId: getUserById
       parameters:
         - name: id
@@ -287,6 +364,8 @@ paths:
                 $ref: "#/components/schemas/User"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
       security:
@@ -295,6 +374,7 @@ paths:
       tags:
         - Users
       summary: Mettre à jour les informations d'un utilisateur
+      description: Mise à jour partielle (les champs absents sont conservés). Seul un ADMINISTRATEUR peut modifier l'email (403 sinon, 409 si déjà utilisé).
       operationId: updateUser
       parameters:
         - name: id
@@ -324,6 +404,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
       security:
         - bearerAuth: []
     delete:
@@ -347,6 +429,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
       security:
         - bearerAuth: []
   /users/{id}/status:
@@ -354,6 +438,7 @@ paths:
       tags:
         - Users
       summary: Modifier le statut d'un utilisateur (activation/désactivation/suspension)
+      description: Passer à ACTIF lève aussi un éventuel verrouillage. Passer à INACTIF ou SUSPENDU révoque les sessions.
       operationId: updateUserStatus
       parameters:
         - name: id
@@ -375,6 +460,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -385,6 +472,8 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
       security:
         - bearerAuth: []
   /roles:
@@ -414,7 +503,13 @@ components:
         - ALUMNI
         - ETUDIANT
         - ENSEIGNANT
+        - ENTREPRISE
         - ADMINISTRATEUR
+    Gender:
+      type: string
+      enum:
+        - MALE
+        - FEMALE
     UserStatus:
       type: string
       enum:
@@ -422,6 +517,38 @@ components:
         - ACTIF
         - INACTIF
         - SUSPENDU
+    UserCreateRequest:
+      required:
+        - email
+        - firstName
+        - lastName
+        - role
+      type: object
+      properties:
+        lastName:
+          type: string
+        firstName:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        role:
+          $ref: "#/components/schemas/RoleName"
+    ChangePasswordRequest:
+      required:
+        - currentPassword
+        - newPassword
+      type: object
+      properties:
+        currentPassword:
+          type: string
+          format: password
+        newPassword:
+          minLength: 8
+          type: string
+          format: password
     RegisterRequest:
       required:
         - email
@@ -491,10 +618,7 @@ components:
         phone:
           type: string
         gender:
-          type: string
-          enum:
-            - MALE
-            - FEMALE
+          $ref: "#/components/schemas/Gender"
         birthDate:
           type: string
           format: date
@@ -512,10 +636,7 @@ components:
         phone:
           type: string
         gender:
-          type: string
-          enum:
-            - MALE
-            - FEMALE
+          $ref: "#/components/schemas/Gender"
         birthDate:
           type: string
           format: date
@@ -637,6 +758,12 @@ components:
             $ref: "#/components/schemas/ErrorResponse"
     NotFound:
       description: Ressource introuvable
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: Conflit avec l'état actuel de la ressource
       content:
         application/json:
           schema:
