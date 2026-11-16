@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Commande unique SonarQube pour le monorepo Alumni UASZ.
+# Commande unique SonarQube pour le depot backend Alumni UASZ.
 #   ./sonar/sonar.sh up                 démarre SonarQube local (docker compose)
 #   ./sonar/sonar.sh init               1re fois : mot de passe admin + token (sonar/.sonar-token)
 #   ./sonar/sonar.sh scan [service|all] tests + couverture + analyse (défaut : all)

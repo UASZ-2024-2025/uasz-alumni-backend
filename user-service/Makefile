@@ -18,8 +18,8 @@ env-complete: ## Ajoute à .env les clés manquantes de .env.example
 jwt-sync: ## Recopie JWT_SECRET depuis ../user-service/.env (services non émetteurs)
 > ./scripts/gen-env.sh --jwt-only
 
-db: ## Démarre PostgreSQL (conteneur)
-> docker compose up -d --wait postgres
+db: ## Démarre PostgreSQL + Mailpit (conteneurs)
+> docker compose up -d --wait postgres mailpit
 
 run: ## PostgreSQL + app en local (profil local, lit .env)
 > ./scripts/start.sh
