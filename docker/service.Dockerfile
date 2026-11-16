@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# Contexte de build = RACINE du monorepo (il faut spis/repo).
+# Contexte de build = RACINE du depot backend (il faut spis/repo).
 #   docker build -f docker/service.Dockerfile --build-arg SERVICE=user-service -t user-service:dev .
 ARG SERVICE
 
@@ -7,7 +7,7 @@ ARG SERVICE
 FROM eclipse-temurin:21-jdk-jammy AS build
 ARG SERVICE
 
-# Depot Maven des SPIs, meme chemin relatif que dans le monorepo (../spis/repo)
+# Depot Maven des SPIs, meme chemin relatif que dans le depot backend (../spis/repo)
 WORKDIR /workspace
 COPY spis/repo/ spis/repo/
 
