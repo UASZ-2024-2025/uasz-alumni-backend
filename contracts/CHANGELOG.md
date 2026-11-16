@@ -34,3 +34,7 @@
 
 ### Tous les contrats
 - Fins de ligne normalisées en LF.
+- **Précision** (AL-13) : `security: []` sur les opérations publiques, pour que le lint Redocly de la CI passe
+  (règle `security-defined`). Aucun changement de comportement ni de code généré.
+  - user-service : `registerUser`, `loginUser`, `refreshToken`, `forgotPassword`, `resetPassword`, `confirmEmail`, `resendConfirmation` ;
+  - job-offer-service : `searchOffers`, `getOfferById`.

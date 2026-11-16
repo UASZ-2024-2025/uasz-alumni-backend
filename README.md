@@ -113,6 +113,59 @@ Les workflows GitHub Actions se trouvent dans :
 
 La CI/CD est configurée pour traiter uniquement les microservices concernés par les modifications.
 
+### CI des Pull Requests (`ci.yml`, `pr-title.yml`)
+
+Déclenchée sur chaque PR vers `develop` et `main` (et sur chaque push sur ces branches) :
+
+| Job | Rôle |
+|---|---|
+| Lint des contrats OpenAPI | `redocly lint contracts/*.yaml` à chaque run ; une erreur bloque, les avertissements non |
+| Generation des SPIs | régénère les SPIs (sans publier) si un contrat ou un `pom.xml` de `spis/` change |
+| Build et tests (`<service>`) | `./mvnw verify` + build de l'image Docker, uniquement pour les services modifiés |
+| CI success | récapitulatif : échoue si l'un des jobs précédents a échoué |
+| Titre de PR (Conventional Commits) | le titre doit suivre `type(scope): description` |
+
+Types de titre acceptés : `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`.
+
+Vérifier les contrats en local avant de pousser :
+
+```bash
+npx --yes @redocly/cli@1 lint contracts/*.yaml
+```
+
+Un endpoint public (sans jeton) doit le déclarer explicitement avec `security: []` ; sinon le lint échoue.
+
+### Règles de contribution (actives sur `develop` et `main`)
+
+Ces règles sont imposées par GitHub (ruleset `protect-main-develop`) : le bouton de fusion reste bloqué tant qu'elles ne sont pas toutes respectées.
+
+| Règle | Détail |
+|---|---|
+| Pull Request obligatoire | Jamais de push direct sur `develop` ni `main` ; une branche par tâche (`feature/AL-XX-...`, `fix/...`, `docs/...`) |
+| 1 approbation | Par un autre membre de l'équipe ; un nouveau push annule l'approbation |
+| Conversations résolues | Tous les commentaires de relecture doivent être résolus |
+| Checks obligatoires | `CI success` (lint, build, tests) et `Titre de PR (Conventional Commits)` doivent être verts |
+| Branche à jour | La PR doit contenir le dernier état de `develop` (bouton *Update branch*) |
+| Squash merge uniquement | Toute la PR devient un seul commit, dont le message est le **titre de la PR** |
+
+### Format du titre de PR
+
+```text
+type(scope): description courte (AL-XX)
+```
+
+- `type` : `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert` ;
+- `scope` (facultatif) : le service ou la partie concernée, ex. `user-service`, `job-offer`, `contracts`, `deploy` ;
+- la référence du ticket Jira à la fin, entre parenthèses, quand il y en a une.
+
+| Correct | Refusé (et pourquoi) |
+|---|---|
+| `feat(user-service): inscription et confirmation d'email (AL-18)` | `Feature/al 18 inscription` (nom de branche, pas de type) |
+| `fix(job-offer): statut 409 sur une candidature en double` | `AL-48: écrans profils` (le ticket n'est pas un type) |
+| `docs: guide de démarrage` | `Expériences des Alumni` (pas de type) |
+
+Si le check du titre est rouge, il suffit de **modifier le titre de la PR** : le contrôle se relance tout seul, sans nouveau commit.
+
 ## SPIs — Contract First
 
 Les interfaces et modèles d'API sont générés à partir des contrats OpenAPI présents dans :
