@@ -49,7 +49,7 @@ Un monolithe modulaire tiendrait la charge sans difficulté. Le choix repose sur
   - Une panne de la messagerie n'empêche pas de postuler à une offre.
   - Le service d'analyse peut être dimensionné séparément.
 - **Négatives / risques**, et comment on les limite
-  - Coût d'outillage → monorepo ([ADR-0003](0003-monorepo.md)), Dockerfile et Makefile communs.
+  - Coût d'outillage → un dépôt backend unique ([ADR-0003](0003-organisation-des-depots.md)), Dockerfile et Makefile communs.
   - Dérive des interfaces → Contract First ([ADR-0002](0002-contract-first-openapi.md)).
   - Données réparties → références par UUID et dénormalisation des champs d'affichage
     ([ADR-0004](0004-base-de-donnees-par-service.md)).

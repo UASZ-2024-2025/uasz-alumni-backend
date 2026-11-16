@@ -144,7 +144,7 @@ Nous retenons une architecture en **5 microservices**. Raisons :
 
 | Coût | Mesure |
 | --- | --- |
-| Complexité de l'outillage | **Monorepo**, `Makefile` et scripts identiques dans chaque service, Dockerfile unique partagé |
+| Complexité de l'outillage | **Un dépôt backend unique** (frontend à part), `Makefile` et scripts identiques dans chaque service, Dockerfile unique partagé |
 | Dérive des interfaces | Approche **contract first** : SPIs générés et versionnés ; une modification de contrat passe par une PR |
 | Données réparties | Chaque service est propriétaire de ses données ; les autres y font référence par UUID, et les champs d'affichage (`companyName`, `studentName`…) sont dénormalisés |
 | Authentification distribuée | JWT vérifié localement par chaque service, sans appel à `user-service` à chaque requête |

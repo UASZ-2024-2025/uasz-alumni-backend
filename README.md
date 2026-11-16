@@ -1,6 +1,6 @@
 # Alumni UASZ
 
-Plateforme Alumni UASZ : architecture microservices, approche **Contract First** et organisation en **monorepo**.
+Plateforme Alumni UASZ : architecture microservices et approche **Contract First**. Ce dépôt regroupe tout le backend (services, contrats, infrastructure) ; le frontend est dans un dépôt séparé ([Alumni-UASZ-frontend](https://github.com/UASZ-2024-2025/Alumni-UASZ-frontend)).
 
 ## Architecture du projet
 

@@ -14,7 +14,7 @@ Livrables n°5 et n°6 du sujet **GL5121 Architecture Logicielle**.
 ## Décisions d'architecture (ADR)
 
 **[adr/](adr/README.md)** : une fiche par décision importante, avec son contexte, les options étudiées, la
-décision et ses conséquences (microservices, Contract First, monorepo, une base par service, JWT,
+décision et ses conséquences (microservices, Contract First, organisation des dépôts, une base par service, JWT,
 communication REST, distribution des SPIs, Docker/Kubernetes, stack Java/Spring).
 
 ## Diagrammes UML exigés
