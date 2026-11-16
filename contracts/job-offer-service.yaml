@@ -27,6 +27,7 @@ paths:
         - Offers
       summary: Recherche et liste des offres d'emplois et de stages
       operationId: searchOffers
+      security: []
       parameters:
         - name: query
           in: query
@@ -118,6 +119,7 @@ paths:
         - Offers
       summary: Obtenir les détails d'une offre
       operationId: getOfferById
+      security: []
       parameters:
         - $ref: "#/components/parameters/EntityId"
       responses:
