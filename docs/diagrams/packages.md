@@ -1,6 +1,6 @@
 # Diagramme de packages
 
-## Vue d'ensemble du monorepo
+## Vue d'ensemble du dépôt backend
 
 ```mermaid
 flowchart TB

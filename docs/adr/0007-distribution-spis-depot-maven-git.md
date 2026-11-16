@@ -41,4 +41,4 @@ Nous retenons l'**option 3**.
   - On peut oublier de régénérer après une modification du contrat → le job CI `spis-check` le
     détecte.
 - **Suivi** : passer sur GitHub Packages si le nombre de versions fait trop grossir le dépôt, ou si des
-  consommateurs extérieurs au monorepo apparaissent.
+  consommateurs extérieurs au dépôt backend apparaissent.

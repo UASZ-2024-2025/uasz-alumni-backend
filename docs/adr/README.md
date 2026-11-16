@@ -19,7 +19,7 @@ système est ainsi, pas seulement **comment** il est fait.
 | --- | --- | --- | --- |
 | [0001](0001-architecture-microservices.md) | Architecture en microservices plutôt qu'un monolithe modulaire | Accepté | 2026-11-01 |
 | [0002](0002-contract-first-openapi.md) | Approche Contract First avec OpenAPI et SPIs générés | Accepté | 2026-11-01 |
-| [0003](0003-monorepo.md) | Monorepo unique pour les services, les contrats et l'infrastructure | Accepté | 2026-11-01 |
+| [0003](0003-organisation-des-depots.md) | Organisation des dépôts (backend et frontend séparés) | Accepté | 2026-11-01 |
 | [0004](0004-base-de-donnees-par-service.md) | Une base PostgreSQL par service, schéma géré par Flyway | Accepté | 2026-11-01 |
 | [0005](0005-authentification-jwt.md) | Authentification stateless par JWT signé avec un secret partagé (HS256) | Accepté, à réévaluer | 2026-11-01 |
 | [0006](0006-communication-rest-synchrone.md) | Communication entre services en REST synchrone (pas de broker en v1) | Accepté, à réévaluer | 2026-11-07 |
