@@ -135,16 +135,36 @@ npx --yes @redocly/cli@1 lint contracts/*.yaml
 
 Un endpoint public (sans jeton) doit le déclarer explicitement avec `security: []` ; sinon le lint échoue.
 
-### Protection de branche (réglages du dépôt, admin)
+### Règles de contribution (actives sur `develop` et `main`)
 
-Pour qu'une PR avec un test en échec ne puisse pas être fusionnée :
+Ces règles sont imposées par GitHub (ruleset `protect-main-develop`) : le bouton de fusion reste bloqué tant qu'elles ne sont pas toutes respectées.
 
-- **Settings → Rules → Rulesets → `protect-main-develop`** : *Require status checks to pass* avec
-  `CI success` et `Titre de PR (Conventional Commits)`, et *Require branches to be up to date before merging* ;
-- dans le même ruleset, *Allowed merge methods* : **Squash** uniquement ;
-- **Settings → General → Pull Requests → Allow squash merging** : message par défaut = **Pull request title**.
+| Règle | Détail |
+|---|---|
+| Pull Request obligatoire | Jamais de push direct sur `develop` ni `main` ; une branche par tâche (`feature/AL-XX-...`, `fix/...`, `docs/...`) |
+| 1 approbation | Par un autre membre de l'équipe ; un nouveau push annule l'approbation |
+| Conversations résolues | Tous les commentaires de relecture doivent être résolus |
+| Checks obligatoires | `CI success` (lint, build, tests) et `Titre de PR (Conventional Commits)` doivent être verts |
+| Branche à jour | La PR doit contenir le dernier état de `develop` (bouton *Update branch*) |
+| Squash merge uniquement | Toute la PR devient un seul commit, dont le message est le **titre de la PR** |
 
-Avec le squash et le titre de PR comme message, chaque commit arrivant sur `develop` respecte Conventional Commits.
+### Format du titre de PR
+
+```text
+type(scope): description courte (AL-XX)
+```
+
+- `type` : `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert` ;
+- `scope` (facultatif) : le service ou la partie concernée, ex. `user-service`, `job-offer`, `contracts`, `deploy` ;
+- la référence du ticket Jira à la fin, entre parenthèses, quand il y en a une.
+
+| Correct | Refusé (et pourquoi) |
+|---|---|
+| `feat(user-service): inscription et confirmation d'email (AL-18)` | `Feature/al 18 inscription` (nom de branche, pas de type) |
+| `fix(job-offer): statut 409 sur une candidature en double` | `AL-48: écrans profils` (le ticket n'est pas un type) |
+| `docs: guide de démarrage` | `Expériences des Alumni` (pas de type) |
+
+Si le check du titre est rouge, il suffit de **modifier le titre de la PR** : le contrôle se relance tout seul, sans nouveau commit.
 
 ## SPIs — Contract First
 
