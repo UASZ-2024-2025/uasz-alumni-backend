@@ -3,7 +3,6 @@ package com.uasz.alumni.user.controller;
 import com.uasz.alumni.user.service.RoleService;
 import com.uasz.alumni.user.spi.api.RolesApi;
 import com.uasz.alumni.user.spi.model.Role;
-import com.uasz.alumni.user.utils.UserMapper;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
