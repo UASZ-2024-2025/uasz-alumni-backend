@@ -1,0 +1,35 @@
+server:
+  port: 0
+  forward-headers-strategy: none
+
+spring:
+  application:
+    name: analytics-matching-service-test
+  datasource:
+    url: jdbc:h2:mem:analyticsdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: create-drop
+  flyway:
+    enabled: false
+
+security:
+  api:
+    prefix: /v1
+  cors:
+    allowed-origins: http://localhost:4200
+
+jwt:
+  secret: dGVzdC1zZWNyZXQta2V5LWF0LWxlYXN0LTMyLWJ5dGVzLWxvbmctMTIzNDU2Nzg5MA==
+  issuer: alumni-uasz-user
+
+services:
+  student-service:
+    url: http://localhost:8082
+  job-offer-service:
+    url: http://localhost:8083
+
