@@ -1,6 +1,6 @@
 # Alumni UASZ
 
-Plateforme Alumni UASZ : architecture microservices, approche **Contract First** et organisation en **monorepo**.
+Plateforme Alumni UASZ : architecture microservices et approche **Contract First**. Ce dépôt regroupe tout le backend (services, contrats, infrastructure) ; le frontend est dans un dépôt séparé ([Alumni-UASZ-frontend](https://github.com/UASZ-2024-2025/Alumni-UASZ-frontend)).
 
 ## Architecture du projet
 
@@ -14,6 +14,15 @@ Plateforme Alumni UASZ : architecture microservices, approche **Contract First**
 | `notification-messaging-service` | 8085 | Messagerie privée, groupes et notifications |
 | `contracts` | — | Contrats OpenAPI (source de vérité) |
 | `spis` | — | Interfaces et modèles d'API générés depuis les contrats |
+
+## Documentation d'architecture
+
+Voir **[`docs/`](docs/README.md)** :
+
+- [Justification de l'architecture](docs/architecture.md) : exigences, monolithe modulaire vs microservices, stack, composants et interfaces
+- Diagrammes UML : [composants](docs/diagrams/composants.md), [packages](docs/diagrams/packages.md), [déploiement](docs/diagrams/deploiement.md), [classes par service](docs/diagrams/classes.md)
+- Décisions d'architecture : [ADR](docs/adr/README.md)
+- Compléments : [cas d'utilisation](docs/diagrams/cas-utilisation.md), [séquences](docs/diagrams/sequences.md)
 
 ## Première installation
 
@@ -36,7 +45,15 @@ done
 Depuis le dossier du microservice concerné :
 
 ```bash
+# si vous etes encore en possession de l'ancien contenu de .env sans mailpit et les autres variables
+# il faudra vous en assurer en verifiant votre fichier .env dans user-service
+# si le fichier est complet alors vous pouvez sauter cette etape, sinon faites-le.
+cd user-service
+make env-complete
+
+
 cd chemin_du_microservice
+make env-complete  # si vous etes encore en possession de l'ancien contenu de .env sans mailpit et les autres variables
 make up
 ```
 
