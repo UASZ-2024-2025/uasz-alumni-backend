@@ -4,11 +4,11 @@ import com.uasz.alumni.alumnistudentcompany.exceptions.ApiException;
 import com.uasz.alumni.alumnistudentcompany.model.StudentProfileEntity;
 import com.uasz.alumni.alumnistudentcompany.repository.StudentProfileRepository;
 import com.uasz.alumni.alumnistudentcompany.repository.StudentSpecifications;
-import com.uasz.alumni.alumnistudentcompany.security.CurrentUser;
 import com.uasz.alumni.alumnistudentcompany.security.CurrentUserProvider;
 import com.uasz.alumni.alumnistudentcompany.spi.model.AvailabilityStatus;
 import com.uasz.alumni.alumnistudentcompany.spi.model.StudentPagedResponse;
 import com.uasz.alumni.alumnistudentcompany.spi.model.StudentProfile;
+import com.uasz.alumni.alumnistudentcompany.security.AuthenticatedUser;
 import com.uasz.alumni.alumnistudentcompany.spi.model.StudentProfileUpdateRequest;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -32,7 +32,7 @@ public class StudentProfileService {
     static final int MAX_ITEM_LENGTH = 50;
     static final int MAX_SPECIALTY_LENGTH = 100;
     static final int MAX_BIO_LENGTH = 2000;
-
+    private static final String ROLE_ADMIN = "ADMINISTRATEUR";
     private final StudentProfileRepository repository;
     private final CurrentUserProvider currentUserProvider;
 
@@ -79,8 +79,9 @@ public class StudentProfileService {
     @Transactional
     public StudentProfile update(UUID id, StudentProfileUpdateRequest request) {
         StudentProfileEntity entity = find(id);
-        CurrentUser user = currentUserProvider.require();
-        if (!user.admin() && !user.userId().equals(entity.getUserId())) {
+        AuthenticatedUser user = currentUserProvider.require();
+        boolean admin = ROLE_ADMIN.equals(user.role());
+        if (!admin && !user.id().equals(entity.getUserId())) {
             throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN",
                     "Seul l'étudiant concerné ou un administrateur peut modifier ce profil");
         }

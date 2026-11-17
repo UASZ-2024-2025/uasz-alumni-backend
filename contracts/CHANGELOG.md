@@ -13,6 +13,11 @@
 - **Ajout** de `GROUP_INVITATION` et `GROUP_MESSAGE_RECEIVED` dans `NotificationType`.
 
 ### user-service
+- **Ajout** du rôle `ENTREPRISE` dans `RoleName`.
+- **Ajout** du schéma partagé `Gender` (remplace les enums inline de `User` et `UserUpdateRequest`).
+- **Ajout** de `POST /auth/change-password` (`changePassword`, `ChangePasswordRequest`) et de `POST /users` (`createUser`, `UserCreateRequest`).
+- **Précisions** : 423 sur `/auth/login` ; 403 sur `GET /users/{id}` (soi-même ou ADMINISTRATEUR) ; 400/409 sur `PATCH /users/{id}/status` ; 409 sur `PUT`/`DELETE /users/{id}` ; changement d'email réservé à ADMINISTRATEUR ; réponse `Conflict`.
+- SPI `user-service-spi` passé en **1.1.0**.
 - **Suppression** du serveur `virtserver.swaggerhub.com` (mock automatique non pertinent).
 - **Renommage** des schémas auto-générés, afin d'obtenir des classes lisibles à la génération :
 
@@ -29,3 +34,7 @@
 
 ### Tous les contrats
 - Fins de ligne normalisées en LF.
+- **Précision** (AL-13) : `security: []` sur les opérations publiques, pour que le lint Redocly de la CI passe
+  (règle `security-defined`). Aucun changement de comportement ni de code généré.
+  - user-service : `registerUser`, `loginUser`, `refreshToken`, `forgotPassword`, `resetPassword`, `confirmEmail`, `resendConfirmation` ;
+  - job-offer-service : `searchOffers`, `getOfferById`.

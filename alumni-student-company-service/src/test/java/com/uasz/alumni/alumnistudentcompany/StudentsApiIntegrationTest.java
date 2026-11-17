@@ -3,7 +3,6 @@ package com.uasz.alumni.alumnistudentcompany;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -20,13 +19,17 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
-
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
+import java.time.Instant;
+import java.util.Base64;
+import java.util.Date;
+import org.springframework.beans.factory.annotation.Value;
 /** Critères du ticket : recherche par compétence / disponibilité (paginée), consultation, mise à jour protégée. */
 @SpringBootTest
 @ActiveProfiles("test")
@@ -36,7 +39,10 @@ class StudentsApiIntegrationTest {
     WebApplicationContext context;
     @Autowired
     StudentProfileRepository repository;
-
+    @Value("${jwt.secret}")
+    String secret;
+    @Value("${jwt.issuer}")
+    String issuer;
     MockMvc mvc;
     StudentProfileEntity aminata;
     StudentProfileEntity moussa;
@@ -243,8 +249,14 @@ class StudentsApiIntegrationTest {
         return repository.save(e);
     }
 
-    private static RequestPostProcessor asUser(UUID userId, String role) {
-        return jwt().jwt(j -> j.subject(userId.toString()))
-                .authorities(new SimpleGrantedAuthority("ROLE_" + role));
+    private RequestPostProcessor asUser(UUID userId, String role) {
+        String token = Jwts.builder().issuer(issuer).subject(userId.toString())
+            .claim("role", role).claim("email", "test@uasz.sn")
+            .issuedAt(new Date()).expiration(Date.from(Instant.now().plusSeconds(600)))
+            .signWith(Keys.hmacShaKeyFor(Base64.getDecoder().decode(secret))).compact();
+        return request -> {
+            request.addHeader("Authorization", "Bearer " + token);
+            return request;
+        };
     }
 }

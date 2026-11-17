@@ -1,0 +1,27 @@
+# Vérifie que le titre de la PR suit Conventional Commits (AL-13),
+# ex. « feat(user-service): inscription (AL-18) ».
+#
+# Les PR étant fusionnées en squash avec le titre de la PR comme message
+# (réglage du dépôt), ce contrôle garantit aussi le format des commits de develop/main.
+# Workflow séparé de la CI : modifier le titre relance ce contrôle sans relancer les builds.
+
+name: Titre de PR
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+    branches: [main, develop]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  pr-title:
+    name: Titre de PR (Conventional Commits)
+    runs-on: ubuntu-latest
+    steps:
+      # Types acceptés : feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert.
+      # Le scope est facultatif.
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
