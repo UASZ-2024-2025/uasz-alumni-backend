@@ -11,3 +11,6 @@
 
 # SPIs : sources generees ignorees, spis/repo versionne
 spis/**/target/
+sonar/.sonar-token
+.scannerwork/
+**/.scannerwork/
