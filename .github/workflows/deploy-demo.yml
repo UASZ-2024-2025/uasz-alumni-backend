@@ -1,0 +1,186 @@
+# CD de la démo AWS (ALUM-215) : chaque fusion dans develop est déployée automatiquement.
+#
+#   1. images des services modifiés -> ghcr.io (amd64 + arm64), tags <sha> et develop
+#   2. GitHub prend le rôle AWS de déploiement par OIDC (aucune clé stockée)
+#   3. AWS SSM lance le document « alumni-demo-deploy » (deploy.sh) sur les 2 machines de la démo
+#      (attente des healthchecks, retour automatique à la version précédente en cas d'échec)
+#
+# La CI a déjà validé le code dans la PR (check « CI success » obligatoire sur develop).
+# Variables du dépôt (Settings > Secrets and variables > Actions > Variables) :
+#   AWS_DEPLOY_ROLE_ARN (sortie BackendDeployRoleArn), AWS_REGION, DEMO_URL
+# Le job deploy utilise l'environnement GitHub « demo », limité à develop : c'est la seule
+# identité acceptée par le rôle AWS.
+
+name: CD - Démo AWS
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+    inputs:
+      service:
+        description: "Service à reconstruire et déployer (nom du dossier), all, ou none (fichiers de déploiement seuls)"
+        required: true
+        default: all
+
+# Droits accordés job par job : seul le job de déploiement peut obtenir un jeton AWS.
+permissions: {}
+
+concurrency:
+  group: deploy-demo
+  cancel-in-progress: false
+
+jobs:
+  changes:
+    name: Services modifiés
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      services: ${{ steps.pick.outputs.services }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3.0.4
+        id: filter
+        if: github.event_name == 'push'
+        with:
+          filters: |
+            user-service:
+              - 'user-service/**'
+              - 'spis/repo/com/uasz/alumni/user-service-spi/**'
+              - 'spis/repo/com/uasz/alumni/alumni-student-company-service-spi/**'
+              - 'spis/repo/com/uasz/alumni/alumni-spis/**'
+              - 'docker/**'
+              - '.github/workflows/deploy-demo.yml'
+            alumni-student-company-service:
+              - 'alumni-student-company-service/**'
+              - 'spis/repo/com/uasz/alumni/alumni-student-company-service-spi/**'
+              - 'spis/repo/com/uasz/alumni/alumni-spis/**'
+              - 'docker/**'
+              - '.github/workflows/deploy-demo.yml'
+            job-offer-service:
+              - 'job-offer-service/**'
+              - 'spis/repo/com/uasz/alumni/job-offer-service-spi/**'
+              - 'spis/repo/com/uasz/alumni/alumni-spis/**'
+              - 'docker/**'
+              - '.github/workflows/deploy-demo.yml'
+            analytics-matching-service:
+              - 'analytics-matching-service/**'
+              - 'spis/repo/com/uasz/alumni/analytics-matching-service-spi/**'
+              - 'spis/repo/com/uasz/alumni/alumni-spis/**'
+              - 'docker/**'
+              - '.github/workflows/deploy-demo.yml'
+            notification-messaging-service:
+              - 'notification-messaging-service/**'
+              - 'spis/repo/com/uasz/alumni/notification-messaging-service-spi/**'
+              - 'spis/repo/com/uasz/alumni/alumni-spis/**'
+              - 'docker/**'
+              - '.github/workflows/deploy-demo.yml'
+      - id: pick
+        env:
+          EVENT: ${{ github.event_name }}
+          INPUT_SERVICE: ${{ inputs.service }}
+          CHANGES: ${{ steps.filter.outputs.changes }}
+        run: |
+          ALL='["user-service","alumni-student-company-service","job-offer-service","analytics-matching-service","notification-messaging-service"]'
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            case "$INPUT_SERVICE" in
+              all)  echo "services=$ALL" >> "$GITHUB_OUTPUT" ;;
+              none) echo "services=[]" >> "$GITHUB_OUTPUT" ;;
+              *)    echo "$ALL" | grep -q "\"$INPUT_SERVICE\"" || { echo "service inconnu : $INPUT_SERVICE"; exit 1; }
+                    echo "services=[\"$INPUT_SERVICE\"]" >> "$GITHUB_OUTPUT" ;;
+            esac
+          else
+            echo "services=${CHANGES:-[]}" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    name: Image ${{ matrix.service }}
+    needs: changes
+    permissions:
+      contents: read
+      packages: write
+    if: needs.changes.outputs.services != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        service: ${{ fromJson(needs.changes.outputs.services) }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Nom d'image (minuscules)
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}/${{ matrix.service }}" >> "$GITHUB_ENV"
+      # QEMU : seule la petite étape finale (alpine) tourne en arm64 émulé, Maven reste natif
+      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: .
+          file: docker/service.Dockerfile
+          build-args: SERVICE=${{ matrix.service }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.IMAGE }}:develop
+          cache-from: type=gha,scope=demo-${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=demo-${{ matrix.service }}
+
+  deploy:
+    name: Déploiement sur la démo
+    needs: [changes, build]
+    permissions:
+      id-token: write # OIDC vers AWS
+    # Aussi quand aucun service n'a changé (ex. compose.yml modifié) : les fichiers sont mis à jour.
+    if: always() && needs.changes.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'skipped')
+    runs-on: ubuntu-latest
+    environment:
+      name: demo
+      url: ${{ vars.DEMO_URL }}
+    steps:
+      - uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: deploy.sh sur les machines (AWS SSM)
+        env:
+          SERVICES: ${{ needs.changes.outputs.services }}
+        run: |
+          COMPONENTS=$(echo "$SERVICES" | jq -r --arg sha "$GITHUB_SHA" 'map(. + "=" + $sha) | join(" ")')
+          echo "deploy.sh --ref $GITHUB_SHA $COMPONENTS"
+
+          IDS=$(aws ec2 describe-instances \
+            --filters "Name=tag-key,Values=alumni-demo" "Name=instance-state-name,Values=running" \
+            --query 'Reservations[].Instances[].InstanceId' --output text)
+          [ -n "$IDS" ] || { echo "::error::aucune machine de démo en marche"; exit 1; }
+
+          CMD_ID=$(aws ssm send-command \
+            --document-name alumni-demo-deploy \
+            --instance-ids $IDS \
+            --timeout-seconds 900 \
+            --comment "deploy $GITHUB_REPOSITORY@${GITHUB_SHA::7}" \
+            --parameters "$(jq -nc --arg r "$GITHUB_SHA" --arg c "$COMPONENTS" '{ref:[$r], components:[$c]}')" \
+            --query Command.CommandId --output text)
+          echo "commande SSM : $CMD_ID"
+
+          for i in $(seq 1 120); do
+            sleep 10
+            STATES=$(aws ssm list-command-invocations --command-id "$CMD_ID" --query 'CommandInvocations[].Status' --output text)
+            echo "[$((i*10))s] $STATES"
+            echo "$STATES" | grep -qE 'Pending|InProgress|Delayed' || break
+          done
+
+          FAILED=0
+          for id in $IDS; do
+            echo "::group::$id"
+            aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "$id" \
+              --query '[Status, StandardOutputContent, StandardErrorContent]' --output text
+            echo "::endgroup::"
+            [ "$(aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "$id" --query Status --output text)" = Success ] || FAILED=1
+          done
+          [ $FAILED -eq 0 ] || { echo "::error::déploiement en échec (version précédente remise en place)"; exit 1; }
