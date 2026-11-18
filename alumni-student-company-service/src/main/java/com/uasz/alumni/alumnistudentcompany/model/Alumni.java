@@ -43,6 +43,15 @@ public class Alumni {
         this.updatedAt = this.createdAt;
     }
 
+    /** Profil créé à l'activation du compte (ALUM-83) : identité reprise du compte user-service. */
+    public static Alumni provisioned(UUID userId, String firstName, String lastName, String email) {
+        Alumni alumni = new Alumni(userId);
+        alumni.firstName = firstName;
+        alumni.lastName = lastName;
+        alumni.email = email;
+        return alumni;
+    }
+
     /** Le poste actuel du profil reflète toujours l'expérience marquée isCurrent. */
     public void updateCurrentJob(String company, String position) {
         this.currentCompany = company;
