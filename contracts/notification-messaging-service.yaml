@@ -48,6 +48,9 @@ paths:
       tags:
         - PrivateMessaging
       summary: Historique des messages d'une conversation avec un utilisateur
+      description: >-
+        Messages triés du plus récent au plus ancien (createdAt décroissant), paginés.
+        Seuls les échanges entre l'appelant et recipientId sont renvoyés.
       operationId: getConversationMessages
       parameters:
         - name: recipientId
@@ -829,6 +832,7 @@ components:
           format: uuid
         senderName:
           type: string
+          description: Nom affiché de l'expéditeur ; absent tant que l'utilisateur ne s'est jamais connecté au service avec un jeton portant son nom (prévoir un nom par défaut).
         recipientId:
           type: string
           format: uuid
@@ -1142,6 +1146,7 @@ components:
           format: uuid
         senderName:
           type: string
+          description: Nom affiché de l'expéditeur ; absent tant que l'utilisateur ne s'est jamais connecté au service avec un jeton portant son nom (prévoir un nom par défaut).
         type:
           $ref: "#/components/schemas/GroupMessageType"
         content:

@@ -17,7 +17,11 @@
 - **Précisions** : règles d'accès de chaque opération (membres, administrateurs du groupe, réglages) ; 403 pour ENTREPRISE ;
   ordre des pages de `getGroupMessages` ; passation de propriété quand le propriétaire quitte ; contenu des messages
   non vide et limité à 4000 caractères ; tri de `listGroups`.
-- SPI `notification-messaging-service-spi` passé en **1.1.0**.
+- **Précisions** sur `getConversationMessages` : messages du plus récent au plus ancien (`createdAt` décroissant),
+  paginés ; seuls les échanges entre l'appelant et `recipientId` sont renvoyés (pas de 403).
+  `PrivateMessage.senderName` et `GroupMessage.senderName` peuvent être absents (jeton émis sans le nom de l'utilisateur).
+- SPI `notification-messaging-service-spi` publié en **1.2.0** (version du pom parent `alumni-spis`, déjà passée à 1.2.0
+  par alumni-student-company-service).
 
 ## 1.2.0
 
