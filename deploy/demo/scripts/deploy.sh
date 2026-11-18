@@ -49,7 +49,8 @@ cp "$TAGS_FILE" "$TAGS_FILE.prev"
 rollback() {
   log "ÉCHEC : retour à la version précédente ($PREV_REF)"
   cp "$TAGS_FILE.prev" "$TAGS_FILE"
-  git -C "$APP" checkout -q --detach "$PREV_REF"
+  # Le dépôt n'est remis en place que si ce déploiement l'avait changé (--ref)
+  [ -z "$REF" ] || git -C "$APP" checkout -q --detach "$PREV_REF"
   "${COMPOSE[@]}" up -d --remove-orphans || true
   exit 1
 }
