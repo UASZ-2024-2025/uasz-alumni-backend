@@ -40,3 +40,7 @@ jwt:
   # Base64, 32 octets minimum
   secret: ${JWT_SECRET}
   issuer: ${JWT_ISSUER}
+
+# Service de notifications (appel inter-services, JWT de l'appelant relayé)
+notification:
+  base-url: ${NOTIFICATION_SERVICE_URL}

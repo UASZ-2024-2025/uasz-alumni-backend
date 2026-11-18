@@ -23,3 +23,5 @@ data:
   BOOTSTRAP_ADMIN_EMAIL: admin@alumni-uasz.sn
   BOOTSTRAP_ADMIN_FIRST_NAME: Admin
   BOOTSTRAP_ADMIN_LAST_NAME: Alumni UASZ
+  # Création du profil après confirmation de l'email (ALUM-83) : Service K8s sur le port 80
+  STUDENT_COMPANY_SERVICE_URL: http://alumni-student-company-service/alumni-student-company-service/v1
