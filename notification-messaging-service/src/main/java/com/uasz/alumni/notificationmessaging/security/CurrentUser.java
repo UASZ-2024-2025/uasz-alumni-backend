@@ -10,16 +10,12 @@ public final class CurrentUser {
 
     private CurrentUser() {}
 
-    /** Id de l'utilisateur connecté (le "subject" du JWT doit être son userId). */
+    /** Id de l'utilisateur connecté, lu dans l'objet AuthenticatedUser posé par le filtre JWT. */
     public static UUID id() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || !auth.isAuthenticated()) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
+        if (auth != null && auth.getPrincipal() instanceof AuthenticatedUser user) {
+            return user.id();
         }
-        try {
-            return UUID.fromString(auth.getName());
-        } catch (IllegalArgumentException e) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token invalide");
-        }
+        throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
     }
 }
