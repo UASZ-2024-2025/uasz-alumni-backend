@@ -4,6 +4,7 @@ import com.uasz.alumni.analyticsmatching.jwt.JwtAuthenticationFilter;
 import com.uasz.alumni.analyticsmatching.jwt.JwtService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -12,12 +13,17 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 /**
- * Configuration de sécurité de base : API stateless, sondes de santé publiques,
- * tout le reste authentifié. La validation JWT et les règles par endpoint
- * (selon les contrats) seront ajoutées lors de l'implémentation.
+ * Sécurité du service : API stateless, sondes de santé publiques, tout le reste authentifié
+ * par JWT ({@link JwtAuthenticationFilter}). Les règles par rôle sont posées sur les contrôleurs
+ * avec {@code @PreAuthorize}.
+ *
+ * <p>{@code proxyTargetClass = true} : les contrôleurs implémentent les interfaces du SPI ; sans
+ * proxy de classe, {@code @PreAuthorize} produirait un proxy JDK sans {@code @RestController},
+ * et la route ne serait plus enregistrée (constaté en {@code @WebMvcTest}).
  */
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity(proxyTargetClass = true)
 public class SecurityConfig {
 
     @Bean
