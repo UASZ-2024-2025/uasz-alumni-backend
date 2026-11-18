@@ -4,7 +4,9 @@
 ARG SERVICE
 
 # ---------- Etape 1 : build ----------
-FROM eclipse-temurin:21-jdk-jammy AS build
+# Maven tourne sur l'architecture de la machine de build ($BUILDPLATFORM) : le bytecode
+# est le meme partout, seule l'etape 2 est produite par architecture (amd64, arm64).
+FROM --platform=$BUILDPLATFORM eclipse-temurin:21-jdk-jammy AS build
 ARG SERVICE
 
 # Depot Maven des SPIs, meme chemin relatif que dans le depot backend (../spis/repo)
