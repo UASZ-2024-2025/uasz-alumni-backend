@@ -1,4 +1,5 @@
 package com.uasz.alumni.alumnistudentcompany.controller;
+import com.uasz.alumni.alumnistudentcompany.service.AlumniProfileService;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -43,6 +44,7 @@ class AlumniExperienceControllerTest {
     @Autowired MockMvc mvc;
     @MockitoBean AlumniExperienceService service;
     @MockitoBean JwtService jwtService;
+    @MockitoBean AlumniProfileService profileService;
 
     private final UUID user = UUID.randomUUID();
     private final UUID alumniId = UUID.randomUUID();
