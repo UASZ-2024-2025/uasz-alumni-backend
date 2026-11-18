@@ -116,9 +116,10 @@ class PrivateMessagingAccessTest {
         UUID a = UUID.randomUUID();
         UUID b = UUID.randomUUID();
         UUID tiers = UUID.randomUUID();
-        sendMessage(a, b, "Message prive entre A et B");
+        sendMessage(a, b, "Message prive entre A eFFFFFFFFFFFFFFFFFFFFFFFIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIINNNt B");
 
         HttpResponse<String> r = call("GET", "/messages/conversations/" + a, tiers, null);
+        assertThat(r.statusCode()).isEqualTo(200);
         assertThat(r.body()).doesNotContain("Message prive entre A et B");
     }
 
@@ -136,5 +137,21 @@ class PrivateMessagingAccessTest {
     void supprimerUnMessageInexistant_404() throws Exception {
         UUID a = UUID.randomUUID();
         assertThat(call("DELETE", "/messages/" + UUID.randomUUID(), a, null).statusCode()).isEqualTo(404);
+    }
+    
+    @Test
+    void historique_plusRecentEnPremier() throws Exception {
+        UUID a = UUID.randomUUID();
+        UUID b = UUID.randomUUID();
+        sendMessage(a, b, "Premier message");
+        Thread.sleep(50);
+        sendMessage(a, b, "Second message");
+
+        HttpResponse<String> r = call("GET", "/messages/conversations/" + a, b, null);
+        assertThat(r.statusCode()).isEqualTo(200);
+        int second = r.body().indexOf("Second message");
+        int premier = r.body().indexOf("Premier message");
+        assertThat(second).isGreaterThanOrEqualTo(0);
+        assertThat(premier).isGreaterThan(second);
     }
 }

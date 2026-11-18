@@ -46,6 +46,7 @@ paths:
       tags:
         - PrivateMessaging
       summary: Historique des messages d'une conversation avec un utilisateur
+      description: Messages renvoyés du plus récent au plus ancien.
       operationId: getConversationMessages
       parameters:
         - name: recipientId
