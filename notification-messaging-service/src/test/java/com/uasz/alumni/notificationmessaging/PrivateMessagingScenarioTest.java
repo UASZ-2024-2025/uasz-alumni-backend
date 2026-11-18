@@ -3,20 +3,20 @@ package com.uasz.alumni.notificationmessaging;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.uasz.alumni.notificationmessaging.exceptions.ApiException;
 import com.uasz.alumni.notificationmessaging.service.PrivateMessagingService;
 import com.uasz.alumni.notificationmessaging.spi.model.ConversationSummary;
+import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
+import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
-import org.springframework.web.server.ResponseStatusException;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.postgresql.PostgreSQLContainer;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 
-@Testcontainers
 @SpringBootTest(properties = {
         "SERVER_PORT=0",
         "FORWARD_HEADERS_STRATEGY=none",
@@ -27,9 +27,27 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 })
 class PrivateMessagingScenarioTest {
 
-    @Container
-    @ServiceConnection
-    static PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:16-alpine");
+    private static final EmbeddedPostgres POSTGRES = demarrer();
+
+    private static EmbeddedPostgres demarrer() {
+        try {
+            return EmbeddedPostgres.builder().start();
+        } catch (IOException e) {
+            throw new IllegalStateException("PostgreSQL embarqué indisponible", e);
+        }
+    }
+
+    @DynamicPropertySource
+    static void base(DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", () -> POSTGRES.getJdbcUrl("postgres", "postgres"));
+        registry.add("spring.datasource.username", () -> "postgres");
+        registry.add("spring.datasource.password", () -> "postgres");
+    }
+
+    @AfterAll
+    static void arreter() throws IOException {
+        POSTGRES.close();
+    }
 
     @Autowired
     PrivateMessagingService service;
@@ -61,8 +79,8 @@ class PrivateMessagingScenarioTest {
 
         var msg = service.send(a, b, "Bonjour");
 
-        assertThrows(ResponseStatusException.class, () -> service.delete(b, msg.getId()));
-        assertThrows(ResponseStatusException.class, () -> service.send(a, a, "moi"));
+        assertThrows(ApiException.class, () -> service.delete(b, msg.getId()));
+        assertThrows(ApiException.class, () -> service.send(a, a, "moi"));
         service.delete(a, msg.getId());
     }
 }

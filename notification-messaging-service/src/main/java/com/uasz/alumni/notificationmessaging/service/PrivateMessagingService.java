@@ -1,5 +1,6 @@
 package com.uasz.alumni.notificationmessaging.service;
 
+import com.uasz.alumni.notificationmessaging.exceptions.ApiException;
 import com.uasz.alumni.notificationmessaging.model.PrivateMessageEntity;
 import com.uasz.alumni.notificationmessaging.repository.PrivateMessageRepository;
 import com.uasz.alumni.notificationmessaging.spi.model.ConversationSummary;
@@ -19,7 +20,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class PrivateMessagingService {
@@ -73,13 +73,13 @@ public class PrivateMessagingService {
     @Transactional
     public PrivateMessage send(UUID me, UUID recipientId, String content) {
         if (me.equals(recipientId)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Impossible de s'écrire à soi-même");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "CANNOT_MESSAGE_SELF", "Impossible de s'écrire à soi-même.");
         }
         if (content == null || content.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Le message est vide");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "EMPTY_MESSAGE", "Le message est vide.");
         }
         if (content.length() > 5000) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Message trop long (5000 max)");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "MESSAGE_TOO_LONG", "Message trop long (5000 caractères au maximum).");
         }
         PrivateMessageEntity saved = repository.save(new PrivateMessageEntity(me, recipientId, content.trim()));
         // TODO (AL-45) : déclencher la notification MESSAGE_RECEIVED pour recipientId
@@ -91,13 +91,15 @@ public class PrivateMessagingService {
         repository.markAsRead(me, other, Instant.now());
     }
 
+    /**
+     * Seul l'expéditeur supprime son message. Pour tout autre appelant, la réponse est 404, comme pour un
+     * message inexistant : le contrat ne prévoit pas de 403, et on ne révèle pas l'existence du message.
+     */
     @Transactional
     public void delete(UUID me, UUID messageId) {
         PrivateMessageEntity m = repository.findById(messageId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Message introuvable"));
-        if (!m.getSenderId().equals(me)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Seul l'expéditeur peut supprimer");
-        }
+                .filter(found -> found.getSenderId().equals(me))
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "MESSAGE_NOT_FOUND", "Message introuvable."));
         repository.delete(m);
     }
 

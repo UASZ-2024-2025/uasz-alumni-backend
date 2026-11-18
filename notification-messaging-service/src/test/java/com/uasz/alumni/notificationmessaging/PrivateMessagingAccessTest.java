@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
+import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -12,15 +14,13 @@ import java.util.Base64;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.postgresql.PostgreSQLContainer;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 
-@Testcontainers
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {
@@ -36,9 +36,27 @@ class PrivateMessagingAccessTest {
     private static final String SECRET = "dGVzdC1zZWNyZXQtdGVzdC1zZWNyZXQtdGVzdC1zZWNyZXQ=";
     private static final String ISSUER = "alumni-uasz-user";
 
-    @Container
-    @ServiceConnection
-    static PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:16-alpine");
+    private static final EmbeddedPostgres POSTGRES = demarrer();
+
+    private static EmbeddedPostgres demarrer() {
+        try {
+            return EmbeddedPostgres.builder().start();
+        } catch (IOException e) {
+            throw new IllegalStateException("PostgreSQL embarqué indisponible", e);
+        }
+    }
+
+    @DynamicPropertySource
+    static void base(DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", () -> POSTGRES.getJdbcUrl("postgres", "postgres"));
+        registry.add("spring.datasource.username", () -> "postgres");
+        registry.add("spring.datasource.password", () -> "postgres");
+    }
+
+    @AfterAll
+    static void arreter() throws IOException {
+        POSTGRES.close();
+    }
 
     @Value("${local.server.port}")
     int port;
@@ -116,7 +134,7 @@ class PrivateMessagingAccessTest {
         UUID a = UUID.randomUUID();
         UUID b = UUID.randomUUID();
         UUID tiers = UUID.randomUUID();
-        sendMessage(a, b, "Message prive entre A eFFFFFFFFFFFFFFFFFFFFFFFIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIINNNt B");
+        sendMessage(a, b, "Message prive entre A et B");
 
         HttpResponse<String> r = call("GET", "/messages/conversations/" + a, tiers, null);
         assertThat(r.statusCode()).isEqualTo(200);
@@ -124,12 +142,13 @@ class PrivateMessagingAccessTest {
     }
 
     @Test
-    void supprimerLeMessageDUnAutre_403() throws Exception {
+    void supprimerLeMessageDUnAutre_404() throws Exception {
         UUID a = UUID.randomUUID();
         UUID b = UUID.randomUUID();
         UUID messageId = sendMessage(a, b, "A ecrit a B");
 
-        assertThat(call("DELETE", "/messages/" + messageId, b, null).statusCode()).isEqualTo(403);
+        // 404 comme pour un message inexistant : le contrat ne prévoit pas de 403 sur cette route
+        assertThat(call("DELETE", "/messages/" + messageId, b, null).statusCode()).isEqualTo(404);
         assertThat(call("DELETE", "/messages/" + messageId, a, null).statusCode()).isEqualTo(204);
     }
 
@@ -138,7 +157,7 @@ class PrivateMessagingAccessTest {
         UUID a = UUID.randomUUID();
         assertThat(call("DELETE", "/messages/" + UUID.randomUUID(), a, null).statusCode()).isEqualTo(404);
     }
-    
+
     @Test
     void historique_plusRecentEnPremier() throws Exception {
         UUID a = UUID.randomUUID();
