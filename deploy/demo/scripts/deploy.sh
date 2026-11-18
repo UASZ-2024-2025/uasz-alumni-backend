@@ -58,6 +58,10 @@ rollback() {
 if [ -n "$REF" ]; then
   log "dépôt -> $REF"
   git -C "$APP" fetch -q origin
+  # Seul du code déjà fusionné (donc relu et validé par la CI) peut être déployé
+  BRANCH=${DEPLOY_BRANCH:-develop}
+  git -C "$APP" merge-base --is-ancestor "$REF" "origin/$BRANCH" \
+    || { echo "refusé : $REF n'est pas dans origin/$BRANCH" >&2; exit 1; }
   git -C "$APP" checkout -q --detach "$REF"
 fi
 

@@ -7,7 +7,7 @@ Description: >-
 
 Parameters:
   VpcId:
-    Type: AWS::EC2::VpcId
+    Type: AWS::EC2::VPC::Id
     Description: VPC (le VPC par defaut convient)
   SubnetId:
     Type: AWS::EC2::Subnet::Id
@@ -109,7 +109,10 @@ Resources:
       Tags: [{Key: Project, Value: alumni-demo}]
 
   # ------------------------------------------------------------------ machines
-  InstanceRole:
+  # Un role par machine (moindre privilege). Agent SSM sur les deux : Run Command
+  # (deploiements) et Session Manager (console sans SSH).
+  # vm-a : cree les secrets, lit l'IP de vm-b, ecrit les sauvegardes dans S3.
+  InstanceRoleA:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -119,16 +122,18 @@ Resources:
             Principal: {Service: ec2.amazonaws.com}
             Action: sts:AssumeRole
       ManagedPolicyArns:
-        # Agent SSM : Run Command (deploiements) et Session Manager (console sans SSH)
         - !Sub arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore
       Policies:
-        - PolicyName: alumni-demo
+        - PolicyName: alumni-demo-vm-a
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
               - Effect: Allow
                 Action: [ssm:GetParameter, ssm:PutParameter]
-                Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/alumni-demo/*
+                Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/alumni-demo/secrets
+              - Effect: Allow
+                Action: ssm:GetParameter
+                Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/alumni-demo/vm-b-private-ip
               - Effect: Allow
                 Action: [kms:Decrypt, kms:Encrypt, kms:GenerateDataKey]
                 Resource: "*"
@@ -141,10 +146,41 @@ Resources:
                 Action: s3:ListBucket
                 Resource: !GetAtt BackupBucket.Arn
 
-  InstanceProfile:
+  # vm-b : lecture seule des secrets
+  InstanceRoleB:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: {Service: ec2.amazonaws.com}
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyName: alumni-demo-vm-b
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: ssm:GetParameter
+                Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/alumni-demo/secrets
+              - Effect: Allow
+                Action: kms:Decrypt
+                Resource: "*"
+                Condition:
+                  StringEquals: {kms:ViaService: !Sub "ssm.${AWS::Region}.amazonaws.com"}
+
+  InstanceProfileA:
     Type: AWS::IAM::InstanceProfile
     Properties:
-      Roles: [!Ref InstanceRole]
+      Roles: [!Ref InstanceRoleA]
+
+  InstanceProfileB:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles: [!Ref InstanceRoleB]
 
   LaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
@@ -152,7 +188,6 @@ Resources:
       LaunchTemplateData:
         ImageId: !Ref AmiId
         InstanceType: !Ref InstanceType
-        IamInstanceProfile: {Arn: !GetAtt InstanceProfile.Arn}
         MetadataOptions:
           HttpEndpoint: enabled
           HttpTokens: required
@@ -168,6 +203,7 @@ Resources:
   VmA:
     Type: AWS::EC2::Instance
     Properties:
+      IamInstanceProfile: !Ref InstanceProfileA
       LaunchTemplate:
         LaunchTemplateId: !Ref LaunchTemplate
         Version: !GetAtt LaunchTemplate.LatestVersionNumber
@@ -198,6 +234,7 @@ Resources:
   VmB:
     Type: AWS::EC2::Instance
     Properties:
+      IamInstanceProfile: !Ref InstanceProfileB
       LaunchTemplate:
         LaunchTemplateId: !Ref LaunchTemplate
         Version: !GetAtt LaunchTemplate.LatestVersionNumber
@@ -242,9 +279,42 @@ Resources:
         - 6938fd4d98bab03faadb97b34396831e3780aea1
         - 1c58a3a8518e8759bf075b76b750d4f2df264fcd
 
-  # Seuls les workflows de develop (ou de l'environnement GitHub « demo ») des deux depots
-  # peuvent prendre ce role, et il ne permet que de lancer deploy.sh sur les 2 machines.
-  DeployRole:
+  # Seule commande que GitHub peut lancer sur les machines : deploy.sh, avec des parametres
+  # filtres (hexadecimal, noms de composants) - aucune commande shell libre.
+  # deploy.sh refuse en plus tout commit qui n'est pas dans develop.
+  DeployDocument:
+    Type: AWS::SSM::Document
+    Properties:
+      Name: alumni-demo-deploy
+      DocumentType: Command
+      UpdateMethod: NewVersion
+      Content:
+        schemaVersion: "2.2"
+        description: Deploiement de la demo Alumni UASZ (deploy/demo/scripts/deploy.sh)
+        parameters:
+          ref:
+            type: String
+            description: Commit du depot backend (40 caracteres hexadecimaux) ou vide
+            default: ""
+            allowedPattern: "^[0-9a-f]{0,40}$"
+          components:
+            type: String
+            description: "composant=commit separes par des espaces (ex. frontend=<sha>)"
+            default: ""
+            allowedPattern: "^[a-z0-9= -]{0,700}$"
+        mainSteps:
+          - action: aws:runShellScript
+            name: deploy
+            inputs:
+              timeoutSeconds: "900"
+              runCommand:
+                - set -eu
+                - REF="{{ ref }}"
+                - exec /opt/alumni/app/deploy/demo/scripts/deploy.sh ${REF:+--ref $REF} {{ components }}
+
+  # Un role par depot. Le sujet OIDC « environment:demo » n'est emis que pour les jobs de
+  # l'environnement GitHub « demo », lui-meme limite a la branche develop (voir README).
+  BackendDeployRole:
     Type: AWS::IAM::Role
     Properties:
       MaxSessionDuration: 3600
@@ -261,23 +331,51 @@ Resources:
             Condition:
               StringEquals:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
-              StringLike:
-                token.actions.githubusercontent.com:sub:
-                  - !Sub repo:${GitHubOrg}/${BackendRepo}:ref:refs/heads/develop
-                  - !Sub repo:${GitHubOrg}/${BackendRepo}:environment:demo
-                  - !Sub repo:${GitHubOrg}/${FrontendRepo}:ref:refs/heads/develop
-                  - !Sub repo:${GitHubOrg}/${FrontendRepo}:environment:demo
+                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubOrg}/${BackendRepo}:environment:demo
       Policies:
-        - PolicyName: deploy-demo
+        - PolicyName: deploy-demo-backend
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
               - Effect: Allow
                 Action: ssm:SendCommand
                 Resource:
-                  - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}::document/AWS-RunShellScript
+                  - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:document/${DeployDocument}
                   - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/${VmA}
                   - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/${VmB}
+              - Effect: Allow
+                Action: [ssm:GetCommandInvocation, ssm:ListCommandInvocations, ec2:DescribeInstances]
+                Resource: "*"
+
+  # Le frontend ne tourne que sur vm-a : son role ne peut viser que cette machine.
+  FrontendDeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !If
+                - CreateOidc
+                - !GetAtt GitHubOidcProvider.Arn
+                - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubOrg}/${FrontendRepo}:environment:demo
+      Policies:
+        - PolicyName: deploy-demo-frontend
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: ssm:SendCommand
+                Resource:
+                  - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:document/${DeployDocument}
+                  - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/${VmA}
               - Effect: Allow
                 Action: [ssm:GetCommandInvocation, ssm:ListCommandInvocations, ec2:DescribeInstances]
                 Resource: "*"
@@ -307,9 +405,12 @@ Outputs:
     Value: !Sub https://alumni-demo.${DemoEip.PublicIp}.sslip.io
   MailpitUrl:
     Value: !Sub https://alumni-demo.${DemoEip.PublicIp}.sslip.io/mailpit/
-  DeployRoleArn:
-    Description: Variable GitHub AWS_DEPLOY_ROLE_ARN (dans les deux depots)
-    Value: !GetAtt DeployRole.Arn
+  BackendDeployRoleArn:
+    Description: Variable GitHub AWS_DEPLOY_ROLE_ARN du depot backend
+    Value: !GetAtt BackendDeployRole.Arn
+  FrontendDeployRoleArn:
+    Description: Variable GitHub AWS_DEPLOY_ROLE_ARN du depot frontend
+    Value: !GetAtt FrontendDeployRole.Arn
   BackupBucketName:
     Value: !Ref BackupBucket
   VmAInstanceId:

@@ -2,12 +2,14 @@
 #
 #   1. images des services modifiés -> ghcr.io (amd64 + arm64), tags <sha> et develop
 #   2. GitHub prend le rôle AWS de déploiement par OIDC (aucune clé stockée)
-#   3. AWS SSM lance deploy/demo/scripts/deploy.sh sur les 2 machines de la démo
+#   3. AWS SSM lance le document « alumni-demo-deploy » (deploy.sh) sur les 2 machines de la démo
 #      (attente des healthchecks, retour automatique à la version précédente en cas d'échec)
 #
 # La CI a déjà validé le code dans la PR (check « CI success » obligatoire sur develop).
 # Variables du dépôt (Settings > Secrets and variables > Actions > Variables) :
-#   AWS_DEPLOY_ROLE_ARN, AWS_REGION, DEMO_URL  (sorties de la pile CloudFormation)
+#   AWS_DEPLOY_ROLE_ARN (sortie BackendDeployRoleArn), AWS_REGION, DEMO_URL
+# Le job deploy utilise l'environnement GitHub « demo », limité à develop : c'est la seule
+# identité acceptée par le rôle AWS.
 
 name: CD - Démo AWS
 
@@ -149,9 +151,8 @@ jobs:
         env:
           SERVICES: ${{ needs.changes.outputs.services }}
         run: |
-          ARGS="--ref $GITHUB_SHA"
-          for s in $(echo "$SERVICES" | jq -r '.[]'); do ARGS="$ARGS $s=$GITHUB_SHA"; done
-          echo "deploy.sh $ARGS"
+          COMPONENTS=$(echo "$SERVICES" | jq -r --arg sha "$GITHUB_SHA" 'map(. + "=" + $sha) | join(" ")')
+          echo "deploy.sh --ref $GITHUB_SHA $COMPONENTS"
 
           IDS=$(aws ec2 describe-instances \
             --filters "Name=tag-key,Values=alumni-demo" "Name=instance-state-name,Values=running" \
@@ -159,11 +160,11 @@ jobs:
           [ -n "$IDS" ] || { echo "::error::aucune machine de démo en marche"; exit 1; }
 
           CMD_ID=$(aws ssm send-command \
-            --document-name AWS-RunShellScript \
+            --document-name alumni-demo-deploy \
             --instance-ids $IDS \
             --timeout-seconds 900 \
             --comment "deploy $GITHUB_REPOSITORY@${GITHUB_SHA::7}" \
-            --parameters "$(jq -nc --arg c "/opt/alumni/app/deploy/demo/scripts/deploy.sh $ARGS" '{commands:[$c], executionTimeout:["900"]}')" \
+            --parameters "$(jq -nc --arg r "$GITHUB_SHA" --arg c "$COMPONENTS" '{ref:[$r], components:[$c]}')" \
             --query Command.CommandId --output text)
           echo "commande SSM : $CMD_ID"
 

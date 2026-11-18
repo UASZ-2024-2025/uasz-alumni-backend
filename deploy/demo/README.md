@@ -21,7 +21,10 @@ fusion dans develop ─► CI déjà validée dans la PR ─► workflow « CD -
 - JVM réglées pour une petite machine (SerialGC, tas de 160 Mo, C1 seul) : 220 à 285 Mo par service, mesurés le 18/11/2026.
 - Aucun port d'administration ouvert : seuls 80 et 443 sont publics. L'accès aux machines passe par
   **AWS Systems Manager > Session Manager** (console web, sans clé SSH).
-- Aucune clé AWS stockée : GitHub prend un rôle temporaire par OIDC, limité à `develop` et à `deploy.sh`.
+- Aucune clé AWS stockée : GitHub prend un rôle temporaire par OIDC (un rôle par dépôt, environnement `demo` uniquement).
+  Ce rôle ne peut lancer que le document SSM `alumni-demo-deploy` (paramètres filtrés, aucune commande libre),
+  et `deploy.sh` refuse tout commit qui n'est pas dans `develop`.
+- Un rôle IAM par machine : seule vm-a peut créer les secrets et écrire dans le bucket de sauvegardes.
 
 ## Fichiers
 
@@ -48,9 +51,10 @@ fusion dans develop ─► CI déjà validée dans la PR ─► workflow « CD -
    aws cloudformation describe-stacks --stack-name alumni-demo --query 'Stacks[0].Outputs' --output table
    ```
    Si le fournisseur OIDC GitHub existe déjà dans le compte : ajouter `CreateGitHubOidcProvider=false`.
-2. Dans **les deux dépôts** GitHub, *Settings > Secrets and variables > Actions > Variables* :
-   `AWS_DEPLOY_ROLE_ARN` (sortie `DeployRoleArn`), `AWS_REGION` = `eu-west-3`, `DEMO_URL` (sortie `DemoUrl`).
-   Créer aussi l'environnement **demo**, limité à la branche `develop`.
+2. Dans **les deux dépôts** GitHub, *Settings > Environments* : environnement **demo**, limité à la
+   branche `develop` (*Deployment branches > Selected branches*). C'est la seule identité acceptée par les rôles AWS.
+   Puis *Settings > Secrets and variables > Actions > Variables* : `AWS_REGION` = `eu-west-3`, `DEMO_URL` (sortie `DemoUrl`),
+   `AWS_DEPLOY_ROLE_ARN` = sortie `BackendDeployRoleArn` (backend) ou `FrontendDeployRoleArn` (frontend).
 3. Paquets ghcr.io (`uasz-alumni-backend/*`, `alumni-uasz-frontend/frontend`) : visibilité **publique**
    pour que les machines les téléchargent sans identifiants (le code est déjà public).
 4. Lancer une première fois *Actions > CD - Démo AWS > Run workflow* (`all`) dans le backend, puis le workflow du frontend.
