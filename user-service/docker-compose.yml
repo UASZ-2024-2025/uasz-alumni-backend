@@ -64,6 +64,10 @@ services:
       BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
       BOOTSTRAP_ADMIN_FIRST_NAME: ${BOOTSTRAP_ADMIN_FIRST_NAME:?BOOTSTRAP_ADMIN_FIRST_NAME manquant}
       BOOTSTRAP_ADMIN_LAST_NAME: ${BOOTSTRAP_ADMIN_LAST_NAME:?BOOTSTRAP_ADMIN_LAST_NAME manquant}
+      # Dans le conteneur, localhost désigne le conteneur : on passe par l'hôte Docker
+      STUDENT_COMPANY_SERVICE_URL: ${STUDENT_COMPANY_SERVICE_URL_DOCKER:?STUDENT_COMPANY_SERVICE_URL_DOCKER manquant, lancez make env-complete}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "127.0.0.1:${SERVER_PORT:?SERVER_PORT manquant}:${SERVER_PORT}"
     healthcheck:

@@ -79,6 +79,8 @@ jobs:
             user-service:
               - 'user-service/**'
               - 'spis/repo/com/uasz/alumni/user-service-spi/**'
+              # client d'alumni-student-company-service (contrat consommé, ALUM-83)
+              - 'spis/repo/com/uasz/alumni/alumni-student-company-service-spi/**'
               - 'spis/repo/com/uasz/alumni/alumni-spis/**'
               - 'docker/**'
               - '.github/workflows/ci.yml'

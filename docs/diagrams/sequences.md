@@ -14,6 +14,7 @@ sequenceDiagram
     participant U as user-service
     participant UDB as user_db
     participant N as notification-messaging-service
+    participant A as alumni-student-company-service
 
     V->>F: Remplit le formulaire (nom, email, mot de passe, rôle)
     F->>I: POST /user-service/v1/auth/register
@@ -34,6 +35,14 @@ sequenceDiagram
     F->>U: POST /auth/confirm-email {token}
     U->>UDB: Vérifie le token et passe le statut à ACTIF
     U-->>F: 200 MessageResponse
+    opt compte ETUDIANT ou ALUMNI (après le commit, en asynchrone)
+        U->>A: POST /internal/profiles {userId, profileType, nom, email} + jeton de service
+        alt profil créé ou déjà présent
+            A-->>U: 201 / 200 ProfileProvisioningResponse
+        else service indisponible
+            A--xU: timeout / 5xx : 3 retries, puis échec journalisé (le compte reste ACTIF)
+        end
+    end
 
     V->>F: Se connecte
     F->>U: POST /auth/login {email, password}
