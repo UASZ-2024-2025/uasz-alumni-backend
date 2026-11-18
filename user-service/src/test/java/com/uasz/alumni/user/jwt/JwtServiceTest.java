@@ -57,7 +57,7 @@ class JwtServiceTest {
     }
 
     @Test
-    void token_carriesRoleEmailIssuerAndSubject() {
+    void token_carriesRoleEmailNameIssuerAndSubject() {
         UUID id = UUID.randomUUID();
 
         String token = service().generateAccessToken(user(id));
@@ -67,6 +67,7 @@ class JwtServiceTest {
                 .contains("\"sub\":\"" + id + "\"")
                 .contains("\"role\":\"ALUMNI\"")
                 .contains("\"email\":\"awa.diop@uasz.sn\"")
+                .contains("\"name\":\"Awa Diop\"")
                 .contains("\"iss\":\"alumni-uasz\"")
                 .contains("\"jti\"");
     }

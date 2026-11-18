@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -19,12 +20,13 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
  * <ul>
  *   <li>{@code POST /notifications/send} : réservé aux autres microservices (rôle SERVICE) et aux
  *       administrateurs (ALUM-83) ; un autre utilisateur reçoit 403.</li>
- *   <li>Le reste : réservé aux utilisateurs (un jeton de service y reçoit 403). Les règles par endpoint
- *       seront ajoutées avec chaque fonctionnalité.</li>
+ *   <li>Le reste : réservé aux utilisateurs (un jeton de service y reçoit 403). Les règles fines sont
+ *       portées par {@code @PreAuthorize} sur les contrôleurs.</li>
  * </ul>
  */
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity(proxyTargetClass = true) // proxy CGLIB : le contrôleur reste détecté par Spring MVC
 public class SecurityConfig {
 
     private static final String[] USER_ROLES = {"ETUDIANT", "ALUMNI", "ENSEIGNANT", "ENTREPRISE", "ADMINISTRATEUR"};
