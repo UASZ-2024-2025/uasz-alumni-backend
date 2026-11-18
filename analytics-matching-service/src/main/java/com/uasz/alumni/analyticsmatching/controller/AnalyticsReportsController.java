@@ -26,7 +26,7 @@ public class AnalyticsReportsController implements AnalyticsReportsApi {
     }
 
     @Override
-    @PreAuthorize("hasAnyRole('ADMINISTRATEUR', 'ENSEIGNANT')")
+    @PreAuthorize("hasRole('ADMINISTRATEUR')")
     public ResponseEntity<SkillsGapResponse> getSkillsGapReport() {
         return ResponseEntity.ok(skillsGapService.buildReport());
     }

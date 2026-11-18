@@ -3,9 +3,10 @@ package com.uasz.alumni.analyticsmatching.service;
 import java.util.List;
 
 /**
- * Source des compétences utilisées par le rapport skills gap.
- * Aujourd'hui : jeu de test ({@link SampleSkillsDataSource}). Plus tard (AL-16) :
- * une implémentation qui interroge job-offer-service et alumni-student-company-service.
+ * Source des compétences utilisées par le rapport skills gap (ALUM-164).
+ * Profils local/dev : {@link SampleSkillsDataSource} (données d'exemple) ; ailleurs :
+ * {@link UnavailableSkillsDataSource} (501). Une implémentation interrogeant job-offer-service
+ * et alumni-student-company-service viendra avec la communication inter-services (ALUM-83).
  */
 public interface SkillsDataSource {
 

@@ -18,6 +18,7 @@ import java.util.Set;
  *   <li>offre   = % d'étudiants/alumni qui la maîtrisent ;</li>
  *   <li>écart   = demande - offre, trié par ordre décroissant.</li>
  * </ul>
+ * Les trois valeurs sont arrondies à une décimale ; l'écart est calculé sur les valeurs arrondies.
  * Seules les compétences demandées par au moins une offre sont analysées.
  */
 public final class SkillsGapCalculator {
@@ -35,10 +36,11 @@ public final class SkillsGapCalculator {
 
         List<SkillStat> stats = new ArrayList<>();
         for (Map.Entry<String, Integer> entry : offerCounts.entrySet()) {
-            double demand = percentage(entry.getValue(), offers.size());
-            double supply = percentage(profileCounts.getOrDefault(entry.getKey(), 0), profiles.size());
+            float demand = round1(percentage(entry.getValue(), offers.size()));
+            float supply = round1(percentage(profileCounts.getOrDefault(entry.getKey(), 0), profiles.size()));
+            // écart calculé sur les valeurs arrondies : la réponse vérifie toujours gap = demande - offre
             stats.add(new SkillStat(displayNames.get(entry.getKey()),
-                    round1(demand), round1(supply), round1(demand - supply)));
+                    demand, supply, round1((double) demand - supply)));
         }
         stats.sort(Comparator.comparingDouble(SkillStat::gap).reversed()
                 .thenComparing(Comparator.comparingDouble(SkillStat::demandPercentage).reversed())

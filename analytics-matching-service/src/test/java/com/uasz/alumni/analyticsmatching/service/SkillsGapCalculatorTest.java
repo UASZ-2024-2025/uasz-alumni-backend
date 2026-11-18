@@ -2,6 +2,7 @@ package com.uasz.alumni.analyticsmatching.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.Comparator;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -37,7 +38,7 @@ class SkillsGapCalculatorTest {
     void ecartEstTrieParOrdreDecroissant() {
         List<SkillStat> stats = SkillsGapCalculator.compute(offers, profiles);
 
-        assertThat(stats).extracting(SkillStat::gap).isSortedAccordingTo(java.util.Comparator.reverseOrder());
+        assertThat(stats).extracting(SkillStat::gap).isSortedAccordingTo(Comparator.reverseOrder());
     }
 
     @Test
@@ -45,6 +46,16 @@ class SkillsGapCalculatorTest {
         List<SkillStat> stats = SkillsGapCalculator.compute(offers, profiles);
 
         assertThat(SkillsGapCalculator.topRequired(stats, 2)).containsExactly("Java", "Docker");
+    }
+
+    @Test
+    void arrondiAUneDecimaleEtEcartCoherentAvecLesValeursAffichees() {
+        // demande 1/3 = 33,3 % ; offre 1/6 = 16,7 % ; écart affiché 33,3 - 16,7 = 16,6 (et non 16,7)
+        List<SkillStat> stats = SkillsGapCalculator.compute(
+                List.of(List.of("Java"), List.of("Go"), List.of("Go")),
+                List.of(List.of("Java"), List.of(), List.of(), List.of(), List.of(), List.of()));
+
+        assertThat(stats).contains(new SkillStat("Java", 33.3f, 16.7f, 16.6f));
     }
 
     @Test

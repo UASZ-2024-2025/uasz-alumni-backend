@@ -7,7 +7,10 @@ import org.springframework.stereotype.Component;
 
 import com.uasz.alumni.analyticsmatching.exceptions.NotImplementedYetException;
 
-/** Hors développement : tant que job-offer-service et alumni-student-company-service ne sont pas branchés, on répond 501. */
+/**
+ * Hors profils local/dev : répond 501 tant que job-offer-service et alumni-student-company-service
+ * ne sont pas branchés (ALUM-83).
+ */
 @Component
 @Profile("!local & !dev")
 public class UnavailableSkillsDataSource implements SkillsDataSource {
