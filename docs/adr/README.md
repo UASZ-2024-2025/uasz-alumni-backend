@@ -27,3 +27,4 @@ système est ainsi, pas seulement **comment** il est fait.
 | [0008](0008-deploiement-docker-kubernetes.md) | Conteneurisation Docker et déploiement Kubernetes (kustomize, kind en local) | Accepté | 2026-11-01 |
 | [0009](0009-stack-java-spring-boot.md) | Java 21 et Spring Boot comme stack backend commune | Accepté | 2026-11-01 |
 | [0010](0010-jeton-de-service.md) | Authentification des appels inter-services par jeton de service | Accepté | 2026-11-07 |
+| [0011](0011-annuaire-local-noms-messagerie.md) | Noms des participants de la messagerie recopiés depuis le jeton (annuaire local) | Proposé | 2026-11-18 |

@@ -51,8 +51,8 @@ public class JwtService {
             if (role == null || role.isBlank()) {
                 return Optional.empty();
             }
-            return Optional.of(new AuthenticatedUser(
-                    UUID.fromString(claims.getSubject()), claims.get("email", String.class), role));
+            return Optional.of(new AuthenticatedUser(UUID.fromString(claims.getSubject()),
+                    claims.get("email", String.class), role, claims.get("name", String.class)));
         } catch (JwtException | IllegalArgumentException e) {
             return Optional.empty();
         }
