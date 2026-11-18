@@ -36,9 +36,9 @@ class ApplicationReviewServiceTest {
 
     private final UUID recruiter = UUID.randomUUID();
     private final UUID student = UUID.randomUUID();
-    private final Caller author = new Caller(recruiter, false, "jeton-recruteur");
-    private final Caller stranger = new Caller(UUID.randomUUID(), false, "jeton-autre");
-    private final Caller admin = new Caller(UUID.randomUUID(), true, "jeton-admin");
+    private final Caller author = new Caller(recruiter, false);
+    private final Caller stranger = new Caller(UUID.randomUUID(), false);
+    private final Caller admin = new Caller(UUID.randomUUID(), true);
 
     private Offer offer;
     private JobApplication application;

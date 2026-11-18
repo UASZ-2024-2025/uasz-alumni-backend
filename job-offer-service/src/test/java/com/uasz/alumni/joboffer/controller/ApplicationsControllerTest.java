@@ -67,7 +67,7 @@ class ApplicationsControllerTest {
                 .andExpect(jsonPath("$[0].id").value(application.getId().toString()))
                 .andExpect(jsonPath("$[0].offerTitle").value("Développeur Java"))
                 .andExpect(jsonPath("$[0].status").value("SUBMITTED"));
-        verify(review).listForOffer(eq(offer.getId()), eq(new Caller(recruiter, false, "token")));
+        verify(review).listForOffer(eq(offer.getId()), eq(new Caller(recruiter, false)));
     }
 
     @Test
@@ -77,7 +77,7 @@ class ApplicationsControllerTest {
 
         mvc.perform(get("/v1/offers/" + offer.getId() + "/applications").with(token(adminId, "ADMINISTRATEUR")))
                 .andExpect(status().isOk());
-        verify(review).listForOffer(eq(offer.getId()), eq(new Caller(adminId, true, "token")));
+        verify(review).listForOffer(eq(offer.getId()), eq(new Caller(adminId, true)));
     }
 
     @Test
