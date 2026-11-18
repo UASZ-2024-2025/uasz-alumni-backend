@@ -1,6 +1,10 @@
 package com.uasz.alumni.joboffer.controller;
 
 import com.uasz.alumni.joboffer.exceptions.NotImplementedYetException;
+import com.uasz.alumni.joboffer.model.JobApplication;
+import com.uasz.alumni.joboffer.security.AuthenticatedUser;
+import com.uasz.alumni.joboffer.service.ApplicationReviewService;
+import com.uasz.alumni.joboffer.service.ApplicationReviewService.Caller;
 import com.uasz.alumni.joboffer.spi.api.ApplicationsApi;
 import com.uasz.alumni.joboffer.spi.model.Application;
 import com.uasz.alumni.joboffer.spi.model.ApplicationCreateRequest;
@@ -9,16 +13,27 @@ import com.uasz.alumni.joboffer.spi.model.ApplicationStatus;
 import com.uasz.alumni.joboffer.spi.model.ApplicationStatusUpdateRequest;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 @RestController
 public class ApplicationsController implements ApplicationsApi {
 
+    private final ApplicationReviewService review;
+
+    public ApplicationsController(ApplicationReviewService review) {
+        this.review = review;
+    }
+
     @Override
     public ResponseEntity<List<Application>> getApplicationsForOffer(UUID offerId) {
-        // TODO : candidatures reçues pour l'offre -> 200 / 404
-        throw new NotImplementedYetException("getApplicationsForOffer");
+        return ResponseEntity.ok(review.listForOffer(offerId, currentCaller()).stream()
+                .map(ApplicationsController::toDto).toList());
     }
 
     @Override
@@ -36,7 +51,37 @@ public class ApplicationsController implements ApplicationsApi {
 
     @Override
     public ResponseEntity<Application> updateApplicationStatus(UUID id, ApplicationStatusUpdateRequest applicationStatusUpdateRequest) {
-        // TODO : retenu/rejeté/en revue -> 200 / 404
-        throw new NotImplementedYetException("updateApplicationStatus");
+        JobApplication updated = review.changeStatus(id, applicationStatusUpdateRequest.getStatus(), currentCaller());
+        return ResponseEntity.ok(toDto(updated));
+    }
+
+    /**
+     * La signature imposée par le SPI ne donne pas accès au JWT : on lit l'appelant dans le contexte de sécurité
+     * (posé par JwtAuthenticationFilter, ALUM-28) et le jeton brut dans l'en-tête de la requête courante.
+     */
+    private static Caller currentCaller() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        AuthenticatedUser user = (AuthenticatedUser) auth.getPrincipal();
+        boolean admin = "ADMINISTRATEUR".equals(user.role());
+        return new Caller(user.id(), admin, bearerToken());
+    }
+
+    private static String bearerToken() {
+        var attributes = (ServletRequestAttributes) RequestContextHolder.currentRequestAttributes();
+        String header = attributes.getRequest().getHeader(HttpHeaders.AUTHORIZATION);
+        return header != null && header.startsWith("Bearer ") ? header.substring(7).trim() : null;
+    }
+
+    private static Application toDto(JobApplication a) {
+        return new Application()
+                .id(a.getId())
+                .offerId(a.getOffer().getId())
+                .offerTitle(a.getOffer().getTitle())
+                .studentId(a.getStudentId())
+                .studentName(a.getStudentName())
+                .cvId(a.getCvId())
+                .coverLetter(a.getCoverLetter())
+                .status(a.getStatus())
+                .createdAt(a.getCreatedAt());
     }
 }
