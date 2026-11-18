@@ -53,7 +53,7 @@ public class ApplicationReviewService {
         application.changeStatus(newStatus);
 
         events.publishEvent(new ApplicationStatusChanged(application.getId(), application.getStudentId(),
-                application.getOffer().getTitle(), newStatus, caller.bearerToken()));
+                application.getOffer().getTitle(), newStatus));
         return application;
     }
 
@@ -65,6 +65,6 @@ public class ApplicationReviewService {
     }
 
     /** Utilisateur courant, extrait du JWT par le contrôleur. */
-    public record Caller(UUID userId, boolean admin, String bearerToken) {
+    public record Caller(UUID userId, boolean admin) {
     }
 }
