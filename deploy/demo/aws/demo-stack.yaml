@@ -188,10 +188,13 @@ Resources:
       LaunchTemplateData:
         ImageId: !Ref AmiId
         InstanceType: !Ref InstanceType
+        # IMDSv2 obligatoire, limite de 1 saut : seuls les processus de l'hote (bootstrap,
+        # sauvegarde, agent SSM) joignent l'IMDS. Les conteneurs (un saut de plus via le pont
+        # Docker) n'y ont pas acces : une SSRF dans un service ne livre pas le role de la machine.
         MetadataOptions:
           HttpEndpoint: enabled
           HttpTokens: required
-          HttpPutResponseHopLimit: 2
+          HttpPutResponseHopLimit: 1
         BlockDeviceMappings:
           - DeviceName: /dev/sda1
             Ebs: {VolumeSize: 20, VolumeType: gp3, Encrypted: true, DeleteOnTermination: true}
