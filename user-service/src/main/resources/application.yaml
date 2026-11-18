@@ -78,3 +78,21 @@ app:
     max-requests: ${RATE_LIMIT_MAX_REQUESTS:10}
     login-max-requests: ${RATE_LIMIT_LOGIN_MAX_REQUESTS:30}
     window-seconds: ${RATE_LIMIT_WINDOW_SECONDS:60}
+
+# Jetons de service pour les appels inter-services (ADR-0010) : émetteur interne, distinct de jwt.issuer
+service-token:
+  issuer: alumni-uasz-internal
+  ttl: 5m
+
+# Client d'alumni-student-company-service : création du profil après confirmation de l'email (ALUM-83).
+# ADR-0006 : REST, timeouts, retry, appel non bloquant.
+student-company:
+  base-url: ${STUDENT_COMPANY_SERVICE_URL}
+  connect-timeout: 2s
+  read-timeout: 3s
+  retry:
+    # 1 essai + 3 retries, délais 500 ms -> 1 s -> 2 s (plafond 5 s)
+    max-retries: 3
+    delay-ms: 500
+    multiplier: 2
+    max-delay-ms: 5000

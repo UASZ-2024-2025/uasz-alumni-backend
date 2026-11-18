@@ -11,6 +11,7 @@ import com.uasz.alumni.user.model.EmailConfirmationToken;
 import com.uasz.alumni.user.model.UserAccount;
 import com.uasz.alumni.user.repository.EmailConfirmationTokenRepository;
 import com.uasz.alumni.user.repository.UserAccountRepository;
+import com.uasz.alumni.user.service.profile.ProfileProvisioningRequested;
 import com.uasz.alumni.user.spi.model.RegisterRequest;
 import com.uasz.alumni.user.spi.model.RoleName;
 import com.uasz.alumni.user.spi.model.UserStatus;
@@ -36,6 +37,9 @@ public class RegistrationService {
     /** Rôles accessibles à l'auto-inscription. ADMINISTRATEUR est attribué par un administrateur, jamais ici. */
     static final Set<RoleName> SELF_REGISTRATION_ROLES =
             EnumSet.of(RoleName.ALUMNI, RoleName.ETUDIANT, RoleName.ENSEIGNANT, RoleName.ENTREPRISE);
+
+    /** Rôles qui ont un profil dans alumni-student-company-service, créé à l'activation du compte (ALUM-83). */
+    static final Set<RoleName> PROFILE_ROLES = EnumSet.of(RoleName.ETUDIANT, RoleName.ALUMNI);
 
     private static final int NAME_MAX_LENGTH = 100;
     private static final int EMAIL_MAX_LENGTH = 255;
@@ -109,7 +113,11 @@ public class RegistrationService {
         return account;
     }
 
-    /** Active le compte si le jeton est valide, non expiré et non utilisé. */
+    /**
+     * Active le compte si le jeton est valide, non expiré et non utilisé. Pour un compte ETUDIANT ou
+     * ALUMNI, demande ensuite la création de son profil dans alumni-student-company-service (ALUM-83) :
+     * l'appel part après le commit, en asynchrone, et son échec n'annule pas l'activation.
+     */
     @Transactional
     public void confirmEmail(String rawToken) {
         if (rawToken == null) {
@@ -128,6 +136,11 @@ public class RegistrationService {
         account.activate(now);
         tokens.save(token);
         users.save(account);
+
+        if (PROFILE_ROLES.contains(account.getRole())) {
+            events.publishEvent(new ProfileProvisioningRequested(account.getId(), account.getRole(),
+                    account.getFirstName(), account.getLastName(), account.getEmail()));
+        }
     }
 
     /**

@@ -4,6 +4,7 @@ import com.uasz.alumni.notificationmessaging.jwt.JwtAuthenticationFilter;
 import com.uasz.alumni.notificationmessaging.jwt.JwtService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -14,10 +15,11 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 /**
  * Configuration de sécurité de base : API stateless, sondes de santé publiques,
  * tout le reste authentifié. La validation JWT et les règles par endpoint
- * (selon les contrats) seront ajoutées lors de l'implémentation.
+ * (selon les contrats) sont portées par @PreAuthorize sur les contrôleurs.
  */
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity(proxyTargetClass = true) // proxy CGLIB : le contrôleur reste détecté par Spring MVC
 public class SecurityConfig {
 
     @Bean

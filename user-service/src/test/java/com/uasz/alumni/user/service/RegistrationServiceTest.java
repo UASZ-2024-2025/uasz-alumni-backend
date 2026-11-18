@@ -18,6 +18,7 @@ import com.uasz.alumni.user.model.EmailConfirmationToken;
 import com.uasz.alumni.user.model.UserAccount;
 import com.uasz.alumni.user.repository.EmailConfirmationTokenRepository;
 import com.uasz.alumni.user.repository.UserAccountRepository;
+import com.uasz.alumni.user.service.profile.ProfileProvisioningRequested;
 import com.uasz.alumni.user.spi.model.RegisterRequest;
 import com.uasz.alumni.user.spi.model.RoleName;
 import com.uasz.alumni.user.spi.model.UserStatus;
@@ -30,6 +31,8 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -234,6 +237,45 @@ class RegistrationServiceTest {
         assertThat(token.isUsed()).isTrue();
     }
 
+    @ParameterizedTest
+    @EnumSource(value = RoleName.class, names = {"ETUDIANT", "ALUMNI"})
+    void confirmEmail_requestsTheProfileCreationForStudentsAndAlumni(RoleName role) {
+        UserAccount account = account(role, UserStatus.EN_ATTENTE);
+        EmailConfirmationToken token = tokenFor(account, "raw-token", NOW.plus(Duration.ofHours(1)));
+        when(tokens.findByTokenHashWithUser(TokenUtils.sha256Hex("raw-token"))).thenReturn(Optional.of(token));
+
+        service.confirmEmail("raw-token");
+
+        ArgumentCaptor<ProfileProvisioningRequested> event = ArgumentCaptor.forClass(ProfileProvisioningRequested.class);
+        verify(events).publishEvent(event.capture());
+        assertThat(event.getValue().role()).isEqualTo(role);
+        assertThat(event.getValue().email()).isEqualTo("awa.diop@uasz.sn");
+        assertThat(event.getValue().firstName()).isEqualTo("Awa");
+        assertThat(event.getValue().lastName()).isEqualTo("Diop");
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = RoleName.class, names = {"ENSEIGNANT", "ENTREPRISE"})
+    void confirmEmail_noProfileForOtherRoles(RoleName role) {
+        UserAccount account = account(role, UserStatus.EN_ATTENTE);
+        EmailConfirmationToken token = tokenFor(account, "raw-token", NOW.plus(Duration.ofHours(1)));
+        when(tokens.findByTokenHashWithUser(TokenUtils.sha256Hex("raw-token"))).thenReturn(Optional.of(token));
+
+        service.confirmEmail("raw-token");
+
+        verify(events, never()).publishEvent(any(Object.class));
+    }
+
+    @Test
+    void confirmEmail_noProfileWhenTheActivationFails() {
+        UserAccount account = account(RoleName.ETUDIANT, UserStatus.EN_ATTENTE);
+        EmailConfirmationToken token = tokenFor(account, "old", NOW.minusSeconds(1));
+        when(tokens.findByTokenHashWithUser(TokenUtils.sha256Hex("old"))).thenReturn(Optional.of(token));
+
+        assertThatThrownBy(() -> service.confirmEmail("old")).isInstanceOf(InvalidOrExpiredTokenException.class);
+        verify(events, never()).publishEvent(any(Object.class));
+    }
+
     @Test
     void confirmEmail_rejectsUnknownToken() {
         when(tokens.findByTokenHashWithUser(any())).thenReturn(Optional.empty());
@@ -322,7 +364,11 @@ class RegistrationServiceTest {
     }
 
     private static UserAccount account(UserStatus status) {
-        return new UserAccount("awa.diop@uasz.sn", "HASH", "Awa", "Diop", RoleName.ALUMNI, status, NOW);
+        return account(RoleName.ALUMNI, status);
+    }
+
+    private static UserAccount account(RoleName role, UserStatus status) {
+        return new UserAccount("awa.diop@uasz.sn", "HASH", "Awa", "Diop", role, status, NOW);
     }
 
     private static EmailConfirmationToken tokenFor(UserAccount account, String rawToken, Instant expiresAt) {
