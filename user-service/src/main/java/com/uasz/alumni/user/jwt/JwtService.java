@@ -62,6 +62,8 @@ public class JwtService {
                 .id(UUID.randomUUID().toString())
                 .claim("role", user.getRole().name())
                 .claim("email", user.getEmail())
+                // Nom affiché : les autres services (messagerie, groupes) l'enregistrent sans appeler user-service.
+                .claim("name", (user.getFirstName() + " " + user.getLastName()).trim())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plus(accessTtl)))
                 .signWith(key)
