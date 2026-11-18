@@ -5,5 +5,5 @@ import java.util.UUID;
 
 /** Événement publié à chaque changement de statut d'une candidature. */
 public record ApplicationStatusChanged(UUID applicationId, UUID studentId, String offerTitle,
-                                       ApplicationStatus newStatus, String bearerToken) {
+                                       ApplicationStatus newStatus) {
 }

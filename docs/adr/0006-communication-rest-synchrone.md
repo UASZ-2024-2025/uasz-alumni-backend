@@ -42,7 +42,7 @@ Pour la v1, nous retenons le **REST** pour tous les échanges, avec deux usages 
 | **Lecture** (l'appelant a besoin de la réponse) | matching : profils et offres | REST synchrone, timeout court, erreur remontée à l'appelant |
 | **Événement** (l'appelant n'a pas besoin de réponse) | changement de statut d'une candidature → notification ; activation d'un compte → création du profil | REST **asynchrone** : après le commit, sur un autre thread, avec retry ; ne bloque jamais le flux métier |
 
-**Politique de résilience** (implémentée dans `user-service` pour la création du profil, ALUM-83 ; à reprendre dans les autres services, dont `job-offer-service` pour les notifications) :
+**Politique de résilience** (implémentée dans `user-service` pour la création du profil et dans `job-offer-service` pour les notifications, ALUM-83 ; à reprendre dans les autres services) :
 
 | Mécanisme | Valeur | Rôle |
 | --- | --- | --- |

@@ -13,13 +13,10 @@ import com.uasz.alumni.joboffer.spi.model.ApplicationStatus;
 import com.uasz.alumni.joboffer.spi.model.ApplicationStatusUpdateRequest;
 import java.util.List;
 import java.util.UUID;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
 
 @RestController
 public class ApplicationsController implements ApplicationsApi {
@@ -57,19 +54,13 @@ public class ApplicationsController implements ApplicationsApi {
 
     /**
      * La signature imposée par le SPI ne donne pas accès au JWT : on lit l'appelant dans le contexte de sécurité
-     * (posé par JwtAuthenticationFilter, ALUM-28) et le jeton brut dans l'en-tête de la requête courante.
+     * (posé par JwtAuthenticationFilter, ALUM-28). Son jeton n'est jamais relayé à un autre service (ADR-0010).
      */
     private static Caller currentCaller() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         AuthenticatedUser user = (AuthenticatedUser) auth.getPrincipal();
         boolean admin = "ADMINISTRATEUR".equals(user.role());
-        return new Caller(user.id(), admin, bearerToken());
-    }
-
-    private static String bearerToken() {
-        var attributes = (ServletRequestAttributes) RequestContextHolder.currentRequestAttributes();
-        String header = attributes.getRequest().getHeader(HttpHeaders.AUTHORIZATION);
-        return header != null && header.startsWith("Bearer ") ? header.substring(7).trim() : null;
+        return new Caller(user.id(), admin);
     }
 
     private static Application toDto(JobApplication a) {
