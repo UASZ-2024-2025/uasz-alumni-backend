@@ -78,7 +78,7 @@ Un non-membre reçoit un 403 sur toutes les routes d'un groupe. On n'entre dans 
 
 | Table | Contenu |
 |---|---|
-| `chat_users` | Annuaire local des noms et rôles, recopiés du JWT (claim `name`), voir [ADR-0010](../docs/adr/0010-annuaire-local-noms-messagerie.md) |
+| `chat_users` | Annuaire local des noms et rôles, recopiés du JWT (claim `name`), voir [ADR-0011](../docs/adr/0011-annuaire-local-noms-messagerie.md) |
 | `chat_groups` | Groupe, propriétaire, les trois réglages, dernière activité |
 | `chat_group_members` | Rôle dans le groupe, dernière lecture, préférences personnelles ; un seul OWNER par groupe (index unique partiel) |
 | `chat_group_messages` | Messages TEXT et SYSTEM ; `seq` départage deux messages de même horodatage |

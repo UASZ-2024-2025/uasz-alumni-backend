@@ -1,4 +1,4 @@
-# ADR-0010 : Noms des participants de la messagerie recopiés depuis le jeton
+# ADR-0011 : Noms des participants de la messagerie recopiés depuis le jeton
 
 - **Statut** : Proposé
 - **Date** : 2026-11-18
