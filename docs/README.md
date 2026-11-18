@@ -33,6 +33,13 @@ communication REST, distribution des SPIs, Docker/Kubernetes, stack Java/Spring)
 | Cas d'utilisation par rôle | [diagrams/cas-utilisation.md](diagrams/cas-utilisation.md) |
 | Séquences : inscription, candidature, matching | [diagrams/sequences.md](diagrams/sequences.md) |
 
+## Agents logiciels et contrats
+
+**[agents/rapport-agents-contrats.md](agents/rapport-agents-contrats.md)** (ALUM-171) : trois expériences
+d'agents s'appuyant sur les contrats OpenAPI (revue de conformité, tests générés depuis le contrat, mise à
+jour du CHANGELOG et des ADR), avec leurs résultats et leurs limites.
+Version PDF : [agents/Rapport-agents-contrats-OpenAPI.pdf](agents/Rapport-agents-contrats-OpenAPI.pdf).
+
 ## Format des diagrammes
 
 Les diagrammes sont écrits en **[Mermaid](https://mermaid.js.org/)** dans les fichiers Markdown :

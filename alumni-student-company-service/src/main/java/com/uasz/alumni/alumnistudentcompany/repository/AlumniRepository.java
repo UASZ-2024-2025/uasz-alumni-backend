@@ -10,6 +10,9 @@ import org.springframework.data.jpa.repository.Query;
 
 public interface AlumniRepository extends JpaRepository<Alumni, UUID> {
 
+    /** Un seul profil par compte (user_id unique). */
+    Optional<Alumni> findByUserId(UUID userId);
+
     /**
      * Verrouille le profil (SELECT ... FOR UPDATE) : deux ajouts simultanés d'une expérience courante
      * pour le même Alumni sont ainsi traités l'un après l'autre.
