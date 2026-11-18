@@ -1,5 +1,24 @@
 # Journal des modifications des contrats OpenAPI
 
+## notification-messaging-service 1.1.0 (groupes de discussion : réglages et administration)
+
+Évolution compatible : aucun champ ni opération existants ne sont retirés ; les nouveaux champs de réponse sont facultatifs.
+
+- **Ajout** du rôle `ADMIN` dans `GroupMemberRole` (OWNER et ADMIN = administrateurs du groupe).
+- **Ajout** des réglages de groupe `GroupSettings` (`onlyAdminsCanSend`, `onlyAdminsCanEditInfo`, `onlyAdminsCanAddMembers`)
+  et de `PATCH /messages/groups/{groupId}/settings` (`updateGroupSettings`).
+- **Ajout** des préférences personnelles `GroupPreferences` (épinglé, archivé, sourdine via `MuteDuration`)
+  et de `PATCH /messages/groups/{groupId}/preferences` (`updateGroupPreferences`).
+- **Ajout** de `PATCH /messages/groups/{groupId}/members/{userId}` (`updateGroupMemberRole`) : nommer ou retirer un ADMIN.
+- **Ajout** de `DELETE /messages/groups/{groupId}/messages/{messageId}` (`deleteGroupMessage`) : suppression pour tous.
+- **Ajout** de `GroupMessageType` (TEXT, SYSTEM) et des champs `GroupMessage.type`, `GroupMessage.deleted`,
+  `Group.settings`, `Group.preferences`, `GroupSummary.preferences`, `GroupSummary.lastMessageSenderName`,
+  `GroupSummary.lastMessageType`.
+- **Précisions** : règles d'accès de chaque opération (membres, administrateurs du groupe, réglages) ; 403 pour ENTREPRISE ;
+  ordre des pages de `getGroupMessages` ; passation de propriété quand le propriétaire quitte ; contenu des messages
+  non vide et limité à 4000 caractères ; tri de `listGroups`.
+- SPI `notification-messaging-service-spi` passé en **1.1.0**.
+
 ## 1.0.0 (en attente de revue croisée puis tag `contracts-v1.0.0`)
 
 ### notification-messaging-service

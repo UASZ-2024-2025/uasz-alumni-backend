@@ -6,7 +6,7 @@ info:
     ainsi que de la gestion et de la distribution des notifications (In-App, Email, Push).
   contact:
     name: Équipe Projet Intégrateur - M2 GL - UASZ
-  version: 1.0.0
+  version: 1.1.0
 servers:
   - url: https://api.alumni-uasz.sn/notification-messaging-service/v1
     description: Serveur de production
@@ -16,7 +16,9 @@ tags:
   - name: PrivateMessaging
     description: Échanges et discussions privées 1-à-1 entre étudiants, Alumni et enseignants
   - name: GroupMessaging
-    description: Groupes de discussion (création, membres, échanges collectifs entre étudiants, Alumni et enseignants)
+    description: |
+      Groupes de discussion (création, membres, réglages, échanges collectifs entre étudiants, Alumni et enseignants).
+      Réservés aux rôles ETUDIANT, ALUMNI, ENSEIGNANT et ADMINISTRATEUR (403 pour ENTREPRISE).
   - name: Notifications
     description: Centre de notifications système, alertes et suivi de lecture
 
@@ -162,10 +164,13 @@ paths:
       tags:
         - GroupMessaging
       summary: Lister les groupes de discussion de l'utilisateur connecté
+      description: |
+        Groupes dont l'utilisateur est membre, archivés compris (voir `preferences.archived`),
+        triés : épinglés d'abord, puis du plus récent au plus ancien (dernier message ou création).
       operationId: listGroups
       responses:
         "200":
-          description: Liste des groupes avec le dernier message et le nombre de non-lus
+          description: Liste des groupes avec le dernier message, le nombre de non-lus et les préférences de l'utilisateur
           content:
             application/json:
               schema:
@@ -174,6 +179,8 @@ paths:
                   $ref: "#/components/schemas/GroupSummary"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
       security:
         - bearerAuth: []
 
@@ -181,7 +188,10 @@ paths:
       tags:
         - GroupMessaging
       summary: Créer un groupe de discussion
-      description: L'utilisateur connecté devient propriétaire (OWNER) du groupe.
+      description: |
+        L'utilisateur connecté devient propriétaire (OWNER) du groupe ; les `memberIds` y entrent comme MEMBER
+        (doublons et créateur ignorés). Réglages par défaut : voir `GroupSettings`.
+        Un message système « X a créé le groupe » ouvre le fil.
       operationId: createGroup
       requestBody:
         required: true
@@ -200,6 +210,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
       security:
         - bearerAuth: []
 
@@ -207,7 +219,7 @@ paths:
     get:
       tags:
         - GroupMessaging
-      summary: Obtenir le détail d'un groupe et la liste de ses membres
+      summary: Obtenir le détail d'un groupe et la liste de ses membres (membres uniquement)
       operationId: getGroupById
       parameters:
         - name: groupId
@@ -218,7 +230,7 @@ paths:
             format: uuid
       responses:
         "200":
-          description: Détail du groupe
+          description: Détail du groupe, réglages et préférences de l'utilisateur connecté
           content:
             application/json:
               schema:
@@ -235,7 +247,10 @@ paths:
     put:
       tags:
         - GroupMessaging
-      summary: Modifier le nom ou la description d'un groupe (propriétaire uniquement)
+      summary: Modifier le nom ou la description d'un groupe
+      description: |
+        Réservé aux administrateurs du groupe (OWNER ou ADMIN) tant que `settings.onlyAdminsCanEditInfo` vaut true ;
+        sinon ouvert à tous les membres. Ajoute un message système.
       operationId: updateGroup
       parameters:
         - name: groupId
@@ -271,7 +286,8 @@ paths:
     delete:
       tags:
         - GroupMessaging
-      summary: Supprimer un groupe (propriétaire ou administrateur)
+      summary: Supprimer un groupe (propriétaire ou ADMINISTRATEUR de la plateforme)
+      description: Supprime le groupe, ses membres, ses messages et les préférences associées.
       operationId: deleteGroup
       parameters:
         - name: groupId
@@ -292,11 +308,93 @@ paths:
       security:
         - bearerAuth: []
 
+  /messages/groups/{groupId}/settings:
+    patch:
+      tags:
+        - GroupMessaging
+      summary: Modifier les réglages d'un groupe (administrateurs du groupe uniquement)
+      description: Seuls les champs fournis sont modifiés. Réservé à OWNER et ADMIN. Ajoute un message système.
+      operationId: updateGroupSettings
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupSettings"
+      responses:
+        "200":
+          description: Réglages mis à jour, groupe renvoyé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
+  /messages/groups/{groupId}/preferences:
+    patch:
+      tags:
+        - GroupMessaging
+      summary: Modifier ses préférences personnelles sur un groupe (épingler, archiver, mettre en sourdine)
+      description: |
+        Préférences propres à l'utilisateur connecté (membres uniquement), invisibles des autres membres.
+        Seuls les champs fournis sont modifiés.
+      operationId: updateGroupPreferences
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupPreferencesUpdateRequest"
+      responses:
+        "200":
+          description: Préférences mises à jour
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupPreferences"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
   /messages/groups/{groupId}/members:
     post:
       tags:
         - GroupMessaging
-      summary: Ajouter des membres à un groupe (propriétaire uniquement)
+      summary: Ajouter des membres à un groupe
+      description: |
+        Réservé aux administrateurs du groupe (OWNER ou ADMIN) tant que `settings.onlyAdminsCanAddMembers` vaut true ;
+        sinon ouvert à tous les membres. On ne rejoint pas un groupe de soi-même : il faut y être ajouté.
+        Les personnes déjà membres sont ignorées ; les nouveaux entrent comme MEMBER. Ajoute un message système.
       operationId: addGroupMembers
       parameters:
         - name: groupId
@@ -330,11 +428,61 @@ paths:
         - bearerAuth: []
 
   /messages/groups/{groupId}/members/{userId}:
+    patch:
+      tags:
+        - GroupMessaging
+      summary: Nommer ou retirer un administrateur du groupe (propriétaire uniquement)
+      description: |
+        Passe un membre de MEMBER à ADMIN ou l'inverse. Le rôle OWNER ne s'attribue pas ainsi
+        et le propriétaire ne peut pas changer son propre rôle (400). Ajoute un message système.
+      operationId: updateGroupMemberRole
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupMemberRoleUpdateRequest"
+      responses:
+        "200":
+          description: Rôle modifié, groupe renvoyé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
     delete:
       tags:
         - GroupMessaging
       summary: Retirer un membre du groupe ou quitter le groupe
-      description: Le propriétaire peut retirer n'importe quel membre ; un membre peut se retirer lui-même (quitter le groupe).
+      description: |
+        - Un membre peut toujours se retirer lui-même (quitter le groupe).
+        - Le propriétaire peut retirer n'importe quel membre ; un ADMIN peut retirer les ADMIN et MEMBER, jamais le propriétaire.
+        - Si le propriétaire quitte, la propriété passe à l'ADMIN le plus ancien, à défaut au membre le plus ancien ;
+          si plus personne ne reste, le groupe est supprimé.
+        Ajoute un message système.
       operationId: removeGroupMember
       parameters:
         - name: groupId
@@ -365,7 +513,10 @@ paths:
     get:
       tags:
         - GroupMessaging
-      summary: Historique des messages d'un groupe
+      summary: Historique des messages d'un groupe (membres uniquement)
+      description: |
+        La page 0 contient les messages les plus récents ; chaque page est renvoyée dans l'ordre chronologique
+        (du plus ancien au plus récent), les pages suivantes remontent dans le temps.
       operationId: getGroupMessages
       parameters:
         - name: groupId
@@ -406,6 +557,9 @@ paths:
       tags:
         - GroupMessaging
       summary: Envoyer un message dans un groupe
+      description: |
+        Membres uniquement ; si `settings.onlyAdminsCanSend` vaut true, seuls OWNER et ADMIN peuvent écrire (403 sinon).
+        Le contenu ne peut pas être vide et fait au plus 4000 caractères (400).
       operationId: sendGroupMessage
       parameters:
         - name: groupId
@@ -427,6 +581,42 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/GroupMessage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
+  /messages/groups/{groupId}/messages/{messageId}:
+    delete:
+      tags:
+        - GroupMessaging
+      summary: Supprimer un message pour tous
+      description: |
+        L'auteur peut supprimer son message ; OWNER et ADMIN peuvent supprimer celui de n'importe quel membre.
+        Le message reste dans le fil avec `deleted` à true et un contenu vide. Les messages système ne se suppriment pas (400).
+      operationId: deleteGroupMessage
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Message supprimé
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -748,8 +938,12 @@ components:
 
     GroupMemberRole:
       type: string
+      description: |
+        Rôle dans le groupe. OWNER (un seul, le propriétaire) et ADMIN sont les « administrateurs du groupe » ;
+        à ne pas confondre avec le rôle applicatif ADMINISTRATEUR.
       enum:
         - OWNER
+        - ADMIN
         - MEMBER
 
     GroupMember:
@@ -760,6 +954,7 @@ components:
           format: uuid
         userName:
           type: string
+          description: Nom affiché ; absent tant que l'utilisateur ne s'est jamais connecté au service.
         userRole:
           type: string
           description: Rôle applicatif de l'utilisateur (ALUMNI, ETUDIANT, ENSEIGNANT, ADMINISTRATEUR)
@@ -769,6 +964,68 @@ components:
         joinedAt:
           type: string
           format: date-time
+
+    GroupSettings:
+      type: object
+      description: |
+        Réglages du groupe, modifiables par OWNER et ADMIN. Valeurs par défaut à la création :
+        onlyAdminsCanSend=false, onlyAdminsCanEditInfo=true, onlyAdminsCanAddMembers=true.
+      properties:
+        onlyAdminsCanSend:
+          type: boolean
+          description: Seuls OWNER et ADMIN peuvent envoyer des messages.
+        onlyAdminsCanEditInfo:
+          type: boolean
+          description: Seuls OWNER et ADMIN peuvent modifier le nom et la description.
+        onlyAdminsCanAddMembers:
+          type: boolean
+          description: Seuls OWNER et ADMIN peuvent ajouter des membres.
+
+    MuteDuration:
+      type: string
+      description: Durée de mise en sourdine ; NONE la lève.
+      enum:
+        - NONE
+        - EIGHT_HOURS
+        - ONE_WEEK
+        - ALWAYS
+
+    GroupPreferences:
+      type: object
+      description: Préférences de l'utilisateur connecté sur un groupe (personnelles, invisibles des autres membres).
+      properties:
+        pinned:
+          type: boolean
+        archived:
+          type: boolean
+        muted:
+          type: boolean
+          description: Vrai si la sourdine est active à l'instant de la réponse.
+        mutedUntil:
+          type: string
+          format: date-time
+          description: Fin de la sourdine ; absent si elle est permanente (ALWAYS) ou inactive.
+
+    GroupPreferencesUpdateRequest:
+      type: object
+      properties:
+        pinned:
+          type: boolean
+        archived:
+          type: boolean
+        mute:
+          $ref: "#/components/schemas/MuteDuration"
+
+    GroupMemberRoleUpdateRequest:
+      type: object
+      required:
+        - groupRole
+      properties:
+        groupRole:
+          type: string
+          enum:
+            - ADMIN
+            - MEMBER
 
     Group:
       type: object
@@ -788,6 +1045,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/GroupMember"
+        settings:
+          $ref: "#/components/schemas/GroupSettings"
+        preferences:
+          $ref: "#/components/schemas/GroupPreferences"
         createdAt:
           type: string
           format: date-time
@@ -805,12 +1066,19 @@ components:
           example: 12
         lastMessage:
           type: string
+          description: Contenu du dernier message (vide s'il a été supprimé).
+        lastMessageSenderName:
+          type: string
+        lastMessageType:
+          $ref: "#/components/schemas/GroupMessageType"
         lastMessageTime:
           type: string
           format: date-time
         unreadCount:
           type: integer
           example: 3
+        preferences:
+          $ref: "#/components/schemas/GroupPreferences"
 
     GroupCreateRequest:
       type: object
@@ -853,6 +1121,13 @@ components:
             type: string
             format: uuid
 
+    GroupMessageType:
+      type: string
+      description: TEXT pour un message d'un membre, SYSTEM pour un événement du groupe (création, ajout, départ...).
+      enum:
+        - TEXT
+        - SYSTEM
+
     GroupMessage:
       type: object
       properties:
@@ -867,8 +1142,13 @@ components:
           format: uuid
         senderName:
           type: string
+        type:
+          $ref: "#/components/schemas/GroupMessageType"
         content:
           type: string
+          description: Texte du message ; vide si le message a été supprimé.
+        deleted:
+          type: boolean
         createdAt:
           type: string
           format: date-time
