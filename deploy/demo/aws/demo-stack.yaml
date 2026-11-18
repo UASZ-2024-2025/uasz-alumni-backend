@@ -1,0 +1,321 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Alumni UASZ - environnement de demo (ALUM-215) : 2 x t4g.small Ubuntu 24.04 + Docker Compose,
+  HTTPS via Caddy/sslip.io, deploiement depuis GitHub Actions par OIDC + SSM (aucune cle,
+  aucun port d'administration ouvert), sauvegardes S3, alertes de budget.
+  Tout est supprimable en supprimant la pile (sauf le bucket de sauvegardes, conserve).
+
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VpcId
+    Description: VPC (le VPC par defaut convient)
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: Sous-reseau PUBLIC du VPC (les deux machines y sont placees)
+  InstanceType:
+    Type: String
+    Default: t4g.small
+    AllowedValues: [t4g.small, t4g.medium]
+    Description: ARM (Graviton). t4g.small est eligible au Free plan.
+  AmiId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/canonical/ubuntu/server/24.04/stable/current/arm64/hvm/ebs-gp3/ami-id
+  RepoUrl:
+    Type: String
+    Default: https://github.com/UASZ-2024-2025/uasz-alumni-backend.git
+  RepoRef:
+    Type: String
+    Default: develop
+    Description: Branche clonee au premier demarrage (ensuite, chaque deploiement fixe le commit)
+  GitHubOrg:
+    Type: String
+    Default: UASZ-2024-2025
+  BackendRepo:
+    Type: String
+    Default: uasz-alumni-backend
+  FrontendRepo:
+    Type: String
+    Default: Alumni-UASZ-frontend
+  CreateGitHubOidcProvider:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: "false si le fournisseur OIDC token.actions.githubusercontent.com existe deja dans le compte"
+  BudgetEmail:
+    Type: String
+    AllowedPattern: "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"
+    Description: Adresse qui recoit les alertes de budget
+  MonthlyBudgetUsd:
+    Type: Number
+    Default: 35
+
+Conditions:
+  CreateOidc: !Equals [!Ref CreateGitHubOidcProvider, "true"]
+
+Resources:
+  # ------------------------------------------------------------------ reseau
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: alumni-demo - HTTP/HTTPS public, trafic libre entre les 2 machines
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - {IpProtocol: tcp, FromPort: 80, ToPort: 80, CidrIp: 0.0.0.0/0}
+        - {IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0}
+        - {IpProtocol: udp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0}
+      Tags: [{Key: Name, Value: alumni-demo}]
+
+  SecurityGroupInternal:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref SecurityGroup
+      IpProtocol: tcp
+      FromPort: 0
+      ToPort: 65535
+      SourceSecurityGroupId: !Ref SecurityGroup
+      Description: PostgreSQL (vm-a) et services (vm-b) entre les deux machines
+
+  DemoEip:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags: [{Key: Name, Value: alumni-demo}]
+
+  DemoEipAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      AllocationId: !GetAtt DemoEip.AllocationId
+      InstanceId: !Ref VmA
+
+  # ------------------------------------------------------------------ sauvegardes
+  BackupBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: {SSEAlgorithm: AES256}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules: [{ObjectOwnership: BucketOwnerEnforced}]
+      LifecycleConfiguration:
+        Rules:
+          - {Id: expiration-30-jours, Status: Enabled, ExpirationInDays: 30}
+      Tags: [{Key: Project, Value: alumni-demo}]
+
+  # ------------------------------------------------------------------ machines
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: {Service: ec2.amazonaws.com}
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        # Agent SSM : Run Command (deploiements) et Session Manager (console sans SSH)
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyName: alumni-demo
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: [ssm:GetParameter, ssm:PutParameter]
+                Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/alumni-demo/*
+              - Effect: Allow
+                Action: [kms:Decrypt, kms:Encrypt, kms:GenerateDataKey]
+                Resource: "*"
+                Condition:
+                  StringEquals: {kms:ViaService: !Sub "ssm.${AWS::Region}.amazonaws.com"}
+              - Effect: Allow
+                Action: [s3:PutObject, s3:GetObject]
+                Resource: !Sub ${BackupBucket.Arn}/*
+              - Effect: Allow
+                Action: s3:ListBucket
+                Resource: !GetAtt BackupBucket.Arn
+
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles: [!Ref InstanceRole]
+
+  LaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData:
+        ImageId: !Ref AmiId
+        InstanceType: !Ref InstanceType
+        IamInstanceProfile: {Arn: !GetAtt InstanceProfile.Arn}
+        MetadataOptions:
+          HttpEndpoint: enabled
+          HttpTokens: required
+          HttpPutResponseHopLimit: 2
+        BlockDeviceMappings:
+          - DeviceName: /dev/sda1
+            Ebs: {VolumeSize: 20, VolumeType: gp3, Encrypted: true, DeleteOnTermination: true}
+        TagSpecifications:
+          - ResourceType: volume
+            Tags: [{Key: Project, Value: alumni-demo}]
+
+  # vm-a : Caddy, frontend, PostgreSQL, Mailpit, user-service, alumni-student-company-service
+  VmA:
+    Type: AWS::EC2::Instance
+    Properties:
+      LaunchTemplate:
+        LaunchTemplateId: !Ref LaunchTemplate
+        Version: !GetAtt LaunchTemplate.LatestVersionNumber
+      NetworkInterfaces:
+        - DeviceIndex: "0"
+          SubnetId: !Ref SubnetId
+          GroupSet: [!Ref SecurityGroup]
+          AssociatePublicIpAddress: true
+      Tags:
+        - {Key: Name, Value: alumni-demo-a}
+        - {Key: alumni-demo, Value: vm-a}
+        - {Key: Project, Value: alumni-demo}
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -euxo pipefail
+          exec > >(tee -a /var/log/alumni-bootstrap.log) 2>&1
+          apt-get update -q && apt-get install -yq git
+          mkdir -p /opt/alumni
+          [ -d /opt/alumni/app/.git ] || git clone -q --branch ${RepoRef} ${RepoUrl} /opt/alumni/app
+          /opt/alumni/app/deploy/demo/scripts/bootstrap.sh --role vm-a \
+            --domain alumni-demo.${DemoEip.PublicIp}.sslip.io \
+            --ssm-prefix /alumni-demo --backup-bucket ${BackupBucket} \
+            --vm-b-host-param /alumni-demo/vm-b-private-ip \
+            --repo ${RepoUrl} --ref ${RepoRef}
+
+  # vm-b : job-offer-service, analytics-matching-service, notification-messaging-service
+  VmB:
+    Type: AWS::EC2::Instance
+    Properties:
+      LaunchTemplate:
+        LaunchTemplateId: !Ref LaunchTemplate
+        Version: !GetAtt LaunchTemplate.LatestVersionNumber
+      NetworkInterfaces:
+        - DeviceIndex: "0"
+          SubnetId: !Ref SubnetId
+          GroupSet: [!Ref SecurityGroup]
+          # IP publique : nécessaire pour télécharger les images (pas de NAT, trop cher)
+          AssociatePublicIpAddress: true
+      Tags:
+        - {Key: Name, Value: alumni-demo-b}
+        - {Key: alumni-demo, Value: vm-b}
+        - {Key: Project, Value: alumni-demo}
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -euxo pipefail
+          exec > >(tee -a /var/log/alumni-bootstrap.log) 2>&1
+          apt-get update -q && apt-get install -yq git
+          mkdir -p /opt/alumni
+          [ -d /opt/alumni/app/.git ] || git clone -q --branch ${RepoRef} ${RepoUrl} /opt/alumni/app
+          /opt/alumni/app/deploy/demo/scripts/bootstrap.sh --role vm-b \
+            --db-host ${VmA.PrivateIp} --ssm-prefix /alumni-demo \
+            --repo ${RepoUrl} --ref ${RepoRef}
+
+  # vm-a lit l'IP privee de vm-b ici (evite une dependance circulaire entre les deux machines)
+  VmBPrivateIpParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /alumni-demo/vm-b-private-ip
+      Type: String
+      Value: !GetAtt VmB.PrivateIp
+
+  # ------------------------------------------------------------------ GitHub Actions (OIDC)
+  GitHubOidcProvider:
+    Type: AWS::IAM::OIDCProvider
+    Condition: CreateOidc
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList: [sts.amazonaws.com]
+      ThumbprintList:
+        - 6938fd4d98bab03faadb97b34396831e3780aea1
+        - 1c58a3a8518e8759bf075b76b750d4f2df264fcd
+
+  # Seuls les workflows de develop (ou de l'environnement GitHub « demo ») des deux depots
+  # peuvent prendre ce role, et il ne permet que de lancer deploy.sh sur les 2 machines.
+  DeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !If
+                - CreateOidc
+                - !GetAtt GitHubOidcProvider.Arn
+                - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+              StringLike:
+                token.actions.githubusercontent.com:sub:
+                  - !Sub repo:${GitHubOrg}/${BackendRepo}:ref:refs/heads/develop
+                  - !Sub repo:${GitHubOrg}/${BackendRepo}:environment:demo
+                  - !Sub repo:${GitHubOrg}/${FrontendRepo}:ref:refs/heads/develop
+                  - !Sub repo:${GitHubOrg}/${FrontendRepo}:environment:demo
+      Policies:
+        - PolicyName: deploy-demo
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: ssm:SendCommand
+                Resource:
+                  - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}::document/AWS-RunShellScript
+                  - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/${VmA}
+                  - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/${VmB}
+              - Effect: Allow
+                Action: [ssm:GetCommandInvocation, ssm:ListCommandInvocations, ec2:DescribeInstances]
+                Resource: "*"
+
+  # ------------------------------------------------------------------ budget
+  # IncludeCredit: false -> les alertes portent sur la consommation REELLE, avant deduction
+  # des credits (sinon le cout affiche reste a 0 $ et aucune alerte ne part).
+  Budget:
+    Type: AWS::Budgets::Budget
+    Properties:
+      Budget:
+        BudgetName: alumni-demo-mensuel
+        BudgetType: COST
+        TimeUnit: MONTHLY
+        BudgetLimit: {Amount: !Ref MonthlyBudgetUsd, Unit: USD}
+        CostTypes: {IncludeCredit: false, IncludeRefund: false}
+      NotificationsWithSubscribers:
+        - Notification: {NotificationType: ACTUAL, ComparisonOperator: GREATER_THAN, Threshold: 50, ThresholdType: PERCENTAGE}
+          Subscribers: [{SubscriptionType: EMAIL, Address: !Ref BudgetEmail}]
+        - Notification: {NotificationType: ACTUAL, ComparisonOperator: GREATER_THAN, Threshold: 80, ThresholdType: PERCENTAGE}
+          Subscribers: [{SubscriptionType: EMAIL, Address: !Ref BudgetEmail}]
+        - Notification: {NotificationType: FORECASTED, ComparisonOperator: GREATER_THAN, Threshold: 100, ThresholdType: PERCENTAGE}
+          Subscribers: [{SubscriptionType: EMAIL, Address: !Ref BudgetEmail}]
+
+Outputs:
+  DemoUrl:
+    Value: !Sub https://alumni-demo.${DemoEip.PublicIp}.sslip.io
+  MailpitUrl:
+    Value: !Sub https://alumni-demo.${DemoEip.PublicIp}.sslip.io/mailpit/
+  DeployRoleArn:
+    Description: Variable GitHub AWS_DEPLOY_ROLE_ARN (dans les deux depots)
+    Value: !GetAtt DeployRole.Arn
+  BackupBucketName:
+    Value: !Ref BackupBucket
+  VmAInstanceId:
+    Value: !Ref VmA
+  VmBInstanceId:
+    Value: !Ref VmB
+  SecretsParameter:
+    Description: Secrets de la demo (dont BOOTSTRAP_ADMIN_PASSWORD et MAILPIT_UI_AUTH)
+    Value: /alumni-demo/secrets
