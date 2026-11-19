@@ -5,8 +5,9 @@
 #   vm-b       : job-offer-service, analytics-matching-service, notification-messaging-service
 #   vm-a,vm-b  : tout sur un seul serveur (cas du futur serveur de l'université)
 #
-# Variables : /opt/alumni/demo.env (réseau + secrets) et /opt/alumni/tags.env (versions des images),
-# écrits par scripts/bootstrap.sh et scripts/deploy.sh. Modèle : .env.example.
+# Variables : /opt/alumni/demo.env (réseau + secrets), /opt/alumni/mail.env (SMTP réel, facultatif)
+# et /opt/alumni/tags.env (versions des images), écrits par scripts/bootstrap.sh et scripts/deploy.sh.
+# Modèle : .env.example. Sans SMTP réel, les e-mails partent dans Mailpit.
 name: alumni-demo
 
 x-logging: &logging
@@ -139,6 +140,9 @@ services:
       MAIL_USERNAME: ${MAIL_USERNAME:-}
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
       MAIL_FROM: ${MAIL_FROM:-no-reply@alumni-uasz.sn}
+      # Brevo (587) : STARTTLS obligatoire ; Mailpit : désactivé
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: ${MAIL_STARTTLS:-false}
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_REQUIRED: ${MAIL_STARTTLS:-false}
       FRONTEND_URL: https://${DEMO_DOMAIN}
       EMAIL_CONFIRMATION_TTL: 24h
       JWT_ACCESS_TTL: 15m

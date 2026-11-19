@@ -150,11 +150,13 @@ log "écriture de $ROOT/demo.env (profils : $PROFILES)"
   fi
   [ -z "$BUCKET" ] || echo "BACKUP_BUCKET=$BUCKET"
   [ -z "${AWS_DEFAULT_REGION:-}" ] || echo "AWS_DEFAULT_REGION=$AWS_DEFAULT_REGION"
+  # SMTP réel facultatif, relu par deploy.sh (machine qui porte user-service)
+  if [ -n "$SSM_PREFIX" ] && [ "$ROLE" != vm-b ]; then echo "MAIL_SSM_PARAM=$SSM_PREFIX/mail"; fi
   cat "$secrets_file"
 } > "$ROOT/demo.env.new"
 # Conserver les réglages ajoutés à la main (ex. MAIL_HOST pour Brevo)
 if [ -f "$ROOT/demo.env" ]; then
-  grep -E '^(MAIL_|JVM_HEAP|FRONTEND_IMAGE|IMAGE_PREFIX|BOOTSTRAP_ADMIN_EMAIL)' "$ROOT/demo.env" >> "$ROOT/demo.env.new" || true
+  grep -E '^(MAIL_(HOST|PORT|USERNAME|PASSWORD|FROM|STARTTLS)=|JVM_HEAP|FRONTEND_IMAGE|IMAGE_PREFIX|BOOTSTRAP_ADMIN_EMAIL)' "$ROOT/demo.env" >> "$ROOT/demo.env.new" || true
 fi
 install -m 600 "$ROOT/demo.env.new" "$ROOT/demo.env" && rm -f "$ROOT/demo.env.new"
 touch "$ROOT/tags.env"

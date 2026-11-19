@@ -76,7 +76,19 @@ Commandes à lancer dans Session Manager (`sudo -i`) :
 
 - **Compte admin initial** et accès Mailpit : *Systems Manager > Parameter Store > `/alumni-demo/secrets`*
   (`BOOTSTRAP_ADMIN_PASSWORD`, `MAILPIT_UI_AUTH`). L'admin est `admin@alumni-uasz.sn`.
-- **Vrais e-mails** : ajouter `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD` dans `/opt/alumni/demo.env` sur vm-a, puis `deploy.sh`.
+- **Vrais e-mails (Brevo)** : par défaut, les e-mails partent dans Mailpit. Pour envoyer de vrais e-mails, créer dans
+  *Parameter Store* le paramètre **SecureString** `/alumni-demo/mail` :
+  ```
+  MAIL_HOST=smtp-relay.brevo.com
+  MAIL_PORT=587
+  MAIL_STARTTLS=true
+  MAIL_USERNAME=<identifiant SMTP Brevo>
+  MAIL_PASSWORD=<clé SMTP Brevo>
+  MAIL_FROM=<expéditeur validé dans Brevo>
+  ```
+  puis relancer le workflow « CD - Démo AWS » (`service` = `none`). `deploy.sh` relit ce paramètre à chaque
+  déploiement : le modifier change les réglages, le supprimer revient à Mailpit. Hors AWS, mettre ces lignes
+  dans `/opt/alumni/demo.env`.
 - **Sauvegardes** : chaque nuit à 02:30 UTC, 7 jours sur la machine, 30 jours dans S3.
 - **Règle d'équipe** : une migration Flyway doit rester compatible avec la version précédente
   (ajouter d'abord, supprimer dans une PR suivante), car le retour arrière ne défait pas une migration.

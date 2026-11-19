@@ -122,7 +122,7 @@ Resources:
   # ------------------------------------------------------------------ machines
   # Un role par machine (moindre privilege). Agent SSM sur les deux : Run Command
   # (deploiements) et Session Manager (console sans SSH).
-  # vm-a : cree les secrets, lit l'IP de vm-b, ecrit les sauvegardes dans S3.
+  # vm-a : cree les secrets, lit l'IP de vm-b et la config SMTP, ecrit les sauvegardes dans S3.
   InstanceRoleA:
     Type: AWS::IAM::Role
     Properties:
@@ -144,7 +144,10 @@ Resources:
                 Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/alumni-demo/secrets
               - Effect: Allow
                 Action: ssm:GetParameter
-                Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/alumni-demo/vm-b-private-ip
+                Resource:
+                  - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/alumni-demo/vm-b-private-ip
+                  # SMTP réel (Brevo) : paramètre facultatif créé à la main, lu à chaque déploiement
+                  - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/alumni-demo/mail
               - Effect: Allow
                 Action: [kms:Decrypt, kms:Encrypt, kms:GenerateDataKey]
                 Resource: "*"
