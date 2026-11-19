@@ -37,14 +37,14 @@
 - SPI `notification-messaging-service-spi` publié en **1.2.0** (version du pom parent `alumni-spis`, déjà passée à 1.2.0
   par alumni-student-company-service).
 
-## 1.4.0
+## 1.5.0
 
 ### alumni-student-company-service
 - **Ajout** du paramètre de requête `specialty` (string, facultatif) sur `GET /alumni` (`searchAlumni`) :
   filtre de recherche par spécialité, le « secteur » de l'écran (ALUM-105).
 - **Précision** : `PUT /alumni/{id}` (`updateAlumniProfile`) déclare la réponse 403 (modification par un
   utilisateur qui n'est pas le propriétaire du profil) (ALUM-100).
-- SPI `alumni-student-company-service-spi` publié en **1.4.0** (version du pom parent `alumni-spis` passée à 1.4.0).
+- SPI `alumni-student-company-service-spi` publié en **1.5.0** (version du pom parent `alumni-spis` passée à 1.5.0).
 
 ## 1.3.0
 
