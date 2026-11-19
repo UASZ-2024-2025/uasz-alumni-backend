@@ -6,7 +6,7 @@ info:
     des entreprises partenaires et des promotions académiques pour la plateforme Alumni UASZ.
   contact:
     name: Équipe Projet Intégrateur - M2 GL - UASZ
-  version: 1.2.0
+  version: 1.4.0
 servers:
   - url: https://api.alumni-uasz.sn/alumni-student-company-service/v1
     description: Serveur de production
@@ -489,6 +489,10 @@ paths:
       tags:
         - Promotions
       summary: Lister les promotions académiques
+      description: |
+        Promotions triées de la plus récente à la plus ancienne, puis par spécialité.
+        `graduateCount` est calculé : nombre d'Alumni dont l'année de diplôme et la spécialité
+        (sans tenir compte de la casse) sont celles de la promotion.
       operationId: listPromotions
       responses:
         "200":
@@ -508,6 +512,9 @@ paths:
       tags:
         - Promotions
       summary: Ajouter une nouvelle promotion
+      description: |
+        Réservé aux administrateurs. `academicYear` (entre 1990 et 2100) et `specialty` (non vide) sont
+        obligatoires. Une promotion est unique par année et spécialité (sans tenir compte de la casse).
       operationId: createPromotion
       requestBody:
         required: true
@@ -526,6 +533,14 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: Une promotion existe déjà pour cette année et cette spécialité
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
       security:
         - bearerAuth: []
 
@@ -534,6 +549,9 @@ paths:
       tags:
         - Promotions
       summary: Obtenir la liste des diplômés d'une promotion
+      description: |
+        Les diplômés sont les Alumni dont l'année de diplôme et la spécialité sont celles de la promotion,
+        triés par nom puis prénom ; leur nombre est égal à `graduateCount`.
       operationId: getPromotionGraduates
       parameters:
         - $ref: "#/components/parameters/EntityId"
