@@ -1,4 +1,5 @@
 package com.uasz.alumni.alumnistudentcompany.repository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import com.uasz.alumni.alumnistudentcompany.model.Alumni;
 import jakarta.persistence.LockModeType;
@@ -8,7 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 
-public interface AlumniRepository extends JpaRepository<Alumni, UUID> {
+public interface AlumniRepository extends JpaRepository<Alumni, UUID>, JpaSpecificationExecutor<Alumni> {
 
     /** Un seul profil par compte (user_id unique). */
     Optional<Alumni> findByUserId(UUID userId);
