@@ -11,6 +11,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
+import org.springframework.web.client.HttpServerErrorException;
 
 /**
  * Crée le profil d'un compte ETUDIANT ou ALUMNI dans alumni-student-company-service une fois son
@@ -20,6 +21,10 @@ import org.springframework.transaction.event.TransactionalEventListener;
  * la confirmation de l'email n'attend ni le service distant ni ses retries. Un échec définitif est
  * journalisé et n'annule jamais l'activation du compte (ADR-0006) : une panne d'alumni-student-company-service
  * ne bloque pas l'inscription.
+ *
+ * <p>Un <b>501</b> n'est pas une panne : le service distant ne sait pas encore créer ce type de profil
+ * (profil étudiant, en attendant ALUM-92). Il est journalisé en WARN, pas en ERROR, et le compte sera rattrapé
+ * par ALUM-214.
  */
 @Component
 public class ProfileProvisioningListener {
@@ -44,6 +49,9 @@ public class ProfileProvisioningListener {
         try {
             client.provisionProfile(request);
             log.info("Profil {} créé pour l'utilisateur {}", type.get(), event.userId());
+        } catch (HttpServerErrorException.NotImplemented e) {
+            log.warn("Profil {} pas encore pris en charge par alumni-student-company-service (501) pour "
+                    + "l'utilisateur {} : à rattraper (ALUM-214)", type.get(), event.userId());
         } catch (RuntimeException e) {
             // Retries épuisés ou erreur non transitoire : l'activation du compte reste acquise.
             log.error("Profil non créé pour l'utilisateur {} : {}", event.userId(), e.toString());
