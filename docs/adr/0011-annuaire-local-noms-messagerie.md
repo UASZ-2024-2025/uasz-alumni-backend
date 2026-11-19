@@ -1,9 +1,9 @@
 # ADR-0011 : Noms des participants de la messagerie recopiés depuis le jeton
 
-- **Statut** : Proposé
+- **Statut** : Accepté
 - **Date** : 2026-11-18
 - **Décideurs** : équipe back (messagerie, utilisateurs)
-- **Ticket** : ALUM-XX (groupes de discussion : réglages et administration)
+- **Ticket** : ALUM-212 (groupes de discussion : réglages et administration)
 
 ## Contexte
 

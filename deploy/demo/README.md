@@ -76,7 +76,33 @@ Commandes à lancer dans Session Manager (`sudo -i`) :
 
 - **Compte admin initial** et accès Mailpit : *Systems Manager > Parameter Store > `/alumni-demo/secrets`*
   (`BOOTSTRAP_ADMIN_PASSWORD`, `MAILPIT_UI_AUTH`). L'admin est `admin@alumni-uasz.sn`.
-- **Vrais e-mails** : ajouter `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD` dans `/opt/alumni/demo.env` sur vm-a, puis `deploy.sh`.
+- **Vrais e-mails (Brevo)** : par défaut, les e-mails partent dans Mailpit. Pour envoyer de vrais e-mails, créer dans
+  *Parameter Store* le paramètre **SecureString** `/alumni-demo/mail` :
+  ```
+  MAIL_HOST=smtp-relay.brevo.com
+  MAIL_PORT=587
+  MAIL_STARTTLS=true
+  MAIL_USERNAME=<identifiant SMTP Brevo>
+  MAIL_PASSWORD=<clé SMTP Brevo>
+  MAIL_FROM=<expéditeur validé dans Brevo>
+  ```
+  puis relancer le workflow « CD - Démo AWS » (`service` = `none`). `deploy.sh` relit ce paramètre à chaque
+  déploiement : le modifier change les réglages, le supprimer revient à Mailpit. Hors AWS, mettre ces lignes
+  dans `/opt/alumni/demo.env`.
+
+  Prérequis, à vérifier une fois :
+  1. **Pile à jour** : le droit de vm-a sur `/alumni-demo/mail` vient de `demo-stack.yaml`. Après la fusion, relancer
+     `aws cloudformation deploy` (voir « Mise en place ») ; sinon la lecture est refusée et le journal affiche
+     « illisible, réglage actuel conservé ».
+  2. **vm-a installée avant cette option** : `bootstrap.sh` n'écrit `MAIL_SSM_PARAM` qu'à l'installation. Sur une
+     machine existante, ajouter la ligne une fois (*Systems Manager > Run Command*, ou Session Manager, sur vm-a) :
+     ```bash
+     grep -q '^MAIL_SSM_PARAM=' /opt/alumni/demo.env || echo 'MAIL_SSM_PARAM=/alumni-demo/mail' | sudo tee -a /opt/alumni/demo.env
+     ```
+     Relancer `bootstrap.sh --role vm-a ...` avec les options d'origine fait la même chose.
+
+  À chaque déploiement, le journal indique la source des e-mails : `e-mails : SMTP smtp-relay.brevo.com`,
+  `e-mails : Mailpit (/alumni-demo/mail absent)` ou `... (MAIL_SSM_PARAM non défini dans demo.env)`.
 - **Sauvegardes** : chaque nuit à 02:30 UTC, 7 jours sur la machine, 30 jours dans S3.
 - **Règle d'équipe** : une migration Flyway doit rester compatible avec la version précédente
   (ajouter d'abord, supprimer dans une PR suivante), car le retour arrière ne défait pas une migration.
