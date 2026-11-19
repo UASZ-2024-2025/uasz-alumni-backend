@@ -21,7 +21,7 @@
     <jjwt.version>0.12.6</jjwt.version>
     <alumni.spi.version>1.0.0</alumni.spi.version>
     <!-- Contrat consommé en client (POST /notifications/send, ALUM-83) -->
-    <notification-messaging.spi.version>1.0.0</notification-messaging.spi.version>
+    <notification-messaging.spi.version>1.2.0</notification-messaging.spi.version>
   </properties>
 
   <repositories>

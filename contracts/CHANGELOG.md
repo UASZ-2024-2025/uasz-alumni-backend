@@ -1,5 +1,19 @@
 # Journal des modifications des contrats OpenAPI
 
+## alumni-student-company-service 1.4.0 (promotions académiques, ALUM-88)
+
+Évolution compatible : aucune opération ni aucun champ retiré ; seules des réponses et des descriptions sont ajoutées.
+
+- **Ajout** des réponses `403` (création réservée à `ADMINISTRATEUR`) et `409` (promotion déjà existante pour la même
+  année et la même spécialité, sans tenir compte de la casse) sur `createPromotion`.
+- **Précisions** : `academicYear` entre 1990 et 2100, `specialty` non vide ; tri de `listPromotions` ;
+  `graduateCount` calculé ; les diplômés d'une promotion (`getPromotionGraduates`) sont les Alumni de même année de
+  diplôme et de même spécialité, triés par nom puis prénom.
+- `info.version` passe de 1.2.0 à **1.4.0** pour s'aligner sur le SPI : le SPI 1.3.0 (ALUM-96) avait été publié sans
+  changer la version du contrat.
+- SPI `alumni-student-company-service-spi` publié en **1.4.0** (pom parent `alumni-spis` 1.4.0) ;
+  alumni-student-company-service passe à `alumni.spi.version` 1.4.0.
+
 ## notification-messaging-service 1.1.0 (groupes de discussion : réglages et administration)
 
 Évolution compatible : aucun champ ni opération existants ne sont retirés ; les nouveaux champs de réponse sont facultatifs.
