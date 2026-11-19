@@ -85,6 +85,9 @@ if [ -n "$MAIL_PARAM" ]; then
     cp "$MAIL_FILE" "$MAIL_FILE.new"; log "e-mails : $MAIL_PARAM illisible, réglage actuel conservé"
   fi
   install -m 600 "$MAIL_FILE.new" "$MAIL_FILE" && rm -f "$MAIL_FILE.new"
+else
+  # Jamais silencieux : on sait toujours d'où viennent les réglages SMTP
+  log "e-mails : $(sed -n 's/^MAIL_HOST=//p' "$ENV_FILE" | tail -1 | grep . || echo Mailpit) (MAIL_SSM_PARAM non défini dans demo.env)"
 fi
 
 # 2. Versions des images (USER_SERVICE_TAG=..., FRONTEND_TAG=...)
