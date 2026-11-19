@@ -429,6 +429,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
       security:
         - bearerAuth: []
 
@@ -478,6 +480,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
       security:
@@ -926,6 +930,10 @@ components:
         id:
           type: string
           format: uuid
+        ownerId:
+          type: string
+          format: uuid
+          description: Identifiant du gestionnaire de la fiche (l'utilisateur qui l'a créée)
         name:
           type: string
           example: "Gainde 2000"
@@ -1000,6 +1008,7 @@ components:
           type: string
         isPartner:
           type: boolean
+          description: Réservé à l'administrateur (403 sinon)
 
     Promotion:
       type: object
