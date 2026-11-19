@@ -23,6 +23,15 @@
 - SPI `notification-messaging-service-spi` publié en **1.2.0** (version du pom parent `alumni-spis`, déjà passée à 1.2.0
   par alumni-student-company-service).
 
+## 1.4.0
+
+### alumni-student-company-service
+- **Ajout** du paramètre de requête `specialty` (string, facultatif) sur `GET /alumni` (`searchAlumni`) :
+  filtre de recherche par spécialité, le « secteur » de l'écran (ALUM-105).
+- **Précision** : `PUT /alumni/{id}` (`updateAlumniProfile`) déclare la réponse 403 (modification par un
+  utilisateur qui n'est pas le propriétaire du profil) (ALUM-100).
+- SPI `alumni-student-company-service-spi` publié en **1.4.0** (version du pom parent `alumni-spis` passée à 1.4.0).
+
 ## 1.3.0
 
 ### alumni-student-company-service
@@ -40,8 +49,6 @@
   jeton de service (ADR-0010). Idempotent sur `userId` (201 si créé, 200 si déjà présent) ; 403 pour un
   JWT utilisateur (ALUM-83).
 - **Ajout** des schémas `ProvisionedProfileType`, `ProfileProvisioningRequest`, `ProfileProvisioningResponse`.
-- **Précision** : `PUT /alumni/{id}` (`updateAlumniProfile`) déclare la réponse 403 (modification par un
-  utilisateur qui n'est pas le propriétaire du profil) (ALUM-100).
 - SPI `alumni-student-company-service-spi` publié en **1.2.0** (version du pom parent `alumni-spis` passée à 1.2.0).
   La branche AL-28 publie de son côté une 1.1.0 (`Company.ownerId`) : la seconde PR fusionnée devra
   régénérer le SPI pour réunir les deux changements.

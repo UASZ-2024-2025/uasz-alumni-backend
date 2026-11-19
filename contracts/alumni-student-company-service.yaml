@@ -211,6 +211,12 @@ paths:
           required: false
           schema:
             type: integer
+        - name: specialty
+          in: query
+          description: Filtrer par spécialité (le « secteur » de l'écran)
+          required: false
+          schema:
+            type: string
         - name: page
           in: query
           required: false
