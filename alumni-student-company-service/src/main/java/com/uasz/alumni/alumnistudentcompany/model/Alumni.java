@@ -59,6 +59,20 @@ public class Alumni {
         this.updatedAt = OffsetDateTime.now();
     }
 
+    /** Mise à jour du profil par son propriétaire (champs null = inchangés). */
+    public void updateProfile(Integer graduationYear, String specialty, String linkedinUrl) {
+        if (graduationYear != null) {
+            this.graduationYear = graduationYear;
+        }
+        if (specialty != null) {
+            this.specialty = specialty;
+        }
+        if (linkedinUrl != null) {
+            this.linkedinUrl = linkedinUrl;
+        }
+        this.updatedAt = OffsetDateTime.now();
+    }
+
     public UUID getId() { return id; }
     public UUID getUserId() { return userId; }
     public String getFirstName() { return firstName; }

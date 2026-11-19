@@ -1,4 +1,5 @@
 package com.uasz.alumni.alumnistudentcompany.controller;
+import com.uasz.alumni.alumnistudentcompany.service.AlumniProfileService;
 
 import com.uasz.alumni.alumnistudentcompany.exceptions.NotImplementedYetException;
 import com.uasz.alumni.alumnistudentcompany.model.Experience;
@@ -24,9 +25,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class AlumniController implements AlumniApi {
 
     private final AlumniExperienceService experiences;
+    private final AlumniProfileService profiles;
 
-    public AlumniController(AlumniExperienceService experiences) {
+    public AlumniController(AlumniExperienceService experiences, AlumniProfileService profiles) {
         this.experiences = experiences;
+        this.profiles = profiles;
     }
 
     @Override
@@ -38,14 +41,14 @@ public class AlumniController implements AlumniApi {
 
     @Override
     public ResponseEntity<AlumniProfile> getAlumniById(UUID id) {
-        // TODO : profil détaillé -> 200 / 404
-        throw new NotImplementedYetException("getAlumniById");
+        return ResponseEntity.ok(profiles.getById(id));
     }
 
     @Override
+    @PreAuthorize("hasRole('ALUMNI')")
     public ResponseEntity<AlumniProfile> updateAlumniProfile(UUID id, AlumniProfileUpdateRequest alumniProfileUpdateRequest) {
-        // TODO : mise à jour du profil -> 200 / 400 / 404
-        throw new NotImplementedYetException("updateAlumniProfile");
+        AuthenticatedUser caller = (AuthenticatedUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return ResponseEntity.ok(profiles.update(id, alumniProfileUpdateRequest, caller.id()));
     }
 
     @Override
