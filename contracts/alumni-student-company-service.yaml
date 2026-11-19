@@ -109,6 +109,10 @@ paths:
       tags:
         - Students
       summary: Mettre à jour le profil d'un étudiant
+      description: >
+        Les champs skills et interests sont remplacés à chaque appel PUT.
+        Lorsqu'ils sont absents de la requête, ils sont considérés comme des
+        listes vides et les anciennes valeurs sont effacées.
       operationId: updateStudentProfile
       parameters:
         - $ref: "#/components/parameters/EntityId"
@@ -461,6 +465,7 @@ paths:
         - Companies
       summary: Mettre à jour une entreprise
       operationId: updateCompany
+      
       parameters:
         - $ref: "#/components/parameters/EntityId"
       requestBody:

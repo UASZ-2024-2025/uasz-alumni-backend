@@ -236,6 +236,24 @@ class StudentsApiIntegrationTest {
                 .andExpect(status().isUnauthorized());
     }
 
+@Test
+void updateWithOnlyBioReplacesSkillsAndInterestsWithEmptyLists() throws Exception {
+    // Préparer un profil avec des compétences et des centres d'intérêt existants
+    aminata.setInterests(List.of("Intelligence artificielle", "Cloud"));
+    repository.save(aminata);
+
+    // Envoyer uniquement la bio
+    mvc.perform(put("/v1/students/{id}", aminata.getId())
+                    .with(asUser(aminata.getUserId(), "ETUDIANT"))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""
+                            {"bio":"Nouvelle bio de l'étudiante"}
+                            """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.bio").value("Nouvelle bio de l'étudiante"))
+            .andExpect(jsonPath("$.skills").value(empty()))
+            .andExpect(jsonPath("$.interests").value(empty()));
+}
     // ---------- Utilitaires ----------
 
     private StudentProfileEntity student(String first, String last, String specialty, int year,
