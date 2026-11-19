@@ -1,5 +1,5 @@
 -- ALUM-88 : promotions académiques (création par un administrateur).
--- V2, V3, V5 et V7 sont prises par des branches en cours (recommandations, entreprises, profil étudiant).
+-- V2, V3, V5 et V9 sont prises par des branches en cours (recommandations, entreprises, profil étudiant).
 -- Les diplômés d'une promotion sont les Alumni de même année de diplôme et de même spécialité :
 -- ils ne sont pas stockés ici, graduateCount est calculé.
 CREATE TABLE promotions (
