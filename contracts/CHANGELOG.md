@@ -1,5 +1,14 @@
 # Journal des modifications des contrats OpenAPI
 
+## alumni-student-company-service 1.4.1 (précision sur les diplômés, ALUM-88)
+
+Évolution compatible : seule une description change.
+
+- **Précision** sur `getPromotionGraduates` : l'`id` de chaque diplômé est celui du profil Alumni (à utiliser avec
+  `GET /alumni/{id}`, pas `GET /students/{id}`). Remarque de revue sur la #37.
+- SPI `alumni-student-company-service-spi` publié en **1.4.1** (pom parent `alumni-spis` 1.4.1) ;
+  alumni-student-company-service passe à `alumni.spi.version` 1.4.1.
+
 ## alumni-student-company-service 1.4.0 (promotions académiques, ALUM-88)
 
 Évolution compatible : aucune opération ni aucun champ retiré ; seules des réponses et des descriptions sont ajoutées.

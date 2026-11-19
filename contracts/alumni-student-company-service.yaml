@@ -6,7 +6,7 @@ info:
     des entreprises partenaires et des promotions académiques pour la plateforme Alumni UASZ.
   contact:
     name: Équipe Projet Intégrateur - M2 GL - UASZ
-  version: 1.4.0
+  version: 1.4.1
 servers:
   - url: https://api.alumni-uasz.sn/alumni-student-company-service/v1
     description: Serveur de production
@@ -560,6 +560,8 @@ paths:
       description: |
         Les diplômés sont les Alumni dont l'année de diplôme et la spécialité sont celles de la promotion,
         triés par nom puis prénom ; leur nombre est égal à `graduateCount`.
+        Chaque élément reprend le schéma `StudentProfile`, mais son `id` est celui du **profil Alumni** :
+        il s'utilise avec `GET /alumni/{id}`, et non avec `GET /students/{id}` (qui répondrait 404).
       operationId: getPromotionGraduates
       parameters:
         - $ref: "#/components/parameters/EntityId"
