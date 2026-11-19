@@ -36,6 +36,17 @@ Parameters:
   FrontendRepo:
     Type: String
     Default: Alumni-UASZ-frontend
+  # Le dépôt GitHub utilise des sujets OIDC « immuables » (org@id/repo@id) :
+  # gh api repos/<org>/<repo>/actions/oidc/customization/sub -> sub_claim_prefix
+  GitHubOrgId:
+    Type: String
+    Default: "310733437"
+  BackendRepoId:
+    Type: String
+    Default: "1441770878"
+  FrontendRepoId:
+    Type: String
+    Default: "1441953671"
   CreateGitHubOidcProvider:
     Type: String
     Default: "true"
@@ -334,7 +345,9 @@ Resources:
             Condition:
               StringEquals:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
-                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubOrg}/${BackendRepo}:environment:demo
+                token.actions.githubusercontent.com:sub:
+                  - !Sub repo:${GitHubOrg}@${GitHubOrgId}/${BackendRepo}@${BackendRepoId}:environment:demo
+                  - !Sub repo:${GitHubOrg}/${BackendRepo}:environment:demo
       Policies:
         - PolicyName: deploy-demo-backend
           PolicyDocument:
@@ -368,7 +381,9 @@ Resources:
             Condition:
               StringEquals:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
-                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubOrg}/${FrontendRepo}:environment:demo
+                token.actions.githubusercontent.com:sub:
+                  - !Sub repo:${GitHubOrg}@${GitHubOrgId}/${FrontendRepo}@${FrontendRepoId}:environment:demo
+                  - !Sub repo:${GitHubOrg}/${FrontendRepo}:environment:demo
       Policies:
         - PolicyName: deploy-demo-frontend
           PolicyDocument:
