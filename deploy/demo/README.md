@@ -103,6 +103,15 @@ Commandes à lancer dans Session Manager (`sudo -i`) :
 
   À chaque déploiement, le journal indique la source des e-mails : `e-mails : SMTP smtp-relay.brevo.com`,
   `e-mails : Mailpit (/alumni-demo/mail absent)` ou `... (MAIL_SSM_PARAM non défini dans demo.env)`.
+- **Offres d'emploi (vm-b → vm-a)** : job-offer-service lit les fiches entreprises sur vm-a par l'IP privée
+  (port 8082, ouvert seulement entre les deux machines). `bootstrap.sh` écrit l'URL dans le `demo.env` de vm-b.
+  Sur une vm-b installée avant cette option, ajouter la ligne une fois (*Run Command* ou Session Manager, sur vm-b) :
+  ```bash
+  grep -q '^STUDENT_COMPANY_SERVICE_URL=' /opt/alumni/demo.env || \
+    sudo sed -n 's/^DB_HOST=\(.*\)/STUDENT_COMPANY_SERVICE_URL=http:\/\/\1:8082\/alumni-student-company-service\/v1/p' \
+    /opt/alumni/demo.env | sudo tee -a /opt/alumni/demo.env
+  ```
+  Sans elle, la publication d'une offre répond 503 (fiche entreprise injoignable).
 - **Sauvegardes** : chaque nuit à 02:30 UTC, 7 jours sur la machine, 30 jours dans S3.
 - **Règle d'équipe** : une migration Flyway doit rester compatible avec la version précédente
   (ajouter d'abord, supprimer dans une PR suivante), car le retour arrière ne défait pas une migration.
