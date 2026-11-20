@@ -13,8 +13,9 @@ import org.springframework.stereotype.Service;
 
 /**
  * Validation des access tokens émis par user-service (même JWT_SECRET et même JWT_ISSUER dans tous les services).
- * Claims lus : sub = id utilisateur, role, email. Le rôle vient du jeton : une suspension n'est donc
- * effective ici qu'à l'expiration du jeton (durée courte, voir JWT_ACCESS_TTL).
+ * Claims lus : sub = id utilisateur, role, email, name et companyId (fiche entreprise du compte ENTREPRISE, ALUM-168).
+ * Le rôle vient du jeton : une suspension n'est donc effective ici qu'à l'expiration du jeton
+ * (durée courte, voir JWT_ACCESS_TTL).
  */
 @Service
 public class JwtService {
@@ -51,8 +52,11 @@ public class JwtService {
             if (role == null || role.isBlank()) {
                 return Optional.empty();
             }
+            String rawCompanyId = claims.get("companyId", String.class);
+            UUID companyId = rawCompanyId == null || rawCompanyId.isBlank() ? null : UUID.fromString(rawCompanyId);
             return Optional.of(new AuthenticatedUser(
-                    UUID.fromString(claims.getSubject()), claims.get("email", String.class), role));
+                    UUID.fromString(claims.getSubject()), claims.get("email", String.class), role,
+                    claims.get("name", String.class), companyId));
         } catch (JwtException | IllegalArgumentException e) {
             return Optional.empty();
         }

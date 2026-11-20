@@ -40,6 +40,7 @@ services:
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?CORS_ALLOWED_ORIGINS manquant}
       # Dans le conteneur, localhost désigne le conteneur : on passe par l'hôte Docker
       NOTIFICATION_SERVICE_URL: ${NOTIFICATION_SERVICE_URL_DOCKER:?NOTIFICATION_SERVICE_URL_DOCKER manquant, lancez make env-complete}
+      STUDENT_COMPANY_SERVICE_URL: ${STUDENT_COMPANY_SERVICE_URL_DOCKER:?STUDENT_COMPANY_SERVICE_URL_DOCKER manquant, lancez make env-complete}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
