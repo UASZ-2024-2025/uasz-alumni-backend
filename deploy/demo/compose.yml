@@ -160,6 +160,8 @@ services:
     <<: *backend
     profiles: [vm-a]
     image: ${IMAGE_PREFIX:-ghcr.io/uasz-2024-2025/uasz-alumni-backend}/alumni-student-company-service:${ALUMNI_STUDENT_COMPANY_SERVICE_TAG:-develop}
+    # Port ouvert seulement sur l'IP privée : job-offer-service (vm-b) lit les fiches entreprises (ALUM-148).
+    ports: ["${PRIVATE_BIND:-127.0.0.1}:8082:8082"]
     environment:
       <<: *backend-env
       SERVER_PORT: "8082"
