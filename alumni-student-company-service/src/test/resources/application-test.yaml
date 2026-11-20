@@ -20,3 +20,6 @@ security:
 jwt:
   secret: dGVzdHMtb25seS1zZWNyZXQtMDEyMzQ1Njc4OS1hYmNkZWZnaGlqa2xtbm9w
   issuer: alumni-uasz-user
+user-service:
+  # Client de user-service (ALUM-168) : jamais appelé par les tests d'intégration, l'URL doit seulement exister
+  base-url: http://localhost:9
