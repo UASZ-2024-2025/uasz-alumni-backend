@@ -1,10 +1,10 @@
 package com.uasz.alumni.alumnistudentcompany.controller;
-import com.uasz.alumni.alumnistudentcompany.service.AlumniProfileService;
 
 import com.uasz.alumni.alumnistudentcompany.exceptions.NotImplementedYetException;
 import com.uasz.alumni.alumnistudentcompany.model.Experience;
 import com.uasz.alumni.alumnistudentcompany.security.AuthenticatedUser;
 import com.uasz.alumni.alumnistudentcompany.service.AlumniExperienceService;
+import com.uasz.alumni.alumnistudentcompany.service.AlumniProfileService;
 import com.uasz.alumni.alumnistudentcompany.spi.api.AlumniApi;
 import com.uasz.alumni.alumnistudentcompany.spi.model.AlumniPagedResponse;
 import com.uasz.alumni.alumnistudentcompany.spi.model.AlumniProfile;
@@ -34,9 +34,9 @@ public class AlumniController implements AlumniApi {
 
     @Override
     public ResponseEntity<AlumniPagedResponse> searchAlumni(String query, UUID companyId, Integer graduationYear,
-                                                            Integer page, Integer size) {
-        // TODO : recherche paginée (nom, entreprise, poste, année)
-        throw new NotImplementedYetException("searchAlumni");
+                                                            String specialty, Integer page, Integer size) {
+        // companyId : pas encore filtrable (l'entité n'a que le nom de l'entreprise)
+        return ResponseEntity.ok(profiles.search(query, graduationYear, specialty, page, size));
     }
 
     @Override
@@ -73,12 +73,12 @@ public class AlumniController implements AlumniApi {
 
     private static WorkExperience toDto(Experience e) {
         return new WorkExperience()
-                .id(e.getId())
-                .companyName(e.getCompanyName())
-                .position(e.getPosition())
-                .startDate(e.getStartDate())
-                .endDate(e.getEndDate())
-                .isCurrent(e.isCurrent())
-                .description(e.getDescription());
+            .id(e.getId())
+            .companyName(e.getCompanyName())
+            .position(e.getPosition())
+            .startDate(e.getStartDate())
+            .endDate(e.getEndDate())
+            .isCurrent(e.isCurrent())
+            .description(e.getDescription());
     }
 }

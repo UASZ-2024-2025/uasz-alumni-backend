@@ -160,6 +160,8 @@ services:
     <<: *backend
     profiles: [vm-a]
     image: ${IMAGE_PREFIX:-ghcr.io/uasz-2024-2025/uasz-alumni-backend}/alumni-student-company-service:${ALUMNI_STUDENT_COMPANY_SERVICE_TAG:-develop}
+    # Port ouvert seulement sur l'IP privée : job-offer-service (vm-b) lit les fiches entreprises (ALUM-148).
+    ports: ["${PRIVATE_BIND:-127.0.0.1}:8082:8082"]
     environment:
       <<: *backend-env
       SERVER_PORT: "8082"
@@ -167,6 +169,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST:-db}:5432/alumni_student_company_db
       SPRING_DATASOURCE_USERNAME: alumni_student_company_svc
       SPRING_DATASOURCE_PASSWORD: ${ALUMNI_STUDENT_COMPANY_DB_PASSWORD}
+      USER_SERVICE_URL: http://user-service:8081/user-service/v1
 
   # ------------------------------------------------------------------ vm-b
   job-offer-service:
@@ -182,6 +185,7 @@ services:
       SPRING_DATASOURCE_USERNAME: job_offer_svc
       SPRING_DATASOURCE_PASSWORD: ${JOB_OFFER_DB_PASSWORD}
       NOTIFICATION_SERVICE_URL: http://notification-messaging-service:8085/notification-messaging-service/v1
+      STUDENT_COMPANY_SERVICE_URL: ${STUDENT_COMPANY_SERVICE_URL:-http://alumni-student-company-service:8082/alumni-student-company-service/v1}
 
   analytics-matching-service:
     <<: *backend

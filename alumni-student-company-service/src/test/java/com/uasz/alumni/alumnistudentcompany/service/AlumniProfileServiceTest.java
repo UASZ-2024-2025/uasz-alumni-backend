@@ -17,6 +17,15 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import com.uasz.alumni.alumnistudentcompany.spi.model.AlumniPagedResponse;
+import java.util.List;
+import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 
 class AlumniProfileServiceTest {
 
@@ -130,6 +139,52 @@ class AlumniProfileServiceTest {
         ApiException ex = assertThrows(ApiException.class, () -> service.update(alumni.getId(),
             new AlumniProfileUpdateRequest().specialty(tooLong), ownerUserId));
 
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatus());
+    }
+
+    // ---------- search ----------
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void searchRetourneUnePageDeProfils() {
+        Page<Alumni> result = new PageImpl<>(List.of(alumni), org.springframework.data.domain.PageRequest.of(0, 20), 1);
+        when(repository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(result);
+
+        AlumniPagedResponse response = service.search("sow", 2023, "Génie Logiciel", 0, 20);
+
+        assertEquals(1, response.getTotalElements());
+        assertEquals(1, response.getContent().size());
+        assertEquals(0, response.getPage());
+        assertEquals(20, response.getSize());
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void searchValeursParDefautPageEtTaille() {
+        when(repository.findAll(any(Specification.class), any(Pageable.class)))
+            .thenReturn(new PageImpl<>(List.of()));
+
+        AlumniPagedResponse response = service.search(null, null, null, null, null);
+
+        assertEquals(0, response.getPage());
+        assertEquals(20, response.getSize());
+    }
+
+    @Test
+    void searchPageNegativeDonne400() {
+        ApiException ex = assertThrows(ApiException.class, () -> service.search(null, null, null, -1, 20));
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatus());
+    }
+
+    @Test
+    void searchTailleZeroDonne400() {
+        ApiException ex = assertThrows(ApiException.class, () -> service.search(null, null, null, 0, 0));
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatus());
+    }
+
+    @Test
+    void searchTailleTropGrandeDonne400() {
+        ApiException ex = assertThrows(ApiException.class, () -> service.search(null, null, null, 0, 101));
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatus());
     }
 }

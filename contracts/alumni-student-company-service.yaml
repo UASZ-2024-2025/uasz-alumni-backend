@@ -6,7 +6,7 @@ info:
     des entreprises partenaires et des promotions académiques pour la plateforme Alumni UASZ.
   contact:
     name: Équipe Projet Intégrateur - M2 GL - UASZ
-  version: 1.4.1
+  version: 1.7.0
 servers:
   - url: https://api.alumni-uasz.sn/alumni-student-company-service/v1
     description: Serveur de production
@@ -109,6 +109,10 @@ paths:
       tags:
         - Students
       summary: Mettre à jour le profil d'un étudiant
+      description: >
+        Les champs skills et interests sont remplacés à chaque appel PUT.
+        Lorsqu'ils sont absents de la requête, ils sont considérés comme des
+        listes vides et les anciennes valeurs sont effacées.
       operationId: updateStudentProfile
       parameters:
         - $ref: "#/components/parameters/EntityId"
@@ -129,8 +133,11 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+
       security:
         - bearerAuth: []
 
@@ -211,6 +218,12 @@ paths:
           required: false
           schema:
             type: integer
+        - name: specialty
+          in: query
+          description: Filtrer par spécialité (le « secteur » de l'écran)
+          required: false
+          schema:
+            type: string
         - name: page
           in: query
           required: false
@@ -281,6 +294,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
       security:
@@ -428,6 +443,12 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "409":
+          description: Un compte ENTREPRISE ne gère qu'une seule fiche entreprise
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
       security:
         - bearerAuth: []
 
@@ -458,6 +479,7 @@ paths:
         - Companies
       summary: Mettre à jour une entreprise
       operationId: updateCompany
+      
       parameters:
         - $ref: "#/components/parameters/EntityId"
       requestBody:
@@ -481,6 +503,56 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
+  /companies/{id}/owner:
+    put:
+      tags:
+        - Companies
+      summary: Rattacher la fiche à un compte ENTREPRISE (administrateur)
+      description: |
+        Réservé à l'ADMINISTRATEUR. Désigne le compte gestionnaire de la fiche et rattache ce compte à la
+        fiche dans user-service (`User.companyId`). Idempotent : rejouer l'appel avec le même compte
+        rattrape un rattachement qui n'aurait pas abouti à la création de la fiche.
+        409 si le compte n'est pas un compte ENTREPRISE ou s'il est déjà rattaché à une autre fiche ;
+        503 si user-service est indisponible.
+      operationId: assignCompanyOwner
+      parameters:
+        - $ref: "#/components/parameters/EntityId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompanyOwnerRequest"
+      responses:
+        "200":
+          description: Fiche rattachée au compte
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Company"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Le compte n'est pas un compte ENTREPRISE ou est déjà rattaché à une autre fiche
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: user-service indisponible
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
       security:
         - bearerAuth: []
 
@@ -612,6 +684,34 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+      security:
+        - bearerAuth: []
+
+  /internal/companies/{id}:
+    get:
+      tags:
+        - Internal
+      summary: Lire une fiche entreprise (usage interne)
+      description: |
+        Appelé par job-offer-service pour vérifier le gestionnaire et la validation (`isPartner`) d'une
+        entreprise avant la publication d'une offre. Réservé aux jetons de service (rôle SERVICE,
+        audience `alumni-student-company-service`) : un JWT utilisateur reçoit 403.
+      operationId: getCompanyForService
+      parameters:
+        - $ref: "#/components/parameters/EntityId"
+      responses:
+        "200":
+          description: Fiche entreprise
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Company"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
       security:
         - bearerAuth: []
 
@@ -1026,6 +1126,16 @@ components:
         isPartner:
           type: boolean
           description: Réservé à l'administrateur (403 sinon)
+
+    CompanyOwnerRequest:
+      type: object
+      required:
+        - ownerId
+      properties:
+        ownerId:
+          type: string
+          format: uuid
+          description: Identifiant du compte ENTREPRISE qui gère la fiche
 
     Promotion:
       type: object

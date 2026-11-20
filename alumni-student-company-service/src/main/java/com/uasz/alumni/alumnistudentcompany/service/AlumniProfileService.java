@@ -1,4 +1,11 @@
 package com.uasz.alumni.alumnistudentcompany.service;
+import com.uasz.alumni.alumnistudentcompany.repository.AlumniSpecifications;
+import com.uasz.alumni.alumnistudentcompany.spi.model.AlumniPagedResponse;
+import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 import com.uasz.alumni.alumnistudentcompany.exceptions.ApiException;
 import com.uasz.alumni.alumnistudentcompany.model.Alumni;
@@ -16,6 +23,7 @@ public class AlumniProfileService {
 
     static final int MAX_SPECIALTY_LENGTH = 100;
     static final int MAX_URL_LENGTH = 255;
+    static final int MAX_PAGE_SIZE = 100;
 
     private final AlumniRepository alumniRepository;
 
@@ -26,6 +34,28 @@ public class AlumniProfileService {
     @Transactional(readOnly = true)
     public AlumniProfile getById(UUID id) {
         return toDto(find(id));
+    }
+    @Transactional(readOnly = true)
+    public AlumniPagedResponse search(String query, Integer graduationYear, String specialty,
+                                      Integer page, Integer size) {
+        int pageNumber = page == null ? 0 : page;
+        int pageSize = size == null ? 20 : size;
+        if (pageNumber < 0) {
+            throw badRequest("page doit être supérieur ou égal à 0");
+        }
+        if (pageSize < 1 || pageSize > MAX_PAGE_SIZE) {
+            throw badRequest("size doit être compris entre 1 et " + MAX_PAGE_SIZE);
+        }
+        Pageable pageable = PageRequest.of(pageNumber, pageSize, Sort.by("lastName", "firstName", "id"));
+        Page<Alumni> result = alumniRepository.findAll(
+            AlumniSpecifications.search(query, graduationYear, specialty), pageable);
+
+        List<AlumniProfile> content = result.getContent().stream().map(AlumniProfileService::toDto).toList();
+        return new AlumniPagedResponse()
+            .content(content)
+            .totalElements((int) Math.min(result.getTotalElements(), Integer.MAX_VALUE))
+            .page(pageNumber)
+            .size(pageSize);
     }
 
     /**

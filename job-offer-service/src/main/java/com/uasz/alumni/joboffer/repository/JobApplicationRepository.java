@@ -16,4 +16,7 @@ public interface JobApplicationRepository extends JpaRepository<JobApplication, 
     /** Charge l'offre avec la candidature : nécessaire pour vérifier l'auteur sans requête supplémentaire. */
     @EntityGraph(attributePaths = "offer")
     Optional<JobApplication> findWithOfferById(UUID id);
+
+    /** Une offre qui a reçu des candidatures est archivée au lieu d'être supprimée (ALUM-148). */
+    boolean existsByOfferId(UUID offerId);
 }

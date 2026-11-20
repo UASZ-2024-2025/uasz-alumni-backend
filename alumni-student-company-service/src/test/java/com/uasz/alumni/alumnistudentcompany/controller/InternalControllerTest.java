@@ -31,6 +31,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
+import com.uasz.alumni.alumnistudentcompany.service.CompanyService;
 
 /**
  * {@code POST /internal/profiles} (ALUM-83) avec la vraie chaîne de sécurité et le vrai {@code JwtService} :
@@ -54,6 +55,7 @@ class InternalControllerTest {
 
     @Autowired MockMvc mvc;
     @MockitoBean ProfileProvisioningService provisioning;
+    @MockitoBean CompanyService companies;
 
     private static String token(String issuer, String subject, String audience, String role) {
         var builder = Jwts.builder().issuer(issuer).subject(subject).claim("role", role)
@@ -147,5 +149,25 @@ class InternalControllerTest {
         mvc.perform(get("/v1/alumni/" + UUID.randomUUID() + "/experiences")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + serviceToken(SELF)))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void unJetonDeServiceLitUneFiche() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(companies.get(id)).thenReturn(new com.uasz.alumni.alumnistudentcompany.spi.model.Company()
+                .name("Gainde 2000").isPartner(true));
+
+        mvc.perform(get("/v1/internal/companies/" + id)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + serviceToken(SELF)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.isPartner").value(true));
+    }
+
+    @Test
+    void unJwtUtilisateurNePeutPasLireLaFicheViaLAPIInterne() throws Exception {
+        mvc.perform(get("/v1/internal/companies/" + UUID.randomUUID())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + userToken("ADMINISTRATEUR")))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(companies);
     }
 }

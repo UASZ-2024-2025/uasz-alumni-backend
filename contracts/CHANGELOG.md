@@ -1,5 +1,53 @@
 # Journal des modifications des contrats OpenAPI
 
+## 1.7.0 (recherche d'Alumni par spécialité, ALUM-105)
+
+Évolution compatible : aucune opération ni aucun champ retiré ; seuls un paramètre et une réponse sont ajoutés.
+
+### alumni-student-company-service
+- **Ajout** du paramètre de requête `specialty` (string, facultatif) sur `GET /alumni` (`searchAlumni`) :
+  filtre de recherche par spécialité, le « secteur » de l'écran (ALUM-105).
+- **Précision** : `PUT /alumni/{id}` (`updateAlumniProfile`) déclare la réponse 403 (modification par un
+  utilisateur qui n'est pas le propriétaire du profil) (ALUM-100).
+- `info.version` passe de 1.5.0 à **1.7.0**.
+
+SPI `alumni-student-company-service-spi` publié en **1.7.0** (pom parent `alumni-spis` 1.7.0).
+
+## 1.6.0 (publication et gestion des offres, ALUM-148)
+
+Évolution compatible : aucune opération ni aucun champ retiré ; seules des réponses et des descriptions sont ajoutées.
+
+### job-offer-service
+- **Ajout** des réponses `403` sur `updateOffer` et `updateOfferStatus` (auteur de l'offre ou ADMINISTRATEUR), `400` sur
+  `updateOfferStatus` (transition interdite), `503` sur `createOffer` (fiche entreprise indisponible).
+- **Précisions** : règles de publication (gestionnaire de la fiche, entreprise validée), visibilité des offres selon
+  leur statut (`searchOffers`, `getOfferById`), mise à jour partielle de `updateOffer`, archivage par `deleteOffer`,
+  transitions de statut, fermeture automatique à la date limite.
+- `info.version` passe de 1.0.0 à **1.6.0** pour s'aligner sur le SPI.
+
+SPI `job-offer-service-spi` publié en **1.6.0** (pom parent `alumni-spis` 1.6.0).
+
+## 1.5.0 (rattachement d'un compte ENTREPRISE à sa fiche, ALUM-168)
+
+Évolution compatible : aucune opération ni aucun champ retiré ; seuls des champs, des opérations et des réponses sont ajoutés.
+
+### user-service
+- **Ajout** du champ `User.companyId` (uuid, facultatif) : fiche entreprise rattachée au compte ENTREPRISE. Également
+  présent dans le jeton d'accès (claim `companyId`).
+- **Ajout** du tag `Internal` et de `PUT /internal/users/{id}/company` (`linkCompanyAccount`, `UserCompanyLinkRequest`) :
+  rattachement idempotent, jeton de service uniquement (ADR-0010). 409 si le compte n'est pas ENTREPRISE ou déjà rattaché
+  à une autre fiche.
+- `info.version` passe de 1.0.0 à **1.5.0** pour s'aligner sur les SPI.
+
+### alumni-student-company-service
+- **Ajout** de la réponse `409` sur `createCompany` (un compte ENTREPRISE ne gère qu'une seule fiche).
+- **Ajout** de `PUT /companies/{id}/owner` (`assignCompanyOwner`, `CompanyOwnerRequest`) : rattachement d'une fiche à un
+  compte ENTREPRISE par un administrateur (409, 503).
+- **Ajout** de `GET /internal/companies/{id}` (`getCompanyForService`) : lecture de la fiche par un autre service.
+- `info.version` passe de 1.4.1 à **1.5.0**.
+
+SPI `user-service-spi` et `alumni-student-company-service-spi` publiés en **1.5.0** (pom parent `alumni-spis` 1.5.0).
+
 ## alumni-student-company-service 1.4.1 (précision sur les diplômés, ALUM-88)
 
 Évolution compatible : seule une description change.
