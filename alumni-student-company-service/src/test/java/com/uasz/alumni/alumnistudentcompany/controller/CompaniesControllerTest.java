@@ -35,6 +35,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import com.uasz.alumni.alumnistudentcompany.service.CompanyOwnerService;
 
 /** Routes /companies côté web : filtre JWT réel, seul le parsing du jeton est simulé. */
 @WebMvcTest(controllers = CompaniesController.class, properties = "security.api.prefix=/v1")
@@ -43,6 +44,7 @@ class CompaniesControllerTest {
 
     @Autowired MockMvc mvc;
     @MockitoBean CompanyService service;
+    @MockitoBean CompanyOwnerService owners;
     @MockitoBean JwtService jwtService;
 
     private final UUID companyId = UUID.randomUUID();
@@ -141,5 +143,30 @@ class CompaniesControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.isPartner").value(true));
         verify(service).update(eq(companyId), any(), eq(admin));
+    }
+
+    @Test
+    void lAdministrateurRattacheUneFiche() throws Exception {
+        UUID owner = UUID.randomUUID();
+        when(owners.assignOwner(eq(companyId), eq(owner), eq(admin)))
+                .thenReturn(new Company().name("Gainde 2000").ownerId(owner));
+
+        mvc.perform(as("admin", json(put("/v1/companies/" + companyId + "/owner"), "{\"ownerId\":\"" + owner + "\"}")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ownerId").value(owner.toString()));
+    }
+
+    @Test
+    void unNonAdministrateurNePeutPasRattacherUneFiche() throws Exception {
+        mvc.perform(as("alumni", json(put("/v1/companies/" + companyId + "/owner"),
+                        "{\"ownerId\":\"" + UUID.randomUUID() + "\"}")))
+                .andExpect(status().isForbidden());
+        verify(owners, never()).assignOwner(any(), any(), any());
+    }
+
+    @Test
+    void unCorpsSansOwnerIdDonne400() throws Exception {
+        mvc.perform(as("admin", json(put("/v1/companies/" + companyId + "/owner"), "{}")))
+                .andExpect(status().isBadRequest());
     }
 }

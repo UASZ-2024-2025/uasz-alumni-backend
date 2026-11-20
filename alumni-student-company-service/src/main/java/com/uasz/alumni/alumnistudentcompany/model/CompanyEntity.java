@@ -20,7 +20,7 @@ public class CompanyEntity {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "owner_id", nullable = false, updatable = false)
+    @Column(name = "owner_id", nullable = false)
     private UUID ownerId;
 
     @Column(nullable = false)

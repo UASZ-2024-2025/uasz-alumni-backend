@@ -28,12 +28,15 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
 class CompanyServiceTest {
 
     private final CompanyRepository repository = mock(CompanyRepository.class);
-    private final CompanyService service = new CompanyService(repository);
+    private final ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
+    private final CompanyService service = new CompanyService(repository, events);
 
     private final AuthenticatedUser owner = new AuthenticatedUser(UUID.randomUUID(), "owner@uasz.sn", "ALUMNI");
     private final AuthenticatedUser other = new AuthenticatedUser(UUID.randomUUID(), "other@uasz.sn", "ALUMNI");
@@ -154,5 +157,42 @@ class CompanyServiceTest {
         assertEquals(20, parDefaut.getSize());
         assertEquals(1, parDefaut.getTotalElements());
         assertEquals(1, parDefaut.getContent().size());
+    }
+
+    private final AuthenticatedUser entreprise = new AuthenticatedUser(UUID.randomUUID(), "rh@gainde.sn", "ENTREPRISE");
+
+    @Test
+    void unCompteEntrepriseCreeSaFicheEtDemandeSonRattachement() {
+        UUID newId = UUID.randomUUID();
+        when(repository.existsByOwnerId(entreprise.id())).thenReturn(false);
+        when(repository.save(any(CompanyEntity.class))).thenAnswer(i -> {
+            CompanyEntity saved = i.getArgument(0);
+            ReflectionTestUtils.setField(saved, "id", newId);
+            return saved;
+        });
+
+        service.create(createRequest("Gainde 2000", "Informatique", "contact@gainde.sn"), entreprise);
+
+        ArgumentCaptor<Object> event = ArgumentCaptor.forClass(Object.class);
+        verify(events).publishEvent(event.capture());
+        assertEquals(new CompanyAccountLinkRequested(entreprise.id(), newId), event.getValue());
+    }
+
+    @Test
+    void unCompteEntrepriseQuiADejaUneFicheRecoit409() {
+        when(repository.existsByOwnerId(entreprise.id())).thenReturn(true);
+
+        statusOf(() -> service.create(createRequest("Gainde 2000", "Informatique", "contact@gainde.sn"), entreprise),
+                HttpStatus.CONFLICT);
+
+        verify(repository, never()).save(any(CompanyEntity.class));
+        verify(events, never()).publishEvent(any(Object.class));
+    }
+
+    @Test
+    void unAlumniQuiCreeUneFicheNeDemandeAucunRattachement() {
+        service.create(createRequest("Gainde 2000", "Informatique", "contact@gainde.sn"), owner);
+
+        verify(events, never()).publishEvent(any(Object.class));
     }
 }

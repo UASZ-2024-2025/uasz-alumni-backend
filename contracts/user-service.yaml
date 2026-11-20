@@ -5,7 +5,7 @@ info:
     Microservice de gestion des utilisateurs et de l'authentification pour la plateforme de gestion des Alumni du Master Informatique (UASZ).
   contact:
     name: Équipe Projet Intégrateur - M2 GL - UASZ
-  version: 1.0.0
+  version: 1.5.0
 servers:
   - url: https://api.alumni-uasz.sn/user-service/v1
     description: Serveur de production
@@ -18,6 +18,10 @@ tags:
     description: Gestion des utilisateurs
   - name: Roles
     description: Gestion des rôles
+  - name: Internal
+    description: |
+      Opérations réservées aux autres microservices (jeton de service, rôle SERVICE, voir ADR-0010).
+      Elles ne sont pas exposées au frontend.
 paths:
   /auth/register:
     post:
@@ -483,6 +487,55 @@ paths:
           $ref: "#/components/responses/Conflict"
       security:
         - bearerAuth: []
+  /internal/users/{id}/company:
+    put:
+      tags:
+        - Internal
+      summary: Rattacher un compte ENTREPRISE à sa fiche entreprise (usage interne)
+      description: |
+        Appelé par alumni-student-company-service quand un compte ENTREPRISE crée sa fiche, ou quand un
+        administrateur la rattache à un compte. Réservé aux jetons de service (rôle SERVICE, audience
+        `user-service`) : un JWT utilisateur reçoit 403.
+
+        **Idempotent** : rattacher un compte à la fiche à laquelle il est déjà rattaché renvoie 200 sans
+        rien modifier. 409 si le compte n'est pas un compte ENTREPRISE ou s'il est déjà rattaché à une
+        autre fiche.
+
+        Le `companyId` apparaît ensuite dans `User.companyId` et dans les prochains jetons d'accès
+        (claim `companyId`, après `POST /auth/refresh-token`).
+      operationId: linkCompanyAccount
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserCompanyLinkRequest"
+      responses:
+        "200":
+          description: Compte rattaché (ou déjà rattaché à cette fiche)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+      security:
+        - bearerAuth: []
   /roles:
     get:
       tags:
@@ -630,6 +683,12 @@ components:
           type: string
           format: date
           example: "1995-05-15"
+        companyId:
+          type: string
+          format: uuid
+          description: |
+            Fiche entreprise rattachée au compte (comptes ENTREPRISE uniquement). Absent tant que le compte
+            n'est pas rattaché. Également présent dans le jeton d'accès (claim `companyId`).
     UserUpdateRequest:
       type: object
       properties:
@@ -744,6 +803,15 @@ components:
       properties:
         status:
           $ref: "#/components/schemas/UserStatus"
+    UserCompanyLinkRequest:
+      required:
+        - companyId
+      type: object
+      properties:
+        companyId:
+          type: string
+          format: uuid
+          description: Identifiant de la fiche entreprise (alumni-student-company-service)
   responses:
     BadRequest:
       description: Requête invalide

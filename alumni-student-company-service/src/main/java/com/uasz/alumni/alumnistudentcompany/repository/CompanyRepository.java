@@ -8,4 +8,7 @@ import java.util.UUID;
 
 /** Accès aux fiches entreprises. La recherche filtrée passe par les Specifications du service. */
 public interface CompanyRepository extends JpaRepository<CompanyEntity, UUID>, JpaSpecificationExecutor<CompanyEntity> {
+
+    /** Vrai si cet utilisateur gère déjà au moins une fiche (un compte ENTREPRISE n'en gère qu'une). */
+    boolean existsByOwnerId(UUID ownerId);
 }
