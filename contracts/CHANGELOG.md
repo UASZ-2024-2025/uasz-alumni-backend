@@ -1,5 +1,26 @@
 # Journal des modifications des contrats OpenAPI
 
+## 1.5.0 (rattachement d'un compte ENTREPRISE à sa fiche, ALUM-168)
+
+Évolution compatible : aucune opération ni aucun champ retiré ; seuls des champs, des opérations et des réponses sont ajoutés.
+
+### user-service
+- **Ajout** du champ `User.companyId` (uuid, facultatif) : fiche entreprise rattachée au compte ENTREPRISE. Également
+  présent dans le jeton d'accès (claim `companyId`).
+- **Ajout** du tag `Internal` et de `PUT /internal/users/{id}/company` (`linkCompanyAccount`, `UserCompanyLinkRequest`) :
+  rattachement idempotent, jeton de service uniquement (ADR-0010). 409 si le compte n'est pas ENTREPRISE ou déjà rattaché
+  à une autre fiche.
+- `info.version` passe de 1.0.0 à **1.5.0** pour s'aligner sur les SPI.
+
+### alumni-student-company-service
+- **Ajout** de la réponse `409` sur `createCompany` (un compte ENTREPRISE ne gère qu'une seule fiche).
+- **Ajout** de `PUT /companies/{id}/owner` (`assignCompanyOwner`, `CompanyOwnerRequest`) : rattachement d'une fiche à un
+  compte ENTREPRISE par un administrateur (409, 503).
+- **Ajout** de `GET /internal/companies/{id}` (`getCompanyForService`) : lecture de la fiche par un autre service.
+- `info.version` passe de 1.4.1 à **1.5.0**.
+
+SPI `user-service-spi` et `alumni-student-company-service-spi` publiés en **1.5.0** (pom parent `alumni-spis` 1.5.0).
+
 ## alumni-student-company-service 1.4.1 (précision sur les diplômés, ALUM-88)
 
 Évolution compatible : seule une description change.
