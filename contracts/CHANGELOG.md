@@ -1,5 +1,18 @@
 # Journal des modifications des contrats OpenAPI
 
+## 1.7.0 (recherche d'Alumni par spécialité, ALUM-105)
+
+Évolution compatible : aucune opération ni aucun champ retiré ; seuls un paramètre et une réponse sont ajoutés.
+
+### alumni-student-company-service
+- **Ajout** du paramètre de requête `specialty` (string, facultatif) sur `GET /alumni` (`searchAlumni`) :
+  filtre de recherche par spécialité, le « secteur » de l'écran (ALUM-105).
+- **Précision** : `PUT /alumni/{id}` (`updateAlumniProfile`) déclare la réponse 403 (modification par un
+  utilisateur qui n'est pas le propriétaire du profil) (ALUM-100).
+- `info.version` passe de 1.5.0 à **1.7.0**.
+
+SPI `alumni-student-company-service-spi` publié en **1.7.0** (pom parent `alumni-spis` 1.7.0).
+
 ## 1.6.0 (publication et gestion des offres, ALUM-148)
 
 Évolution compatible : aucune opération ni aucun champ retiré ; seules des réponses et des descriptions sont ajoutées.

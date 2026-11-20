@@ -34,6 +34,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import com.uasz.alumni.alumnistudentcompany.spi.model.AlumniPagedResponse;
+import java.util.List;
 
 /** Routes /alumni/{id} côté web : filtre JWT réel, parsing du jeton simulé. */
 @WebMvcTest(controllers = AlumniController.class, properties = "security.api.prefix=/v1")
@@ -159,5 +161,52 @@ class AlumniProfileControllerTest {
                 .content("{\"graduationYear\":1800}")))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.message").value("graduationYear doit être compris entre 1900 et 2100"));
+    }
+
+    // ==================== GET /alumni (recherche) ====================
+
+    @Test
+    void searchAvecFiltresDonne200EtTransmetLesParametres() throws Exception {
+        AlumniPagedResponse page = new AlumniPagedResponse()
+            .content(List.of(mockProfile()))
+            .totalElements(1).page(0).size(20);
+        when(profileService.search(eq("sow"), eq(2023), eq("Génie Logiciel"), eq(0), eq(20)))
+            .thenReturn(page);
+
+        mvc.perform(as("etudiant", get("/v1/alumni")
+                .param("query", "sow")
+                .param("graduationYear", "2023")
+                .param("specialty", "Génie Logiciel")
+                .param("page", "0")
+                .param("size", "20")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.totalElements").value(1))
+            .andExpect(jsonPath("$.content[0].firstName").value("Mouhamed"));
+    }
+
+    @Test
+    void searchSansJetonDonne401() throws Exception {
+        mvc.perform(get("/v1/alumni")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void searchTailleInvalideDonne400() throws Exception {
+        when(profileService.search(any(), any(), any(), any(), eq(500)))
+            .thenThrow(new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR",
+                "size doit être compris entre 1 et 100"));
+
+        mvc.perform(as("etudiant", get("/v1/alumni").param("size", "500")))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+    }
+
+    @Test
+    void searchParSpecialiteSeule() throws Exception {
+        when(profileService.search(any(), any(), eq("IA"), any(), any()))
+            .thenReturn(new AlumniPagedResponse().content(List.of()).totalElements(0).page(0).size(20));
+
+        mvc.perform(as("etudiant", get("/v1/alumni").param("specialty", "IA")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.totalElements").value(0));
     }
 }
