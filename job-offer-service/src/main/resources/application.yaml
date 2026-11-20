@@ -57,3 +57,20 @@ notification:
     delay-ms: 500
     multiplier: 2
     max-delay-ms: 5000
+
+# Client d'alumni-student-company-service : lecture de la fiche entreprise avant publication (ALUM-148).
+# ADR-0006 : lecture synchrone, timeouts courts, un seul retry (la requête de l'utilisateur attend la réponse).
+company:
+  base-url: ${STUDENT_COMPANY_SERVICE_URL}
+  connect-timeout: 2s
+  read-timeout: 3s
+  retry:
+    max-retries: 1
+    delay-ms: 200
+    multiplier: 2
+    max-delay-ms: 1000
+
+# Fermeture automatique des offres dont la date limite est dépassée (UTC, offre ouverte jusqu'à la fin du jour limite)
+offers:
+  expiration:
+    cron: "0 5 0 * * *"
