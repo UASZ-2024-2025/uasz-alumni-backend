@@ -36,7 +36,7 @@ class JwtServiceCompanyTest {
             Clock.fixed(NOW, ZoneOffset.UTC), SERVICE_ISSUER, SELF);
 
     private Claims claimsOf(String token) {
-        return Jwts.parser().verifyWith(KEY).build().parseSignedClaims(token).getPayload();
+        return Jwts.parser().verifyWith(KEY).clock(() -> Date.from(NOW)).build().parseSignedClaims(token).getPayload();
     }
 
     private static String serviceToken(String issuer, String audience, String role) {
