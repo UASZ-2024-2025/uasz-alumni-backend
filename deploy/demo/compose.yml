@@ -183,6 +183,7 @@ services:
       SPRING_DATASOURCE_USERNAME: job_offer_svc
       SPRING_DATASOURCE_PASSWORD: ${JOB_OFFER_DB_PASSWORD}
       NOTIFICATION_SERVICE_URL: http://notification-messaging-service:8085/notification-messaging-service/v1
+      STUDENT_COMPANY_SERVICE_URL: ${STUDENT_COMPANY_SERVICE_URL:-http://alumni-student-company-service:8082/alumni-student-company-service/v1}
 
   analytics-matching-service:
     <<: *backend
