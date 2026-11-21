@@ -41,6 +41,12 @@ public class CompaniesController implements CompaniesApi {
     }
 
     @Override
+    @PreAuthorize("hasRole('ENTREPRISE')")
+    public ResponseEntity<Company> getMyCompany() {
+        return ResponseEntity.ok(service.mine(caller()));
+    }
+
+    @Override
     public ResponseEntity<Company> getCompanyById(UUID id) {
         return ResponseEntity.ok(service.get(id));
     }

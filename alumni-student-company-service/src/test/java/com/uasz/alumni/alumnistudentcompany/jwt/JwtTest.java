@@ -49,6 +49,17 @@ class JwtTest {
     }
 
     @Test
+    void jetonEntrepriseRattacheDonneLeCompanyId() {
+        UUID companyId = UUID.randomUUID();
+        String jeton = Jwts.builder().issuer(ISSUER).subject(id.toString()).claim("role", "ENTREPRISE")
+                .claim("email", "rh@uasz.sn").claim("companyId", companyId.toString())
+                .issuedAt(new Date()).expiration(Date.from(Instant.now().plusSeconds(600)))
+                .signWith(Keys.hmacShaKeyFor(Base64.getDecoder().decode(SECRET))).compact();
+
+        assertThat(service.parse(jeton)).contains(new AuthenticatedUser(id, "rh@uasz.sn", "ENTREPRISE", companyId));
+    }
+
+    @Test
     void jetonInvalideEstRefuse() {
         assertThat(service.parse(token(OTHER, ISSUER, Instant.now().plusSeconds(600), "ALUMNI"))).isEmpty();
         assertThat(service.parse(token(SECRET, "autre", Instant.now().plusSeconds(600), "ALUMNI"))).isEmpty();

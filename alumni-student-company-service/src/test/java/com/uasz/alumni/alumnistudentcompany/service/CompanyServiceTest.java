@@ -195,4 +195,38 @@ class CompanyServiceTest {
 
         verify(events, never()).publishEvent(any(Object.class));
     }
+
+    // ---------- GET /companies/me (ALUM-224) ----------
+
+    @Test
+    void maFicheRenvoieLaFicheDuGestionnaire() {
+        AuthenticatedUser compte = new AuthenticatedUser(owner.id(), "rh@gainde.sn", "ENTREPRISE", companyId);
+        when(repository.findFirstByOwnerIdOrderByCreatedAtAsc(owner.id())).thenReturn(Optional.of(company));
+
+        Company mine = service.mine(compte);
+
+        assertEquals("Gainde 2000", mine.getName());
+        verify(events, never()).publishEvent(any(Object.class));
+    }
+
+    @Test
+    void maFicheRelanceLeRattachementQuandLeJetonNaPasDeCompanyId() {
+        AuthenticatedUser compte = new AuthenticatedUser(owner.id(), "rh@gainde.sn", "ENTREPRISE");
+        ReflectionTestUtils.setField(company, "id", companyId);
+        when(repository.findFirstByOwnerIdOrderByCreatedAtAsc(owner.id())).thenReturn(Optional.of(company));
+
+        service.mine(compte);
+
+        verify(events).publishEvent(new CompanyAccountLinkRequested(owner.id(), companyId));
+    }
+
+    @Test
+    void maFicheSansFicheDonne404() {
+        AuthenticatedUser compte = new AuthenticatedUser(UUID.randomUUID(), "rh@x.sn", "ENTREPRISE");
+        when(repository.findFirstByOwnerIdOrderByCreatedAtAsc(compte.id())).thenReturn(Optional.empty());
+
+        ApiException ex = statusOf(() -> service.mine(compte), HttpStatus.NOT_FOUND);
+        assertEquals("COMPANY_NOT_FOUND", ex.getCode());
+        verify(events, never()).publishEvent(any(Object.class));
+    }
 }
