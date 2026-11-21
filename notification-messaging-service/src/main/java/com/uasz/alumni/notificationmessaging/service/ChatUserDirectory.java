@@ -17,7 +17,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Annuaire local des utilisateurs (nom affiché, rôle applicatif), alimenté par les jetons :
+ * Annuaire local des utilisateurs (nom affiché, rôle applicatif, e-mail), alimenté par les jetons :
  * chaque appel enregistre le nom de l'appelant, sans interroger user-service.
  * Un utilisateur ajouté à un groupe sans s'être encore connecté au service n'a donc pas encore de nom.
  */
@@ -40,11 +40,11 @@ public class ChatUserDirectory {
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void remember(AuthenticatedUser user) {
-        String identity = user.name() + "|" + user.role();
+        String identity = user.name() + "|" + user.role() + "|" + user.email();
         if (Objects.equals(lastWritten.get(user.id()), identity)) {
             return;
         }
-        repository.upsert(user.id(), user.name(), user.role(), OffsetDateTime.now(clock));
+        repository.upsert(user.id(), user.name(), user.role(), user.email(), OffsetDateTime.now(clock));
         lastWritten.put(user.id(), identity);
     }
 

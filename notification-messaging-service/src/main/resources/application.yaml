@@ -16,8 +16,23 @@ spring:
       ddl-auto: validate
   flyway:
     enabled: true
+  # Canal EMAIL des notifications (ALUM-135). MAIL_HOST vide : les e-mails sont sautés (journalisés),
+  # les notifications restent visibles dans l'application.
+  mail:
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:25}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 5000
+      mail.smtp.writetimeout: 5000
 
 management:
+  health:
+    # une panne SMTP ne doit pas rendre le service "non prêt"
+    mail:
+      enabled: false
   endpoints:
     web:
       exposure:
@@ -44,3 +59,9 @@ jwt:
 # Jetons de service acceptés sur POST /notifications/send (ADR-0010) : émetteur interne, audience = ce service
 service-token:
   issuer: alumni-uasz-internal
+
+notification:
+  mail:
+    from: ${MAIL_FROM:no-reply@alumni-uasz.sn}
+  # Lien « Retrouvez vos notifications » dans les e-mails (vide : pas de lien)
+  frontend-url: ${FRONTEND_URL:}
