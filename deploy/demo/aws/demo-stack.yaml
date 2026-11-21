@@ -160,7 +160,7 @@ Resources:
                 Action: s3:ListBucket
                 Resource: !GetAtt BackupBucket.Arn
 
-  # vm-b : lecture seule des secrets
+  # vm-b : lecture seule des secrets, et du SMTP réel (e-mails de notification, ALUM-135)
   InstanceRoleB:
     Type: AWS::IAM::Role
     Properties:
@@ -179,7 +179,9 @@ Resources:
             Statement:
               - Effect: Allow
                 Action: ssm:GetParameter
-                Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/alumni-demo/secrets
+                Resource:
+                  - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/alumni-demo/secrets
+                  - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/alumni-demo/mail
               - Effect: Allow
                 Action: kms:Decrypt
                 Resource: "*"
