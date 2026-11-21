@@ -152,8 +152,9 @@ log "écriture de $ROOT/demo.env (profils : $PROFILES)"
   [ "$ROLE" != vm-b ] || echo "STUDENT_COMPANY_SERVICE_URL=http://$DB_HOST:8082/alumni-student-company-service/v1"
   [ -z "$BUCKET" ] || echo "BACKUP_BUCKET=$BUCKET"
   [ -z "${AWS_DEFAULT_REGION:-}" ] || echo "AWS_DEFAULT_REGION=$AWS_DEFAULT_REGION"
-  # SMTP réel facultatif, relu par deploy.sh (machine qui porte user-service)
-  if [ -n "$SSM_PREFIX" ] && [ "$ROLE" != vm-b ]; then echo "MAIL_SSM_PARAM=$SSM_PREFIX/mail"; fi
+  # SMTP réel facultatif, relu par deploy.sh sur les deux machines : user-service (vm-a) et les e-mails de
+  # notification-messaging-service (vm-b, ALUM-135 ; Mailpit, sur vm-a, n'est pas joignable depuis vm-b)
+  if [ -n "$SSM_PREFIX" ]; then echo "MAIL_SSM_PARAM=$SSM_PREFIX/mail"; fi
   cat "$secrets_file"
 } > "$ROOT/demo.env.new"
 # Conserver les réglages ajoutés à la main (ex. MAIL_HOST pour Brevo)
