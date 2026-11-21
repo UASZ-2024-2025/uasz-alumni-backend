@@ -49,6 +49,16 @@ class AlumniExperienceServiceTest {
     }
 
     @Test
+    void lIdentifiantDuCompteDonneAccesAuParcours() {
+        when(alumniRepository.findByUserId(owner)).thenReturn(Optional.of(alumni));
+
+        Experience saved = service.addExperience(owner,
+                request("Sonatel", "Ingénieur", LocalDate.of(2023, 1, 1)), owner);
+
+        assertEquals(alumni.getId(), saved.getAlumniId());
+    }
+
+    @Test
     void ajouterUneExperienceCouranteMetAJourLePosteActuelDuProfil() {
         Experience saved = service.addExperience(alumni.getId(),
                 request("Atos", "Architecte Logiciel", LocalDate.of(2024, 1, 1)).isCurrent(true), owner);

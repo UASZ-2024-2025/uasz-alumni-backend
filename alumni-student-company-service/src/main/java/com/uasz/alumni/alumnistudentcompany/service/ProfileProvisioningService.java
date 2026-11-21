@@ -1,8 +1,9 @@
 package com.uasz.alumni.alumnistudentcompany.service;
 
-import com.uasz.alumni.alumnistudentcompany.exceptions.NotImplementedYetException;
 import com.uasz.alumni.alumnistudentcompany.model.Alumni;
+import com.uasz.alumni.alumnistudentcompany.model.StudentProfileEntity;
 import com.uasz.alumni.alumnistudentcompany.repository.AlumniRepository;
+import com.uasz.alumni.alumnistudentcompany.repository.StudentProfileRepository;
 import com.uasz.alumni.alumnistudentcompany.spi.model.ProfileProvisioningRequest;
 import com.uasz.alumni.alumnistudentcompany.spi.model.ProfileProvisioningResponse;
 import com.uasz.alumni.alumnistudentcompany.spi.model.ProvisionedProfileType;
@@ -18,17 +19,20 @@ import org.springframework.transaction.support.TransactionTemplate;
  *
  * <ul>
  *   <li>ALUMNI : profil créé dans {@code alumni_profiles} (nom, prénom, email du compte).</li>
- *   <li>ETUDIANT : la table {@code students} arrive avec ALUM-92 (profil étudiant) ; en attendant, 501.</li>
+ *   <li>ETUDIANT : profil créé dans {@code students} (ALUM-92), disponibilité « non disponible » par défaut.</li>
  * </ul>
  */
 @Service
 public class ProfileProvisioningService {
 
     private final AlumniRepository alumni;
+    private final StudentProfileRepository students;
     private final TransactionTemplate tx;
 
-    public ProfileProvisioningService(AlumniRepository alumni, TransactionTemplate tx) {
+    public ProfileProvisioningService(AlumniRepository alumni, StudentProfileRepository students,
+                                      TransactionTemplate tx) {
         this.alumni = alumni;
+        this.students = students;
         this.tx = tx;
     }
 
@@ -39,7 +43,7 @@ public class ProfileProvisioningService {
     public Result provision(ProfileProvisioningRequest request) {
         return switch (request.getProfileType()) {
             case ALUMNI -> provisionAlumni(request);
-            case ETUDIANT -> throw new NotImplementedYetException("provisionProfile (ETUDIANT, après ALUM-92)");
+            case ETUDIANT -> provisionStudent(request);
         };
     }
 
@@ -58,6 +62,25 @@ public class ProfileProvisioningService {
             Alumni winner = alumni.findByUserId(request.getUserId()).orElseThrow(() -> e);
             return new Result(toResponse(winner), false);
         }
+    }
+
+    private Result provisionStudent(ProfileProvisioningRequest request) {
+        var existing = students.findByUserId(request.getUserId());
+        if (existing.isPresent()) {
+            return new Result(toResponse(existing.get()), false);
+        }
+        try {
+            StudentProfileEntity saved = tx.execute(status -> students.saveAndFlush(new StudentProfileEntity(
+                    request.getUserId(), request.getFirstName(), request.getLastName(), request.getEmail())));
+            return new Result(toResponse(saved), true);
+        } catch (DataIntegrityViolationException e) {
+            StudentProfileEntity winner = students.findByUserId(request.getUserId()).orElseThrow(() -> e);
+            return new Result(toResponse(winner), false);
+        }
+    }
+
+    private static ProfileProvisioningResponse toResponse(StudentProfileEntity s) {
+        return new ProfileProvisioningResponse(s.getId(), s.getUserId(), ProvisionedProfileType.ETUDIANT);
     }
 
     private static ProfileProvisioningResponse toResponse(Alumni a) {

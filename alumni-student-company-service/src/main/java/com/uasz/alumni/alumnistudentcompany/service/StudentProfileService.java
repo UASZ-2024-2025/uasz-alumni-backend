@@ -133,8 +133,12 @@ public class StudentProfileService {
                 .orElseGet(() -> repository.save(new StudentProfileEntity(userId, firstName, lastName, email))));
     }
 
+    /**
+     * {@code id} : identifiant du profil, ou identifiant du compte (claim « sub » du JWT). Le front ne connaît que
+     * le second pour « Mon profil » ; les deux sont des UUID aléatoires, ils ne peuvent pas se confondre.
+     */
     private StudentProfileEntity find(UUID id) {
-        return repository.findById(id).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "STUDENT_NOT_FOUND",
+        return repository.findById(id).or(() -> repository.findByUserId(id)).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "STUDENT_NOT_FOUND",
                 "Profil étudiant introuvable : " + id));
     }
 

@@ -51,6 +51,7 @@ class CompaniesControllerTest {
     private final AuthenticatedUser alumni = new AuthenticatedUser(UUID.randomUUID(), "a@uasz.sn", "ALUMNI");
     private final AuthenticatedUser etudiant = new AuthenticatedUser(UUID.randomUUID(), "e@uasz.sn", "ETUDIANT");
     private final AuthenticatedUser admin = new AuthenticatedUser(UUID.randomUUID(), "admin@uasz.sn", "ADMINISTRATEUR");
+    private final AuthenticatedUser entreprise = new AuthenticatedUser(UUID.randomUUID(), "rh@uasz.sn", "ENTREPRISE");
 
     private static final String VALID_BODY =
             "{\"name\":\"Gainde 2000\",\"sector\":\"Informatique\",\"contactEmail\":\"contact@gainde.sn\"}";
@@ -61,6 +62,7 @@ class CompaniesControllerTest {
         when(jwtService.parse("alumni")).thenReturn(Optional.of(alumni));
         when(jwtService.parse("etudiant")).thenReturn(Optional.of(etudiant));
         when(jwtService.parse("admin")).thenReturn(Optional.of(admin));
+        when(jwtService.parse("entreprise")).thenReturn(Optional.of(entreprise));
     }
 
     private static MockHttpServletRequestBuilder as(String token, MockHttpServletRequestBuilder req) {
@@ -114,6 +116,32 @@ class CompaniesControllerTest {
                 .andExpect(jsonPath("$.content[0].name").value("Gainde 2000"))
                 .andExpect(jsonPath("$.size").value(10));
         verify(service).search("tech", true, 1, 10);
+    }
+
+    @Test
+    void unCompteEntrepriseLitSaFiche() throws Exception {
+        when(service.mine(entreprise)).thenReturn(new Company().name("Gainde 2000").ownerId(entreprise.id()));
+
+        mvc.perform(as("entreprise", get("/v1/companies/me")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Gainde 2000"));
+    }
+
+    @Test
+    void maFicheSansFicheDonne404() throws Exception {
+        when(service.mine(entreprise)).thenThrow(
+                new ApiException(HttpStatus.NOT_FOUND, "COMPANY_NOT_FOUND", "Vous n'avez pas encore de fiche entreprise"));
+
+        mvc.perform(as("entreprise", get("/v1/companies/me")))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("COMPANY_NOT_FOUND"));
+    }
+
+    @Test
+    void maFicheEstReserveeAuRoleEntreprise() throws Exception {
+        mvc.perform(as("alumni", get("/v1/companies/me"))).andExpect(status().isForbidden());
+        mvc.perform(get("/v1/companies/me")).andExpect(status().isUnauthorized());
+        verify(service, never()).mine(any());
     }
 
     @Test
