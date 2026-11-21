@@ -1,5 +1,18 @@
 # Journal des modifications des contrats OpenAPI
 
+## 1.9.0 (CV de l'étudiant, ALUM-109)
+
+Évolution compatible : aucune opération ni aucun champ retiré ; seule une réponse est ajoutée.
+
+### alumni-student-company-service
+- `GET /students/{id}/cv` et `PUT /students/{id}/cv` sont implémentés (ils renvoyaient 501). `{id}` accepte
+  l'identifiant du profil étudiant ou celui de son compte ; 404 `CV_NOT_FOUND` tant que l'étudiant n'a pas de CV.
+- **Précision** : `PUT /students/{id}/cv` (`updateStudentCv`) déclare la réponse 403 (modification par un
+  utilisateur qui n'est ni l'étudiant concerné ni un administrateur).
+- `info.version` passe de 1.8.0 à **1.9.0**.
+
+SPI `alumni-student-company-service-spi` publié en **1.9.0** (pom parent `alumni-spis` 1.9.0).
+
 ## 1.8.0 (fiche entreprise du compte connecté, ALUM-224)
 
 Évolution compatible : aucune opération ni aucun champ retiré ; seule une opération est ajoutée.
