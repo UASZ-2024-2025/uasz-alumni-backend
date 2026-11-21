@@ -85,8 +85,9 @@ public class AlumniProfileService {
         return toDto(alumniRepository.save(alumni));
     }
 
+    /** {@code id} : identifiant du profil, ou identifiant du compte (claim « sub » du JWT), comme pour « Mon profil ». */
     private Alumni find(UUID id) {
-        return alumniRepository.findById(id).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND,
+        return alumniRepository.findById(id).or(() -> alumniRepository.findByUserId(id)).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND,
             "ALUMNI_NOT_FOUND", "Alumni introuvable : " + id));
     }
 

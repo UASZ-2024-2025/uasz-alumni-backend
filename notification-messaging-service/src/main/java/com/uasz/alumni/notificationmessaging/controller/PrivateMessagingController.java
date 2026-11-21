@@ -1,6 +1,8 @@
 package com.uasz.alumni.notificationmessaging.controller;
 
+import com.uasz.alumni.notificationmessaging.security.AuthenticatedUser;
 import com.uasz.alumni.notificationmessaging.security.CurrentUser;
+import com.uasz.alumni.notificationmessaging.service.ChatUserDirectory;
 import com.uasz.alumni.notificationmessaging.service.PrivateMessagingService;
 import com.uasz.alumni.notificationmessaging.spi.api.PrivateMessagingApi;
 import com.uasz.alumni.notificationmessaging.spi.model.ConversationSummary;
@@ -17,38 +19,47 @@ import org.springframework.web.bind.annotation.RestController;
 public class PrivateMessagingController implements PrivateMessagingApi {
 
     private final PrivateMessagingService service;
+    private final ChatUserDirectory directory;
 
-    public PrivateMessagingController(PrivateMessagingService service) {
+    public PrivateMessagingController(PrivateMessagingService service, ChatUserDirectory directory) {
         this.service = service;
+        this.directory = directory;
+    }
+
+    /** Appelant courant ; son nom est enregistré pour que ses interlocuteurs le voient (comme pour les groupes). */
+    private UUID me() {
+        AuthenticatedUser user = CurrentUser.get();
+        directory.remember(user);
+        return user.id();
     }
 
     @Override
     public ResponseEntity<List<ConversationSummary>> listConversations() {
-        return ResponseEntity.ok(service.listConversations(CurrentUser.id()));
+        return ResponseEntity.ok(service.listConversations(me()));
     }
 
     @Override
     public ResponseEntity<PrivateMessagePagedResponse> getConversationMessages(
             UUID recipientId, Integer page, Integer size) {
-        return ResponseEntity.ok(service.getConversation(CurrentUser.id(), recipientId, page, size));
+        return ResponseEntity.ok(service.getConversation(me(), recipientId, page, size));
     }
 
     @Override
     public ResponseEntity<PrivateMessage> sendPrivateMessage(
             UUID recipientId, SendMessageRequest sendMessageRequest) {
-        PrivateMessage created = service.send(CurrentUser.id(), recipientId, sendMessageRequest.getContent());
+        PrivateMessage created = service.send(me(), recipientId, sendMessageRequest.getContent());
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @Override
     public ResponseEntity<Void> markConversationAsRead(UUID recipientId) {
-        service.markAsRead(CurrentUser.id(), recipientId);
+        service.markAsRead(me(), recipientId);
         return ResponseEntity.noContent().build();
     }
 
     @Override
     public ResponseEntity<Void> deletePrivateMessage(UUID messageId) {
-        service.delete(CurrentUser.id(), messageId);
+        service.delete(me(), messageId);
         return ResponseEntity.noContent().build();
     }
 }

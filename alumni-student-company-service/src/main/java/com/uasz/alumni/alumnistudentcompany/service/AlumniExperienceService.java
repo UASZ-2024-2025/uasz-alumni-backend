@@ -30,11 +30,8 @@ public class AlumniExperienceService {
     }
 
     @Transactional(readOnly = true)
-    public List<Experience> listExperiences(UUID alumniId) {
-        if (!alumniRepository.existsById(alumniId)) {
-            throw alumniNotFound(alumniId);
-        }
-        return experienceRepository.findByAlumniIdOrderByStartDateDesc(alumniId);
+    public List<Experience> listExperiences(UUID id) {
+        return experienceRepository.findByAlumniIdOrderByStartDateDesc(resolveAlumniId(id));
     }
 
     /**
@@ -43,7 +40,8 @@ public class AlumniExperienceService {
      * @param callerUserId identifiant du compte appelant (claim "sub" du JWT)
      */
     @Transactional
-    public Experience addExperience(UUID alumniId, WorkExperienceRequest request, UUID callerUserId) {
+    public Experience addExperience(UUID id, WorkExperienceRequest request, UUID callerUserId) {
+        UUID alumniId = resolveAlumniId(id);
         Alumni alumni = alumniRepository.findByIdForUpdate(alumniId).orElseThrow(() -> alumniNotFound(alumniId));
         if (!alumni.getUserId().equals(callerUserId)) {
             throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN",
@@ -75,6 +73,14 @@ public class AlumniExperienceService {
             throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_EXPERIENCE",
                     "La date de fin doit être postérieure ou égale à la date de début");
         }
+    }
+
+    /** Identifiant du profil, que {@code id} soit celui du profil ou celui du compte (« Mon profil » du front). */
+    private UUID resolveAlumniId(UUID id) {
+        if (alumniRepository.existsById(id)) {
+            return id;
+        }
+        return alumniRepository.findByUserId(id).map(Alumni::getId).orElseThrow(() -> alumniNotFound(id));
     }
 
     private static ApiException alumniNotFound(UUID alumniId) {
