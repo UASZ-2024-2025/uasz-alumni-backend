@@ -48,4 +48,26 @@ class ApplicationStatusNotifierTest {
                 UUID.randomUUID(), "Développeur Java", ApplicationStatus.REJECTED)))
                 .doesNotThrowAnyException();
     }
+
+    @Test
+    void previentLeRecruteurDUneNouvelleCandidature() {
+        UUID applicationId = UUID.randomUUID();
+        UUID recruiter = UUID.randomUUID();
+
+        notifier.onSubmitted(new ApplicationSubmitted(applicationId, recruiter, "Développeur Java", "Awa Ndiaye"));
+
+        ArgumentCaptor<SendNotificationRequest> sent = ArgumentCaptor.forClass(SendNotificationRequest.class);
+        verify(client).send(sent.capture());
+        assertThat(sent.getValue().getUserId()).isEqualTo(recruiter);
+        assertThat(sent.getValue().getTitle()).isEqualTo("Nouvelle candidature");
+        assertThat(sent.getValue().getContent()).contains("Awa Ndiaye", "Développeur Java");
+        assertThat(sent.getValue().getReferenceId()).isEqualTo(applicationId.toString());
+    }
+
+    @Test
+    void unEchecDeNotificationNAnnulePasLaCandidature() {
+        doThrow(new ResourceAccessException("indisponible")).when(client).send(any());
+        assertThatCode(() -> notifier.onSubmitted(
+                new ApplicationSubmitted(UUID.randomUUID(), UUID.randomUUID(), "Offre", "Awa"))).doesNotThrowAnyException();
+    }
 }

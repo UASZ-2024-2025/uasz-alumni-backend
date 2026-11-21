@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -19,9 +20,12 @@ import com.uasz.alumni.joboffer.model.Offer;
 import com.uasz.alumni.joboffer.security.AuthenticatedUser;
 import com.uasz.alumni.joboffer.service.ApplicationReviewService;
 import com.uasz.alumni.joboffer.service.ApplicationReviewService.Caller;
+import com.uasz.alumni.joboffer.service.ApplicationSubmissionService;
 import com.uasz.alumni.joboffer.spi.model.ApplicationStatus;
 import com.uasz.alumni.joboffer.spi.model.OfferType;
 import java.util.List;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -43,6 +47,7 @@ class ApplicationsControllerTest {
 
     @Autowired MockMvc mvc;
     @MockitoBean ApplicationReviewService review;
+    @MockitoBean ApplicationSubmissionService submissions;
     @MockitoBean JwtService jwtService;
 
     private final UUID recruiter = UUID.randomUUID();
@@ -115,5 +120,37 @@ class ApplicationsControllerTest {
                         .contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isBadRequest());
         verify(review, never()).changeStatus(any(), any(), any());
+    }
+
+    @Test
+    void unEtudiantPostule_201() throws Exception {
+        UUID etudiant = UUID.randomUUID();
+        when(submissions.submit(eq(offer.getId()), any(), any())).thenReturn(application);
+
+        mvc.perform(post("/v1/offers/" + offer.getId() + "/applications").with(token(etudiant, "ETUDIANT"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"studentId\":\"" + etudiant + "\",\"coverLetter\":\"Bonjour\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(application.getId().toString()))
+                .andExpect(jsonPath("$.status").value("SUBMITTED"));
+    }
+
+    @Test
+    void lEtudiantListeSesCandidatures_pagine() throws Exception {
+        UUID etudiant = UUID.randomUUID();
+        when(submissions.listMine(any(), any(), any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(application), PageRequest.of(0, 20), 1));
+
+        mvc.perform(get("/v1/applications").with(token(etudiant, "ETUDIANT")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(20))
+                .andExpect(jsonPath("$.content[0].offerTitle").value("Développeur Java"));
+    }
+
+    @Test
+    void sansJetonLeSuiviEstRefuse() throws Exception {
+        mvc.perform(get("/v1/applications")).andExpect(status().isUnauthorized());
     }
 }

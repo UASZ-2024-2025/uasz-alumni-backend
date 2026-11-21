@@ -1,5 +1,20 @@
 # Journal des modifications des contrats OpenAPI
 
+## 1.10.0 (dépôt et suivi des candidatures, ALUM-172)
+
+Évolution compatible : aucune opération ni aucun champ retiré ; seules des réponses sont ajoutées.
+
+### job-offer-service
+- `POST /offers/{offerId}/applications` et `GET /applications` sont implémentés (ils renvoyaient 501).
+- **Précision** : `POST /offers/{offerId}/applications` (`submitApplication`) déclare 403 (appelant qui n'est pas
+  étudiant, ou `studentId` différent de son compte) et 404 (offre introuvable). Une offre qui n'est pas OPEN, ou
+  dont l'échéance est passée, est refusée en 400 `OFFER_NOT_OPEN`.
+- **Précision** : `GET /applications` (`listMyApplications`) déclare 403 : un étudiant ne lit que ses propres
+  candidatures, l'administrateur celles de tous ; les autres rôles sont refusés.
+- `info.version` passe de 1.6.0 à **1.10.0** (alignée sur la version du SPI).
+
+SPI `job-offer-service-spi` publié en **1.10.0** (pom parent `alumni-spis` 1.10.0).
+
 ## 1.9.0 (CV de l'étudiant, ALUM-109)
 
 Évolution compatible : aucune opération ni aucun champ retiré ; seule une réponse est ajoutée.
