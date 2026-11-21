@@ -88,6 +88,8 @@ service-token:
 # ADR-0006 : REST, timeouts, retry, appel non bloquant.
 student-company:
   base-url: ${STUDENT_COMPANY_SERVICE_URL}
+  # ALUM-214 : au démarrage, crée les profils manquants des comptes ETUDIANT/ALUMNI actifs (idempotent)
+  backfill-on-startup: ${PROFILE_BACKFILL_ON_STARTUP:true}
   connect-timeout: 2s
   read-timeout: 3s
   retry:
