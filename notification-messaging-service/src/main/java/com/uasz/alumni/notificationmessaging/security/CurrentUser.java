@@ -12,9 +12,14 @@ public final class CurrentUser {
 
     /** Id de l'utilisateur connecté, lu dans l'objet AuthenticatedUser posé par le filtre JWT. */
     public static UUID id() {
+        return get().id();
+    }
+
+    /** Utilisateur connecté (id, nom, rôle), posé par le filtre JWT. */
+    public static AuthenticatedUser get() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null && auth.getPrincipal() instanceof AuthenticatedUser user) {
-            return user.id();
+            return user;
         }
         throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
     }
