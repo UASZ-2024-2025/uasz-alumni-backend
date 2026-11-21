@@ -11,6 +11,8 @@ import com.uasz.alumni.notificationmessaging.config.SecurityConfig;
 import com.uasz.alumni.notificationmessaging.exceptions.GlobalExceptionHandler;
 import com.uasz.alumni.notificationmessaging.jwt.JwtService;
 import com.uasz.alumni.notificationmessaging.model.NotificationEntity;
+import com.uasz.alumni.notificationmessaging.service.ChatUserDirectory;
+import com.uasz.alumni.notificationmessaging.service.NotificationCenterService;
 import com.uasz.alumni.notificationmessaging.service.NotificationService;
 import com.uasz.alumni.notificationmessaging.spi.model.NotificationChannel;
 import com.uasz.alumni.notificationmessaging.spi.model.NotificationType;
@@ -26,6 +28,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -54,6 +57,8 @@ class SendNotificationSecurityTest {
 
     @Autowired MockMvc mvc;
     @MockitoBean NotificationService notifications;
+    @MockitoBean NotificationCenterService center;
+    @MockitoBean ChatUserDirectory directory;
 
     @BeforeEach
     void emission() {
@@ -121,8 +126,8 @@ class SendNotificationSecurityTest {
 
     @Test
     void usersKeepAccessToTheirApi() throws Exception {
-        // squelette encore non implémenté (ALUM-139) : la sécurité laisse passer, le contrôleur répond 501
+        when(center.list(any(), any(), any(), any())).thenReturn(Page.empty());
         mvc.perform(get("/v1/notifications").header(HttpHeaders.AUTHORIZATION, "Bearer " + userToken("ETUDIANT")))
-                .andExpect(status().isNotImplemented());
+                .andExpect(status().isOk());
     }
 }
