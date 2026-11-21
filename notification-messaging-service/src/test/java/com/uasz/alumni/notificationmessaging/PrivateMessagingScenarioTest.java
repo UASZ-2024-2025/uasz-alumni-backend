@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.uasz.alumni.notificationmessaging.exceptions.ApiException;
+import com.uasz.alumni.notificationmessaging.security.AuthenticatedUser;
+import com.uasz.alumni.notificationmessaging.service.ChatUserDirectory;
 import com.uasz.alumni.notificationmessaging.service.PrivateMessagingService;
 import com.uasz.alumni.notificationmessaging.spi.model.ConversationSummary;
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
@@ -51,6 +53,25 @@ class PrivateMessagingScenarioTest {
 
     @Autowired
     PrivateMessagingService service;
+
+    @Autowired
+    ChatUserDirectory directory;
+
+    @Test
+    void conversationsShowTheNamesOfKnownUsers() {
+        UUID a = UUID.randomUUID();
+        UUID b = UUID.randomUUID();
+        directory.remember(new AuthenticatedUser(a, "awa@uasz.sn", "ETUDIANT", "Awa Diop"));
+
+        var sent = service.send(a, b, "Bonjour");
+        assertThat(sent.getSenderName()).isEqualTo("Awa Diop");
+        assertThat(sent.getRecipientName()).isNull(); // b ne s'est jamais connecté au service
+
+        List<ConversationSummary> conversations = service.listConversations(b);
+        assertThat(conversations.get(0).getRecipientName()).isEqualTo("Awa Diop");
+        assertThat(conversations.get(0).getRecipientRole()).isEqualTo("ETUDIANT");
+        assertThat(service.getConversation(b, a, 0, 10).getContent().get(0).getSenderName()).isEqualTo("Awa Diop");
+    }
 
     @Test
     void unreadCounterDropsToZeroAfterMarkAsRead() {
