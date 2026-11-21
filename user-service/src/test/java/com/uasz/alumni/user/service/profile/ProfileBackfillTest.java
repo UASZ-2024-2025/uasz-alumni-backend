@@ -17,6 +17,7 @@ import com.uasz.alumni.user.model.UserAccount;
 import com.uasz.alumni.user.repository.UserAccountRepository;
 import com.uasz.alumni.user.spi.model.RoleName;
 import com.uasz.alumni.user.spi.model.UserStatus;
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -39,7 +40,8 @@ class ProfileBackfillTest {
     @Mock StudentCompanyClient client;
 
     private ProfileBackfill backfill(boolean enabled) {
-        return new ProfileBackfill(users, client, Runnable::run, enabled);
+        // 3 essais, sans attente réelle entre deux passages
+        return new ProfileBackfill(users, client, Runnable::run, enabled, 3, Duration.ZERO);
     }
 
     private static UserAccount account(RoleName role, String first) {
@@ -64,7 +66,7 @@ class ProfileBackfillTest {
         accounts(RoleName.ETUDIANT, List.of(awa));
         accounts(RoleName.ALUMNI, List.of(moussa));
 
-        assertThat(backfill(true).backfill()).isZero();
+        assertThat(backfill(true).singlePass()).isZero();
 
         ArgumentCaptor<ProfileProvisioningRequest> sent = ArgumentCaptor.forClass(ProfileProvisioningRequest.class);
         verify(client, times(2)).provisionProfile(sent.capture());
@@ -85,7 +87,7 @@ class ProfileBackfillTest {
                 .thenReturn(page0, page1);
         accounts(RoleName.ALUMNI, List.of());
 
-        backfill(true).backfill();
+        assertThat(backfill(true).backfill()).isTrue();
 
         verify(client, times(2)).provisionProfile(any());
     }
@@ -97,17 +99,30 @@ class ProfileBackfillTest {
         doThrow(HttpClientErrorException.create(HttpStatus.BAD_REQUEST, "bad", null, null, null))
                 .doNothing().when(client).provisionProfile(any());
 
-        assertThat(backfill(true).backfill()).isEqualTo(1);
+        assertThat(backfill(true).singlePass()).isEqualTo(1);
         verify(client, times(2)).provisionProfile(any());
     }
 
     @Test
-    void unreachableServiceStopsTheBackfill() {
+    void serviceReachableOnSecondAttempt_passIsReplayedAndCompletes() {
+        // redéploiement : alumni-student-company-service n'est pas encore prêt au premier passage
+        accounts(RoleName.ETUDIANT, List.of(account(RoleName.ETUDIANT, "Awa"), account(RoleName.ETUDIANT, "Fatou")));
+        accounts(RoleName.ALUMNI, List.of());
+        doThrow(new ResourceAccessException("Connection refused")).doNothing().when(client).provisionProfile(any());
+
+        assertThat(backfill(true).backfill()).isTrue();
+        // 1er passage : arrêt au 1er compte ; 2e passage : les deux comptes
+        verify(client, times(3)).provisionProfile(any());
+    }
+
+    @Test
+    void serviceStillUnreachable_givesUpAfterMaxAttemptsWithoutTryingEveryAccount() {
         accounts(RoleName.ETUDIANT, List.of(account(RoleName.ETUDIANT, "Awa"), account(RoleName.ETUDIANT, "Fatou")));
         doThrow(new ResourceAccessException("Connection refused")).when(client).provisionProfile(any());
 
-        assertThat(backfill(true).backfill()).isEqualTo(1);
-        verify(client, times(1)).provisionProfile(any());
+        assertThat(backfill(true).backfill()).isFalse();
+        // un seul appel par passage, 3 passages
+        verify(client, times(3)).provisionProfile(any());
     }
 
     @Test

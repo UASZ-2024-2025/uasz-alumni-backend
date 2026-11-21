@@ -7,6 +7,7 @@ import com.uasz.alumni.user.model.UserAccount;
 import com.uasz.alumni.user.repository.UserAccountRepository;
 import com.uasz.alumni.user.spi.model.RoleName;
 import com.uasz.alumni.user.spi.model.UserStatus;
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.Executor;
 import org.slf4j.Logger;
@@ -31,8 +32,9 @@ import org.springframework.web.client.ResourceAccessException;
  *
  * <p>Sans risque à chaque démarrage : l'opération distante est idempotente sur {@code userId} (200 si le profil
  * existe déjà). Exécuté en tâche de fond sur l'exécuteur inter-services : le démarrage n'attend pas
- * alumni-student-company-service. Un refus sur un compte est journalisé sans bloquer les suivants ; un service
- * injoignable interrompt le rattrapage (il sera rejoué au prochain démarrage).
+ * alumni-student-company-service. Un refus sur un compte est journalisé sans bloquer les suivants. Un service
+ * injoignable (cas du redéploiement, où les deux services démarrent ensemble) interrompt le passage, qui est
+ * retenté après {@code PROFILE_BACKFILL_RETRY_DELAY}, jusqu'à {@code PROFILE_BACKFILL_MAX_ATTEMPTS} fois.
  * Désactivable par {@code PROFILE_BACKFILL_ON_STARTUP=false}.
  */
 @Component
@@ -46,14 +48,20 @@ public class ProfileBackfill implements ApplicationRunner {
     private final StudentCompanyClient client;
     private final Executor executor;
     private final boolean enabled;
+    private final int maxAttempts;
+    private final Duration retryDelay;
 
     public ProfileBackfill(UserAccountRepository users, StudentCompanyClient client,
                            @Qualifier(AppConfig.INTER_SERVICE_EXECUTOR) Executor executor,
-                           @Value("${student-company.backfill-on-startup:true}") boolean enabled) {
+                           @Value("${student-company.backfill.on-startup:true}") boolean enabled,
+                           @Value("${student-company.backfill.max-attempts:3}") int maxAttempts,
+                           @Value("${student-company.backfill.retry-delay:30s}") Duration retryDelay) {
         this.users = users;
         this.client = client;
         this.executor = executor;
         this.enabled = enabled;
+        this.maxAttempts = Math.max(1, maxAttempts);
+        this.retryDelay = retryDelay;
     }
 
     @Override
@@ -65,8 +73,50 @@ public class ProfileBackfill implements ApplicationRunner {
         executor.execute(this::backfill);
     }
 
-    /** Parcourt les comptes actifs à profil, page par page ; renvoie le nombre de comptes en échec. */
-    int backfill() {
+    /**
+     * Rattrapage complet : un passage, retenté tant que le service est injoignable (au plus {@code maxAttempts}).
+     * Rejouer un passage depuis le début est sans risque, l'opération distante étant idempotente.
+     *
+     * @return {@code true} si un passage est allé jusqu'au bout (des refus individuels restent possibles)
+     */
+    boolean backfill() {
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                singlePass();
+                return true;
+            } catch (ResourceAccessException e) {
+                if (attempt == maxAttempts) {
+                    log.error("Rattrapage des profils abandonné après {} essai(s), alumni-student-company-service "
+                            + "injoignable : {}", maxAttempts, e.toString());
+                    return false;
+                }
+                log.warn("Rattrapage des profils : alumni-student-company-service injoignable (essai {}/{}), "
+                        + "nouvel essai dans {} s", attempt, maxAttempts, retryDelay.toSeconds());
+                if (!pause()) {
+                    return false;
+                }
+            }
+        }
+        return false;
+    }
+
+    private boolean pause() {
+        try {
+            Thread.sleep(retryDelay);
+            return true;
+        } catch (InterruptedException e) {
+            // arrêt de l'application pendant l'attente
+            Thread.currentThread().interrupt();
+            return false;
+        }
+    }
+
+    /**
+     * Un passage sur les comptes actifs à profil, page par page ; renvoie le nombre de refus.
+     *
+     * @throws ResourceAccessException service injoignable même après les retries du client : le passage s'arrête
+     */
+    int singlePass() {
         int sent = 0;
         int failed = 0;
         for (RoleName role : PROFILE_ROLES) {
@@ -82,10 +132,7 @@ public class ProfileBackfill implements ApplicationRunner {
                                 account.getFirstName(), account.getLastName(), account.getEmail()));
                         sent++;
                     } catch (ResourceAccessException e) {
-                        // service injoignable même après les retries : inutile d'insister compte par compte
-                        log.error("Rattrapage des profils interrompu, alumni-student-company-service injoignable : {}",
-                                e.toString());
-                        return failed + 1;
+                        throw e; // service injoignable : inutile d'insister compte par compte
                     } catch (RuntimeException e) {
                         failed++;
                         log.error("Rattrapage du profil {} échoué pour l'utilisateur {} : {}",
@@ -94,7 +141,7 @@ public class ProfileBackfill implements ApplicationRunner {
                 }
             } while (page.hasNext());
         }
-        log.info("Rattrapage des profils terminé : {} compte(s) vérifié(s), {} échec(s)", sent, failed);
+        log.info("Rattrapage des profils terminé : {} envoyé(s), {} échec(s)", sent, failed);
         return failed;
     }
 }
