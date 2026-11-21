@@ -1,6 +1,6 @@
 package com.uasz.alumni.alumnistudentcompany.controller;
 
-import com.uasz.alumni.alumnistudentcompany.exceptions.NotImplementedYetException;
+import com.uasz.alumni.alumnistudentcompany.service.StudentCvService;
 import com.uasz.alumni.alumnistudentcompany.service.StudentProfileService;
 import com.uasz.alumni.alumnistudentcompany.spi.api.StudentsApi;
 import com.uasz.alumni.alumnistudentcompany.spi.model.AvailabilityStatus;
@@ -17,9 +17,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class StudentsController implements StudentsApi {
 
     private final StudentProfileService studentProfileService;
+    private final StudentCvService studentCvService;
 
-    public StudentsController(StudentProfileService studentProfileService) {
+    public StudentsController(StudentProfileService studentProfileService, StudentCvService studentCvService) {
         this.studentProfileService = studentProfileService;
+        this.studentCvService = studentCvService;
     }
 
     @Override
@@ -42,11 +44,11 @@ public class StudentsController implements StudentsApi {
 
     @Override
     public ResponseEntity<CvResponse> getStudentCv(UUID id) {
-        throw new NotImplementedYetException("getStudentCv");
+        return ResponseEntity.ok(studentCvService.get(id));
     }
 
     @Override
     public ResponseEntity<CvResponse> updateStudentCv(UUID id, CvRequest cvRequest) {
-        throw new NotImplementedYetException("updateStudentCv");
+        return ResponseEntity.ok(studentCvService.update(id, cvRequest));
     }
 }
