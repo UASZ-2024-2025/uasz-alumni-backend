@@ -1,17 +1,25 @@
 package com.uasz.alumni.notificationmessaging.controller;
 
 import com.uasz.alumni.notificationmessaging.exceptions.NotImplementedYetException;
+import com.uasz.alumni.notificationmessaging.service.NotificationService;
 import com.uasz.alumni.notificationmessaging.spi.api.NotificationsApi;
 import com.uasz.alumni.notificationmessaging.spi.model.Notification;
 import com.uasz.alumni.notificationmessaging.spi.model.NotificationPagedResponse;
 import com.uasz.alumni.notificationmessaging.spi.model.SendNotificationRequest;
 import com.uasz.alumni.notificationmessaging.spi.model.UnreadCountResponse;
 import java.util.UUID;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 public class NotificationsController implements NotificationsApi {
+
+    private final NotificationService notifications;
+
+    public NotificationsController(NotificationService notifications) {
+        this.notifications = notifications;
+    }
 
     @Override
     public ResponseEntity<NotificationPagedResponse> getUserNotifications(Boolean unreadOnly, Integer page, Integer size) {
@@ -37,9 +45,10 @@ public class NotificationsController implements NotificationsApi {
         throw new NotImplementedYetException("markAllNotificationsAsRead");
     }
 
+    /** Services internes (jeton de service) et administrateur : la règle est dans SecurityConfig (ALUM-83). */
     @Override
     public ResponseEntity<Notification> triggerNotification(SendNotificationRequest sendNotificationRequest) {
-        // TODO : émission inter-services/admin (canal IN_APP/EMAIL/PUSH) -> 201 / 400
-        throw new NotImplementedYetException("triggerNotification");
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(NotificationService.toDto(notifications.send(sendNotificationRequest)));
     }
 }

@@ -1,5 +1,7 @@
 package com.uasz.alumni.notificationmessaging.controller;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -8,25 +10,32 @@ import com.uasz.alumni.notificationmessaging.config.ApiPrefixConfig;
 import com.uasz.alumni.notificationmessaging.config.SecurityConfig;
 import com.uasz.alumni.notificationmessaging.exceptions.GlobalExceptionHandler;
 import com.uasz.alumni.notificationmessaging.jwt.JwtService;
+import com.uasz.alumni.notificationmessaging.model.NotificationEntity;
+import com.uasz.alumni.notificationmessaging.service.NotificationService;
+import com.uasz.alumni.notificationmessaging.spi.model.NotificationChannel;
+import com.uasz.alumni.notificationmessaging.spi.model.NotificationType;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.Base64;
 import java.util.Date;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
 /**
  * {@code POST /notifications/send} (ALUM-83, ADR-0010) : réservé aux jetons de service destinés à ce service
- * et aux administrateurs. Vraie chaîne de sécurité et vrai JwtService. L'émission elle-même relève d'ALUM-135 :
- * le contrôleur répond encore 501, ce qui prouve que la sécurité a laissé passer la requête.
+ * et aux administrateurs. Vraie chaîne de sécurité et vrai JwtService ; l'émission (ALUM-135) est simulée :
+ * un 201 prouve que la sécurité a laissé passer la requête.
  */
 @WebMvcTest(controllers = NotificationsController.class, properties = {
         "security.api.prefix=/v1",
@@ -44,6 +53,14 @@ class SendNotificationSecurityTest {
              "channel":"IN_APP","title":"Mise à jour","content":"Votre candidature est présélectionnée."}""";
 
     @Autowired MockMvc mvc;
+    @MockitoBean NotificationService notifications;
+
+    @BeforeEach
+    void emission() {
+        when(notifications.send(any())).thenReturn(new NotificationEntity(UUID.randomUUID(),
+                NotificationType.APPLICATION_STATUS_CHANGED, NotificationChannel.IN_APP, "Mise à jour", "Contenu",
+                null, OffsetDateTime.now()));
+    }
 
     private static String token(String issuer, String subject, String audience, String role) {
         var builder = Jwts.builder().issuer(issuer).subject(subject).claim("role", role)
@@ -72,12 +89,12 @@ class SendNotificationSecurityTest {
 
     @Test
     void aServiceTokenForThisServiceReachesTheOperation() throws Exception {
-        send(serviceToken(SELF)).andExpect(status().isNotImplemented());
+        send(serviceToken(SELF)).andExpect(status().isCreated());
     }
 
     @Test
     void anAdministratorReachesTheOperation() throws Exception {
-        send(userToken("ADMINISTRATEUR")).andExpect(status().isNotImplemented());
+        send(userToken("ADMINISTRATEUR")).andExpect(status().isCreated());
     }
 
     @Test

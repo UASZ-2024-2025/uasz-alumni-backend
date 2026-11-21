@@ -1,5 +1,19 @@
 # Journal des modifications des contrats OpenAPI
 
+## 1.11.0 (émission des notifications, ALUM-135)
+
+Évolution compatible : aucune opération ni aucun champ retiré ; seule une réponse est ajoutée.
+
+### notification-messaging-service
+- `POST /notifications/send` est implémenté (il renvoyait 501) : la notification est enregistrée et apparaît dans
+  le centre de notifications du destinataire ; le canal `EMAIL` l'envoie en plus par e-mail. `channel` absent :
+  `IN_APP`. `PUSH` : hors périmètre, la notification reste visible dans l'application.
+- **Précision** : `POST /notifications/send` (`triggerNotification`) déclare la réponse 403, déjà renvoyée par la
+  sécurité à un utilisateur qui n'est pas administrateur (ALUM-83).
+- `info.version` passe de 1.1.0 à **1.11.0** (alignée sur la version du SPI).
+
+SPI `notification-messaging-service-spi` publié en **1.11.0** (pom parent `alumni-spis` 1.11.0).
+
 ## 1.10.0 (dépôt et suivi des candidatures, ALUM-172)
 
 Évolution compatible : aucune opération ni aucun champ retiré ; seules des réponses sont ajoutées.
