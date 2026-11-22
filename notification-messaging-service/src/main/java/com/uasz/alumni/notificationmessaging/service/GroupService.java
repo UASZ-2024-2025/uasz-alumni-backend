@@ -22,7 +22,6 @@ import com.uasz.alumni.notificationmessaging.spi.model.GroupSettings;
 import com.uasz.alumni.notificationmessaging.spi.model.GroupSummary;
 import com.uasz.alumni.notificationmessaging.spi.model.GroupUpdateRequest;
 import java.time.Clock;
-import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -221,20 +220,7 @@ public class GroupService {
         OffsetDateTime now = now();
         requireGroup(groupId);
         ChatGroupMember me = requireMember(groupId, caller);
-        if (request.getPinned() != null) {
-            me.setPinned(request.getPinned());
-        }
-        if (request.getArchived() != null) {
-            me.setArchived(request.getArchived());
-        }
-        if (request.getMute() != null) {
-            switch (request.getMute()) {
-                case NONE -> me.mute(null, false);
-                case EIGHT_HOURS -> me.mute(now.plus(Duration.ofHours(8)), false);
-                case ONE_WEEK -> me.mute(now.plus(Duration.ofDays(7)), false);
-                case ALWAYS -> me.mute(null, true);
-            }
-        }
+        Preferences.apply(me, request, now);
         return GroupViews.preferences(me, now);
     }
 
@@ -335,18 +321,38 @@ public class GroupService {
         if (g.isOnlyAdminsCanSend() && !me.isGroupAdmin()) {
             throw forbidden("Seuls les administrateurs peuvent envoyer des messages dans ce groupe.");
         }
-        String text = content == null ? "" : content.strip();
-        if (text.isEmpty()) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_MESSAGE", "Le message ne peut pas être vide.");
-        }
-        if (text.length() > MAX_MESSAGE_LENGTH) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_MESSAGE",
-                    "Le message ne peut pas dépasser " + MAX_MESSAGE_LENGTH + " caractères.");
-        }
+        String text = validText(content);
         ChatGroupMessage saved = messages.save(new ChatGroupMessage(groupId, caller.id(), GroupMessageType.TEXT, text, now));
         g.touch(now);
         me.markRead(now); // son propre message n'est pas un non-lu
         return GroupViews.message(saved, directory.find(List.of(caller.id())).get(caller.id()));
+    }
+
+    /**
+     * Seul l'auteur modifie son message, dans le délai de {@link MessageEdits#WINDOW} et tant qu'il peut écrire
+     * dans le groupe (réglage « seuls les administrateurs envoient »).
+     */
+    public GroupMessage editMessage(UUID groupId, UUID messageId, String content, AuthenticatedUser caller) {
+        OffsetDateTime now = now();
+        ChatGroup g = requireGroup(groupId);
+        ChatGroupMember me = requireMember(groupId, caller);
+        ChatGroupMessage message = messages.findByIdAndGroupId(messageId, groupId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "MESSAGE_NOT_FOUND", "Message introuvable."));
+        if (message.getType() == GroupMessageType.SYSTEM) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_MESSAGE", "Les messages système ne peuvent pas être modifiés.");
+        }
+        if (!message.getSenderId().equals(caller.id())) {
+            throw forbidden("Vous ne pouvez modifier que vos propres messages.");
+        }
+        if (g.isOnlyAdminsCanSend() && !me.isGroupAdmin()) {
+            throw forbidden("Seuls les administrateurs peuvent écrire dans ce groupe.");
+        }
+        MessageEdits.requireEditable(message.isDeleted(), message.getCreatedAt(), now);
+        String text = validText(content);
+        if (!text.equals(message.getContent())) {
+            message.edit(text, now);
+        }
+        return GroupViews.message(message, directory.find(List.of(caller.id())).get(caller.id()));
     }
 
     /** L'auteur supprime son message ; OWNER et ADMIN suppriment celui de n'importe quel membre. */
@@ -445,6 +451,18 @@ public class GroupService {
                     "Le nom du groupe doit contenir entre 3 et 100 caractères.");
         }
         return name;
+    }
+
+    private static String validText(String content) {
+        String text = content == null ? "" : content.strip();
+        if (text.isEmpty()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_MESSAGE", "Le message ne peut pas être vide.");
+        }
+        if (text.length() > MAX_MESSAGE_LENGTH) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_MESSAGE",
+                    "Le message ne peut pas dépasser " + MAX_MESSAGE_LENGTH + " caractères.");
+        }
+        return text;
     }
 
     private static String blankToNull(String s) {

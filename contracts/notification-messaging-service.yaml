@@ -6,7 +6,7 @@ info:
     ainsi que de la gestion et de la distribution des notifications (In-App, Email, Push).
   contact:
     name: Équipe Projet Intégrateur - M2 GL - UASZ
-  version: 1.11.0
+  version: 1.13.0
 servers:
   - url: https://api.alumni-uasz.sn/notification-messaging-service/v1
     description: Serveur de production
@@ -28,6 +28,7 @@ paths:
       tags:
         - PrivateMessaging
       summary: Lister les conversations privées de l'utilisateur connecté
+      description: Conversations épinglées d'abord, puis par dernier message le plus récent.
       operationId: listConversations
       responses:
         "200":
@@ -138,11 +139,87 @@ paths:
       security:
         - bearerAuth: []
 
+  /messages/conversations/{recipientId}/preferences:
+    patch:
+      tags:
+        - PrivateMessaging
+      summary: Modifier ses préférences personnelles sur une conversation (épingler, archiver, mettre en sourdine)
+      description: |
+        Préférences propres à l'utilisateur connecté, invisibles de son interlocuteur.
+        Seuls les champs fournis sont modifiés.
+      operationId: updateConversationPreferences
+      parameters:
+        - name: recipientId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupPreferencesUpdateRequest"
+      responses:
+        "200":
+          description: Préférences mises à jour
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupPreferences"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      security:
+        - bearerAuth: []
+
   /messages/{messageId}:
+    patch:
+      tags:
+        - PrivateMessaging
+      summary: Modifier un message privé envoyé
+      description: |
+        Seul l'expéditeur modifie son message (404 pour tout autre appelant), dans les 15 minutes qui suivent
+        l'envoi. Un message supprimé ne se modifie pas (400). `editedAt` est renseigné.
+      operationId: editPrivateMessage
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EditMessageRequest"
+      responses:
+        "200":
+          description: Message modifié
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PrivateMessage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
     delete:
       tags:
         - PrivateMessaging
-      summary: Supprimer un message privé
+      summary: Supprimer un message privé pour les deux interlocuteurs
+      description: |
+        Seul l'expéditeur supprime son message (404 pour tout autre appelant).
+        Le message reste dans le fil avec `deleted` à true et un contenu vide.
       operationId: deletePrivateMessage
       parameters:
         - name: messageId
@@ -596,6 +673,52 @@ paths:
         - bearerAuth: []
 
   /messages/groups/{groupId}/messages/{messageId}:
+    patch:
+      tags:
+        - GroupMessaging
+      summary: Modifier un message envoyé dans un groupe
+      description: |
+        Seul l'auteur modifie son message (403 sinon), dans les 15 minutes qui suivent l'envoi, et tant qu'il
+        peut écrire dans le groupe. Les messages système et les messages supprimés ne se modifient pas (400).
+        `editedAt` est renseigné.
+      operationId: editGroupMessage
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EditMessageRequest"
+      responses:
+        "200":
+          description: Message modifié
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupMessage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
     delete:
       tags:
         - GroupMessaging
@@ -816,12 +939,21 @@ components:
           example: "ALUMNI"
         lastMessage:
           type: string
+          description: Contenu du dernier message (vide s'il a été supprimé).
+        lastMessageSenderId:
+          type: string
+          format: uuid
+          description: Auteur du dernier message (l'appelant ou son interlocuteur).
+        lastMessageDeleted:
+          type: boolean
         lastMessageTime:
           type: string
           format: date-time
         unreadCount:
           type: integer
           example: 3
+        preferences:
+          $ref: "#/components/schemas/GroupPreferences"
 
     PrivateMessage:
       type: object
@@ -842,11 +974,18 @@ components:
           type: string
         content:
           type: string
+          description: Texte du message ; vide si le message a été supprimé.
         isRead:
+          type: boolean
+        deleted:
           type: boolean
         createdAt:
           type: string
           format: date-time
+        editedAt:
+          type: string
+          format: date-time
+          description: Date de la dernière modification ; absent si le message n'a jamais été modifié.
 
     SendMessageRequest:
       type: object
@@ -856,6 +995,16 @@ components:
         content:
           type: string
           example: "Bonjour ! Seriez-vous disponible pour discuter des opportunités dans votre entreprise ?"
+
+    EditMessageRequest:
+      type: object
+      required:
+        - content
+      properties:
+        content:
+          type: string
+          description: Nouveau texte du message (mêmes limites qu'à l'envoi).
+          example: "Bonjour ! Seriez-vous disponible demain pour en discuter ?"
 
 
     Notification:
@@ -998,7 +1147,9 @@ components:
 
     GroupPreferences:
       type: object
-      description: Préférences de l'utilisateur connecté sur un groupe (personnelles, invisibles des autres membres).
+      description: |
+        Préférences de l'utilisateur connecté sur un groupe ou une conversation privée
+        (personnelles, invisibles des autres participants).
       properties:
         pinned:
           type: boolean
@@ -1159,6 +1310,10 @@ components:
         createdAt:
           type: string
           format: date-time
+        editedAt:
+          type: string
+          format: date-time
+          description: Date de la dernière modification ; absent si le message n'a jamais été modifié.
 
     GroupMessagePagedResponse:
       type: object

@@ -50,12 +50,7 @@ final class GroupViews {
     }
 
     static GroupPreferences preferences(ChatGroupMember me, OffsetDateTime now) {
-        boolean muted = me.isMuted(now);
-        return new GroupPreferences()
-                .pinned(me.isPinned())
-                .archived(me.isArchived())
-                .muted(muted)
-                .mutedUntil(muted && !me.isMutedForever() ? me.getMutedUntil() : null);
+        return Preferences.view(me, now);
     }
 
     static GroupMessage message(ChatGroupMessage m, ChatUser sender) {
@@ -67,6 +62,7 @@ final class GroupViews {
                 .type(m.getType())
                 .content(m.getContent())
                 .deleted(m.isDeleted())
-                .createdAt(m.getCreatedAt());
+                .createdAt(m.getCreatedAt())
+                .editedAt(m.getEditedAt());
     }
 }

@@ -4,6 +4,7 @@ import com.uasz.alumni.notificationmessaging.security.AuthenticatedUser;
 import com.uasz.alumni.notificationmessaging.service.ChatUserDirectory;
 import com.uasz.alumni.notificationmessaging.service.GroupService;
 import com.uasz.alumni.notificationmessaging.spi.api.GroupMessagingApi;
+import com.uasz.alumni.notificationmessaging.spi.model.EditMessageRequest;
 import com.uasz.alumni.notificationmessaging.spi.model.Group;
 import com.uasz.alumni.notificationmessaging.spi.model.GroupCreateRequest;
 import com.uasz.alumni.notificationmessaging.spi.model.GroupMemberRoleUpdateRequest;
@@ -103,6 +104,11 @@ public class GroupMessagingController implements GroupMessagingApi {
     public ResponseEntity<GroupMessage> sendGroupMessage(UUID groupId, SendMessageRequest sendMessageRequest) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(groups.sendMessage(groupId, sendMessageRequest.getContent(), caller()));
+    }
+
+    @Override
+    public ResponseEntity<GroupMessage> editGroupMessage(UUID groupId, UUID messageId, EditMessageRequest request) {
+        return ResponseEntity.ok(groups.editMessage(groupId, messageId, request.getContent(), caller()));
     }
 
     @Override

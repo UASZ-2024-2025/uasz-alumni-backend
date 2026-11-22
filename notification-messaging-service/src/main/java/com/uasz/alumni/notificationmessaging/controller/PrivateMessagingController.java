@@ -6,6 +6,9 @@ import com.uasz.alumni.notificationmessaging.service.ChatUserDirectory;
 import com.uasz.alumni.notificationmessaging.service.PrivateMessagingService;
 import com.uasz.alumni.notificationmessaging.spi.api.PrivateMessagingApi;
 import com.uasz.alumni.notificationmessaging.spi.model.ConversationSummary;
+import com.uasz.alumni.notificationmessaging.spi.model.EditMessageRequest;
+import com.uasz.alumni.notificationmessaging.spi.model.GroupPreferences;
+import com.uasz.alumni.notificationmessaging.spi.model.GroupPreferencesUpdateRequest;
 import com.uasz.alumni.notificationmessaging.spi.model.PrivateMessage;
 import com.uasz.alumni.notificationmessaging.spi.model.PrivateMessagePagedResponse;
 import com.uasz.alumni.notificationmessaging.spi.model.SendMessageRequest;
@@ -55,6 +58,17 @@ public class PrivateMessagingController implements PrivateMessagingApi {
     public ResponseEntity<Void> markConversationAsRead(UUID recipientId) {
         service.markAsRead(me(), recipientId);
         return ResponseEntity.noContent().build();
+    }
+
+    @Override
+    public ResponseEntity<GroupPreferences> updateConversationPreferences(
+            UUID recipientId, GroupPreferencesUpdateRequest request) {
+        return ResponseEntity.ok(service.updatePreferences(me(), recipientId, request));
+    }
+
+    @Override
+    public ResponseEntity<PrivateMessage> editPrivateMessage(UUID messageId, EditMessageRequest request) {
+        return ResponseEntity.ok(service.edit(me(), messageId, request.getContent()));
     }
 
     @Override

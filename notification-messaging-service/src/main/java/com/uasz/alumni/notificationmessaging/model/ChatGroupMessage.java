@@ -37,6 +37,8 @@ public class ChatGroupMessage {
     @Column(nullable = false)
     private OffsetDateTime createdAt;
 
+    private OffsetDateTime editedAt;
+
     /** Généré par la base : ordre d'insertion, pour départager deux messages de même horodatage. */
     @Column(insertable = false, updatable = false)
     private Long seq;
@@ -59,6 +61,11 @@ public class ChatGroupMessage {
         this.content = null;
     }
 
+    public void edit(String newContent, OffsetDateTime now) {
+        this.content = newContent;
+        this.editedAt = now;
+    }
+
     public UUID getId() { return id; }
     public UUID getGroupId() { return groupId; }
     public UUID getSenderId() { return senderId; }
@@ -66,4 +73,5 @@ public class ChatGroupMessage {
     public String getContent() { return content; }
     public boolean isDeleted() { return deleted; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
+    public OffsetDateTime getEditedAt() { return editedAt; }
 }
