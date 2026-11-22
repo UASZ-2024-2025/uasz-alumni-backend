@@ -56,6 +56,17 @@ class AlumniProfileServiceTest {
     }
 
     @Test
+    void getByIdAccepteAussiLIdentifiantDuCompte() {
+        // « Mon profil » du front ne connaît que l'identifiant du compte (sub du JWT)
+        when(repository.findById(ownerUserId)).thenReturn(Optional.empty());
+        when(repository.findByUserId(ownerUserId)).thenReturn(Optional.of(alumni));
+
+        AlumniProfile profile = service.getById(ownerUserId);
+
+        assertEquals(alumni.getId(), profile.getId());
+    }
+
+    @Test
     void getByIdInexistantDonne404() {
         UUID unknown = UUID.randomUUID();
         when(repository.findById(unknown)).thenReturn(Optional.empty());

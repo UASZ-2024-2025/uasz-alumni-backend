@@ -19,7 +19,7 @@
   <properties>
     <java.version>21</java.version>
     <jjwt.version>0.12.6</jjwt.version>
-    <alumni.spi.version>1.2.0</alumni.spi.version>
+    <alumni.spi.version>1.11.0</alumni.spi.version>
     <embedded-postgres.version>2.1.0</embedded-postgres.version>
   </properties>
 
@@ -52,6 +52,11 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-validation</artifactId>
+    </dependency>
+    <!-- Canal EMAIL des notifications (ALUM-135) -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-mail</artifactId>
     </dependency>
 
     <!-- Sécurité -->

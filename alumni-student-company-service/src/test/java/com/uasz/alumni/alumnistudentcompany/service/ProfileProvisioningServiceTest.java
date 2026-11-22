@@ -1,16 +1,16 @@
 package com.uasz.alumni.alumnistudentcompany.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import com.uasz.alumni.alumnistudentcompany.exceptions.NotImplementedYetException;
 import com.uasz.alumni.alumnistudentcompany.model.Alumni;
+import com.uasz.alumni.alumnistudentcompany.model.StudentProfileEntity;
 import com.uasz.alumni.alumnistudentcompany.repository.AlumniRepository;
+import com.uasz.alumni.alumnistudentcompany.repository.StudentProfileRepository;
 import com.uasz.alumni.alumnistudentcompany.spi.model.ProfileProvisioningRequest;
 import com.uasz.alumni.alumnistudentcompany.spi.model.ProvisionedProfileType;
 import java.util.Optional;
@@ -34,6 +34,7 @@ class ProfileProvisioningServiceTest {
     private static final UUID USER = UUID.fromString("7c9e6679-7425-40de-944b-e07fc1f90ae7");
 
     @Mock AlumniRepository alumni;
+    @Mock StudentProfileRepository students;
     @Mock TransactionTemplate tx;
 
     private ProfileProvisioningService service;
@@ -42,7 +43,8 @@ class ProfileProvisioningServiceTest {
     void setUp() {
         when(tx.execute(any())).thenAnswer(inv -> inv.<TransactionCallback<?>>getArgument(0).doInTransaction(null));
         when(alumni.saveAndFlush(any(Alumni.class))).thenAnswer(inv -> inv.getArgument(0));
-        service = new ProfileProvisioningService(alumni, tx);
+        when(students.saveAndFlush(any(StudentProfileEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        service = new ProfileProvisioningService(alumni, students, tx);
     }
 
     private static ProfileProvisioningRequest request(ProvisionedProfileType type) {
@@ -94,9 +96,28 @@ class ProfileProvisioningServiceTest {
     }
 
     @Test
-    void studentProfilesWaitForTheStudentsTable() {
-        assertThatThrownBy(() -> service.provision(request(ProvisionedProfileType.ETUDIANT)))
-                .isInstanceOf(NotImplementedYetException.class);
+    void createsTheStudentProfileWithTheAccountIdentity() {
+        when(students.findByUserId(USER)).thenReturn(Optional.empty());
+
+        ProfileProvisioningService.Result result = service.provision(request(ProvisionedProfileType.ETUDIANT));
+
+        ArgumentCaptor<StudentProfileEntity> saved = ArgumentCaptor.forClass(StudentProfileEntity.class);
+        verify(students).saveAndFlush(saved.capture());
+        assertThat(saved.getValue().getUserId()).isEqualTo(USER);
+        assertThat(result.created()).isTrue();
+        assertThat(result.profile().getUserId()).isEqualTo(USER);
+        assertThat(result.profile().getProfileType()).isEqualTo(ProvisionedProfileType.ETUDIANT);
         verifyNoInteractions(alumni);
+    }
+
+    @Test
+    void anExistingStudentProfileIsReturnedWithoutDuplicate() {
+        StudentProfileEntity existing = new StudentProfileEntity(USER, "Awa", "Diop", "awa.diop@uasz.sn");
+        when(students.findByUserId(USER)).thenReturn(Optional.of(existing));
+
+        ProfileProvisioningService.Result result = service.provision(request(ProvisionedProfileType.ETUDIANT));
+
+        assertThat(result.created()).isFalse();
+        verify(students, never()).saveAndFlush(any());
     }
 }

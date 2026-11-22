@@ -6,7 +6,7 @@ info:
     du dépôt et suivi des candidatures et des propositions directes d'opportunités.
   contact:
     name: Équipe Projet Intégrateur - M2 GL - UASZ
-  version: 1.6.0
+  version: 1.10.0
 servers:
   - url: https://api.alumni-uasz.sn/job-offer-service/v1
     description: Serveur de production
@@ -301,6 +301,10 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
         "409":
           description: Vous avez déjà postulé à cette offre
           content:
@@ -349,6 +353,8 @@ paths:
                 $ref: "#/components/schemas/ApplicationPagedResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
       security:
         - bearerAuth: []
 

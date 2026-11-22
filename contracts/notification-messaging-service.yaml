@@ -6,7 +6,7 @@ info:
     ainsi que de la gestion et de la distribution des notifications (In-App, Email, Push).
   contact:
     name: Équipe Projet Intégrateur - M2 GL - UASZ
-  version: 1.1.0
+  version: 1.11.0
 servers:
   - url: https://api.alumni-uasz.sn/notification-messaging-service/v1
     description: Serveur de production
@@ -777,6 +777,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
       security:
         - bearerAuth: []
 
