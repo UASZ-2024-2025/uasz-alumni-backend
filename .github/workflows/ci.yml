@@ -191,7 +191,7 @@ jobs:
           make up
       - name: Attendre que le service soit pret
         run: |
-          for i in $(seq 1 60); do
+          for i in $(seq 1 100); do
             curl -sf http://localhost:18081/actuator/health | grep -q UP && exit 0
             sleep 3
           done
