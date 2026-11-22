@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
+import org.springframework.web.multipart.MultipartException;
 
 /**
  * Toutes les erreurs sont renvoyées au format ErrorResponse du contrat (code, message, timestamp).
@@ -56,6 +57,13 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 .collect(Collectors.joining(" ; "));
         return ResponseEntity.badRequest().body(build(VALIDATION_ERROR, validationMessage(details)));
     }
+
+    @ExceptionHandler(MultipartException.class)
+    public ResponseEntity<ErrorResponse> handleMultipart(MultipartException ex) {
+        return ResponseEntity.badRequest().body(build(MALFORMED_REQUEST,
+            "Requête illisible : en-tête Content-Type invalide."));
+    }
+
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleUnexpected(Exception ex) {

@@ -5,7 +5,7 @@ info:
     Microservice de gestion des utilisateurs et de l'authentification pour la plateforme de gestion des Alumni du Master Informatique (UASZ).
   contact:
     name: Équipe Projet Intégrateur - M2 GL - UASZ
-  version: 1.5.0
+  version: 1.5.1
 servers:
   - url: https://api.alumni-uasz.sn/user-service/v1
     description: Serveur de production
@@ -51,6 +51,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /auth/login:
     post:
       tags:
@@ -71,6 +75,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           description: Identifiants invalides
           content:
@@ -83,12 +89,16 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
         "423":
           description: Compte temporairement verrouillé après trop d'échecs de connexion
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /auth/refresh-token:
     post:
       tags:
@@ -109,12 +119,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           description: Refresh token invalide ou expiré
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /auth/logout:
     post:
       tags:
@@ -130,8 +146,12 @@ paths:
       responses:
         "204":
           description: Déconnexion réussie
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
       security:
         - bearerAuth: []
   /auth/forgot-password:
@@ -155,6 +175,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /auth/reset-password:
     post:
       tags:
@@ -181,6 +207,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
         "422":
           description: Mot de passe non conforme à la politique de sécurité
           content:
@@ -213,6 +243,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /auth/resend-confirmation:
     post:
       tags:
@@ -233,12 +267,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "409":
           description: Le compte est déjà activé
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /auth/change-password:
     post:
       tags:
@@ -269,6 +309,8 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
         "422":
           description: Nouveau mot de passe non conforme à la politique de sécurité
           content:
@@ -301,12 +343,15 @@ paths:
           schema:
             type: integer
             default: 0
+            minimum: 0
         - name: size
           in: query
           required: false
           schema:
             type: integer
             default: 20
+            minimum: 1
+            maximum: 100
       responses:
         "200":
           description: Liste paginée des utilisateurs
@@ -314,6 +359,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UserPagedResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -350,6 +397,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "409":
           $ref: "#/components/responses/Conflict"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
       security:
         - bearerAuth: []
   /users/{id}:
@@ -373,6 +422,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -417,6 +468,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
       security:
         - bearerAuth: []
     delete:
@@ -434,6 +487,8 @@ paths:
       responses:
         "204":
           description: Utilisateur supprimé
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -485,6 +540,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
       security:
         - bearerAuth: []
   /internal/users/{id}/company:
@@ -534,6 +591,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
       security:
         - bearerAuth: []
   /roles:
@@ -567,9 +626,11 @@ components:
         - ADMINISTRATEUR
     Gender:
       type: string
+      nullable: true
       enum:
         - MALE
         - FEMALE
+        - null
     UserStatus:
       type: string
       enum:
@@ -587,11 +648,14 @@ components:
       properties:
         lastName:
           type: string
+          minLength: 1
         firstName:
           type: string
+          minLength: 1
         email:
           type: string
           format: email
+          minLength: 1
         phone:
           type: string
         role:
@@ -620,11 +684,14 @@ components:
       properties:
         lastName:
           type: string
+          minLength: 1
         firstName:
           type: string
+          minLength: 1
         email:
           type: string
           format: email
+          minLength: 1
         password:
           minLength: 8
           type: string
@@ -640,6 +707,7 @@ components:
         email:
           type: string
           format: email
+          minLength: 1
         password:
           type: string
           format: password
@@ -668,6 +736,7 @@ components:
         email:
           type: string
           format: email
+          minLength: 1
         role:
           $ref: "#/components/schemas/RoleName"
         status:
@@ -677,28 +746,34 @@ components:
           format: date-time
         phone:
           type: string
+          nullable: true
         gender:
           $ref: "#/components/schemas/Gender"
         birthDate:
           type: string
           format: date
+          nullable: true
           example: "1995-05-15"
         companyId:
           type: string
           format: uuid
+          nullable: true
           description: |
-            Fiche entreprise rattachée au compte (comptes ENTREPRISE uniquement). Absent tant que le compte
+            Fiche entreprise rattachée au compte (comptes ENTREPRISE uniquement). Null tant que le compte
             n'est pas rattaché. Également présent dans le jeton d'accès (claim `companyId`).
     UserUpdateRequest:
       type: object
       properties:
         lastName:
           type: string
+          minLength: 1
         firstName:
           type: string
+          minLength: 1
         email:
           type: string
           format: email
+          minLength: 1
         phone:
           type: string
         gender:
@@ -756,6 +831,7 @@ components:
         email:
           type: string
           format: email
+          minLength: 1
     ResetPasswordRequest:
       required:
         - newPassword
@@ -783,6 +859,7 @@ components:
         email:
           type: string
           format: email
+          minLength: 1
     UserPagedResponse:
       type: object
       properties:
@@ -814,7 +891,7 @@ components:
           description: Identifiant de la fiche entreprise (alumni-student-company-service)
   responses:
     BadRequest:
-      description: Requête invalide
+      description: Requête invalide ou corps illisible (MALFORMED_REQUEST)
       content:
         application/json:
           schema:
@@ -839,6 +916,18 @@ components:
             $ref: "#/components/schemas/ErrorResponse"
     Conflict:
       description: Conflit avec l'état actuel de la ressource
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    UnsupportedMediaType:
+      description: Content-Type absent ou non supporté (UNSUPPORTED_MEDIA_TYPE)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    TooManyRequests:
+      description: Limiteur de débit atteint (TOO_MANY_REQUESTS)
       content:
         application/json:
           schema:
