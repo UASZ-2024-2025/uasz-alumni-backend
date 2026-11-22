@@ -31,9 +31,9 @@ Ce plan répond à quatre questions :
 | Élément | Constat |
 |---|---|
 | Back | 5 microservices **Java 21 / Spring Boot 4.1**, Maven (`mvnw`), Flyway, PostgreSQL, JWT (secret HMAC partagé, émis par `user-service`) |
-| Front | **Angular 21**, tests avec **Vitest 4** (`@vitest/coverage-v8`, jsdom), 43 fichiers `.spec.ts` |
-| Contrats | 5 fichiers OpenAPI dans `contracts/` (**72 opérations** au total), copiés dans `contrat/` côté front |
-| Tests back existants | **`user-service` seulement** : environ 230 méthodes `@Test` (services, contrôleurs, JWT, sécurité, migrations). Les 4 autres services n'ont **aucun test** |
+| Front | **Angular 21**, tests avec **Vitest 4** (`@vitest/coverage-v8`, jsdom), des fichiers `.spec.ts` (nombre à recompter avant chaque jalon) |
+| Contrats | 5 fichiers OpenAPI dans `contracts/` (**81 opérations** au 22/11/2026), copiés dans `contrat/` côté front |
+| Tests back existants | Les 5 services ont des tests. Au 22/11/2026, environ 630 méthodes `@Test` : `user-service` environ 290, `alumni-student-company-service` environ 164, `job-offer-service` environ 87, `notification-messaging-service` environ 72, `analytics-matching-service` environ 17. Ces chiffres évoluent à chaque PR |
 | Tests d'intégration | Un seul test de migration PostgreSQL, qui dépend d'une base de dev (variable `SPRING_DATASOURCE_URL`) et qui est **ignoré sinon**. **Testcontainers n'est pas encore utilisé** |
 | Tests de bout en bout | Aucun outil en place (ni Selenium, ni Playwright, ni Cypress) |
 | Qualité | SonarQube (local et workflow `sonar.yml`), CI GitHub Actions avec contrôle `spis-check` des contrats |
@@ -76,7 +76,7 @@ réponses, ni les droits d'accès. Les tests de contrat comblent ce vide :
 1. **Conformité des réponses** : pour chaque opération, un test appelle le contrôleur et valide la
    réponse (statut, schéma) contre le YAML.
 2. **Couverture du contrat** : pour chaque opération, au minimum **un cas passant et un cas d'erreur**
-   (400, 401, 403, 404 ou 409 selon le contrat). Cible : **100 % des 72 opérations**.
+   (400, 401, 403, 404 ou 409 selon le contrat). Cible : **100 % des opérations des contrats (81 au 22/11/2026)**.
 3. **Parité des deux copies** : un contrôle en CI vérifie que `contracts/*.yaml` (back) et
    `contrat/*.yaml` (front) restent identiques. Aujourd'hui elles le sont, mais rien ne le garantit.
 4. **Ruptures de compatibilité** : ajout d'`openapi-diff` en CI (déjà prévu comme suivi dans l'ADR-0002).
@@ -91,7 +91,7 @@ Les chiffres actuels de couverture sont à mesurer avec SonarQube avant de figer
 |---|---|---|
 | **Code neuf** (toutes les PR, back et front) | **≥ 80 %** lignes | Porté par le Quality Gate Sonar |
 | Back : `user-service` | **≥ 80 %** global | Base de tests déjà solide |
-| Back : 4 autres services | Palier 1 : **≥ 50 %**, puis palier 2 : **≥ 70 %** | Partent de 0 % |
+| Back : 4 autres services | Palier 1 : **≥ 50 %**, puis palier 2 : **≥ 70 %** | Ils ont déjà des tests (environ 340 `@Test` au 22/11/2026) : mesurer la couverture, puis appliquer les paliers |
 | Back : couches `service`, `security`, `jwt`, `utils` | **≥ 80 %** | Là où se trouve la logique métier |
 | Front | **≥ 60 %** global, **≥ 80 %** sur `services/` et `utilitaires/` | À ajuster après mesure |
 | Contrat | **100 %** des opérations testées (cas passant + cas d'erreur) | Voir section 4 |
@@ -127,19 +127,18 @@ Tirés de `docs/diagrams/sequences.md`. On en garde peu, mais ils couvrent les c
 | E2E-2 | Candidature d'un étudiant à une offre | `job-offer-service`, `alumni-student-company-service`, `user-service`, front |
 | E2E-3 | Affichage du matching et du tableau de bord | `analytics-matching-service`, front |
 
-**Point à trancher** : le front n'a pas d'outil de bout en bout. **Selenium** est proposé car il est
-déjà maîtrisé dans l'équipe ; **Playwright** est une alternative plus simple à installer pour Angular.
+**Point à trancher** : le front n'a pas d'outil de bout en bout. **Selenium** (WebDriver) et **Playwright** sont à comparer sur un pilote de 1 ou 2 parcours. La maîtrise de Selenium dans l'équipe n'est pas acquise et reste à confirmer ; décision d'équipe à la fin du pilote.
 
 ## 8. Plan par service et ordre de mise en œuvre
 
 | Service | Opérations du contrat | Tests existants | Priorité |
 |---|---:|---|---|
-| `user-service` | 16 | Nombreux (unitaires, contrôleurs, sécurité, migration) | Ajouter Testcontainers et les tests de contrat |
-| `alumni-student-company-service` | 18 | Aucun | **1** : cœur des données (étudiants, CV, entreprises) |
-| `job-offer-service` | 13 | Aucun | **2** : parcours de candidature |
-| `notification-messaging-service` | 20 | Aucun | **3** : messagerie et groupes (le plus d'opérations) |
-| `analytics-matching-service` | 5 | Aucun | **4** : peu de routes, mais le calcul de matching demande des tests unitaires précis |
-| Front | : | 43 fichiers `.spec.ts` | Mesurer la couverture, compléter pages et services |
+| `user-service` | 17 | Environ 290 `@Test` au 22/11/2026 (unitaires, contrôleurs, sécurité, migration) | Ajouter Testcontainers et les tests de contrat |
+| `alumni-student-company-service` | 22 | Environ 164 `@Test` au 22/11/2026 | **1** : cœur des données (étudiants, CV, entreprises) ; mesurer la couverture et compléter |
+| `job-offer-service` | 13 | Environ 87 `@Test` au 22/11/2026 | **2** : parcours de candidature ; mesurer la couverture et compléter |
+| `notification-messaging-service` | 24 | Environ 72 `@Test` au 22/11/2026 | **3** : messagerie et groupes (le plus d'opérations) ; mesurer la couverture et compléter |
+| `analytics-matching-service` | 5 | Environ 17 `@Test` au 22/11/2026 | **4** : peu de routes, mais le calcul de matching demande des tests unitaires précis ; couverture à mesurer |
+| Front | : | des fichiers `.spec.ts` (nombre à recompter avant chaque jalon) | Mesurer la couverture, compléter pages et services |
 
 **Ordre proposé** (chaque étape devient un ticket) :
 
@@ -153,12 +152,12 @@ déjà maîtrisé dans l'équipe ; **Playwright** est une alternative plus simpl
 
 | Niveau | Responsable | Rôle |
 |---|---|---|
-| Unitaire et contrôleur d'un service | **[ Ernest Urbain DIATTA ]** (un par service) | Écrit et maintient les tests de son service |
-| Intégration (Testcontainers) | **[ Ernest Urbain DIATTA ]** | Socle commun, aide les autres services |
-| Contrat | **[ Ernest Urbain DIATTA ]** | Validation OpenAPI, `openapi-diff`, parité des copies |
-| Front | **[ Ernest Urbain DIATTA ]** | Tests Vitest, mock |
-| Bout en bout | **[ Ernest Urbain DIATTA ]** | Parcours E2E, données de départ |
-| CI et SonarQube | **[ Ernest Urbain DIATTA ]** | Workflows, Quality Gate |
+| Unitaire et contrôleur d'un service | _à définir en réunion_ (un par service) | Écrit et maintient les tests de son service |
+| Intégration (Testcontainers) | _à définir en réunion_ | Socle commun, aide les autres services |
+| Contrat | _à définir en réunion_ | Validation OpenAPI, `openapi-diff`, parité des copies |
+| Front | _à définir en réunion_ | Tests Vitest, mock |
+| Bout en bout | _à définir en réunion_ | Parcours E2E, données de départ |
+| CI et SonarQube | _à définir en réunion_ | Workflows, Quality Gate |
 | Relecture du plan | Toute l'équipe | Validation avant publication |
 
 Règle générale : **l'auteur d'une modification écrit ses tests**, le relecteur vérifie qu'ils existent
