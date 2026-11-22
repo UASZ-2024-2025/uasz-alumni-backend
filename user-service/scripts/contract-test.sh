@@ -40,7 +40,7 @@ expect "404 utilisateur inconnu"      404 "${AUTH[@]}" "$BASE/users/$UUID"
 
 echo "== Conformité au contrat (Schemathesis) =="
 schemathesis run "$CONTRACT" --url "$BASE" -H "Authorization: Bearer $TOKEN" \
-  --max-examples 20 \
+   --max-examples 20 --seed 1 \
   --exclude-checks positive_data_acceptance,unsupported_method,negative_data_rejection \
   --exclude-method DELETE --exclude-path '/users/{id}' || FAILED=1
 

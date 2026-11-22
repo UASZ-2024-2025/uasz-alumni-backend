@@ -25,6 +25,7 @@ import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 import org.springframework.web.multipart.MultipartException;
 import org.apache.tomcat.util.http.InvalidParameterException;
+import org.springframework.dao.InvalidDataAccessApiUsageException;
 
 /**
  * Toutes les erreurs sont renvoyées au format ErrorResponse du contrat (code, message, timestamp).
@@ -70,6 +71,16 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<ErrorResponse> handleInvalidParameter(InvalidParameterException ex) {
         return ResponseEntity.badRequest().body(build(MALFORMED_REQUEST,
             "Requête illisible : paramètre de requête invalide."));
+    }
+
+    /** Pagination hors limites (ex. page × size > Integer.MAX_VALUE) : erreur du client. */
+    @ExceptionHandler(InvalidDataAccessApiUsageException.class)
+    public ResponseEntity<ErrorResponse> handlePaginationOutOfRange(InvalidDataAccessApiUsageException ex) {
+        if (ex.getMessage() != null && ex.getMessage().contains("Page offset exceeds")) {
+            return ResponseEntity.badRequest().body(build(VALIDATION_ERROR,
+                "Pagination invalide : page ou taille trop grande."));
+        }
+        return handleUnexpected(ex);
     }
 
     @ExceptionHandler(Exception.class)
