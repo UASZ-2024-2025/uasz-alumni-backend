@@ -163,13 +163,57 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
+  # Conformité au contrat OpenAPI (ALUM-74) : stack lancée comme en local,
+  # puis Schemathesis + refus ciblés. Un écart au contrat fait échouer le job.
+  contract-tests:
+    name: Conformite au contrat (user-service)
+    needs: changes
+    if: contains(needs.changes.outputs.services, 'user-service')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+          cache-dependency-path: user-service/pom.xml
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Installer Schemathesis
+        run: pip install schemathesis==4.33.4
+      - name: Preparer et lancer user-service
+        working-directory: user-service
+        run: |
+          make setup
+          make up
+      - name: Attendre que le service soit pret
+        run: |
+          PORT=$(grep "^SERVER_PORT=" user-service/.env | cut -d= -f2 | tr -d "\r")
+          for i in $(seq 1 100); do
+            curl -sf "http://localhost:${PORT}/actuator/health" | grep -q UP && exit 0
+            sleep 3
+          done
+          echo "user-service n'a pas demarre"
+          docker logs user-service-user-service-1 --tail 50 || true
+          exit 1
+      - name: Tests de conformite
+        working-directory: user-service
+        run: ./scripts/contract-test.sh
+      - name: Arreter la stack
+        if: always()
+        working-directory: user-service
+        run: docker compose down -v
+
   # Check obligatoire de la protection de branche. if: always() le fait tourner
   # même quand un job précédent échoue ; un job « skipped » (aucun service
   # modifié) est accepté, un job « failure » ou « cancelled » ne l'est pas.
   ci-success:
     name: CI success
     if: always()
-    needs: [contracts-lint, spis-check, changes, build]
+    needs: [contracts-lint, spis-check, changes, build, contract-tests]
     runs-on: ubuntu-latest
     steps:
       - name: Echec si un job a echoue ou a ete annule
