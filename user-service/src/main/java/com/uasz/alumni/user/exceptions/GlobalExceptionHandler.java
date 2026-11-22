@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 import org.springframework.web.multipart.MultipartException;
+import org.apache.tomcat.util.http.InvalidParameterException;
 
 /**
  * Toutes les erreurs sont renvoyées au format ErrorResponse du contrat (code, message, timestamp).
@@ -64,6 +65,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             "Requête illisible : en-tête Content-Type invalide."));
     }
 
+    /** Paramètre de requête mal formé (ex. nom vide) : erreur du client, pas du serveur. */
+    @ExceptionHandler(InvalidParameterException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidParameter(InvalidParameterException ex) {
+        return ResponseEntity.badRequest().body(build(MALFORMED_REQUEST,
+            "Requête illisible : paramètre de requête invalide."));
+    }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleUnexpected(Exception ex) {
