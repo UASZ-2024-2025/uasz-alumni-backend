@@ -5,13 +5,15 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 export MSYS2_ARG_CONV_EXCL='*'
 
-BASE="${BASE_URL:-http://localhost:18081/v1}"
+
 CONTRACT="${CONTRACT:-../contracts/user-service.yaml}"
 FAILED=0
 
 env_var() { grep "^$1=" .env | head -1 | cut -d= -f2- | tr -d '\r'; }
 ADMIN_EMAIL="${BOOTSTRAP_ADMIN_EMAIL:-$(env_var BOOTSTRAP_ADMIN_EMAIL)}"
 ADMIN_PASSWORD="${BOOTSTRAP_ADMIN_PASSWORD:-$(env_var BOOTSTRAP_ADMIN_PASSWORD)}"
+PORT="${SERVER_PORT:-$(env_var SERVER_PORT)}"
+BASE="${BASE_URL:-http://localhost:${PORT:-18081}/v1}"
 
 TOKEN=$(curl -s -X POST "$BASE/auth/login" -H "Content-Type: application/json" \
   -d "{\"email\":\"$ADMIN_EMAIL\",\"password\":\"$ADMIN_PASSWORD\"}" \

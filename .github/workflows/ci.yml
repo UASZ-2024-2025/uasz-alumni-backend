@@ -191,8 +191,9 @@ jobs:
           make up
       - name: Attendre que le service soit pret
         run: |
+          PORT=$(grep "^SERVER_PORT=" user-service/.env | cut -d= -f2 | tr -d "\r")
           for i in $(seq 1 100); do
-            curl -sf http://localhost:18081/actuator/health | grep -q UP && exit 0
+            curl -sf "http://localhost:${PORT}/actuator/health" | grep -q UP && exit 0
             sleep 3
           done
           echo "user-service n'a pas demarre"
