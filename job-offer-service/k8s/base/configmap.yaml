@@ -11,3 +11,5 @@ data:
   JWT_ISSUER: alumni-uasz-user
   # Le Service K8s expose le port 80 (targetPort = port du conteneur)
   NOTIFICATION_SERVICE_URL: http://notification-messaging-service/notification-messaging-service/v1
+  # Lecture de la fiche entreprise (ALUM-148) : Service K8s sur le port 80
+  STUDENT_COMPANY_SERVICE_URL: http://alumni-student-company-service/alumni-student-company-service/v1

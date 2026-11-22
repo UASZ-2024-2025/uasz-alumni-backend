@@ -44,11 +44,21 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, p + "/notifications/send")
                     .hasAnyRole(JwtService.SERVICE_ROLE, "ADMINISTRATEUR")
                 .anyRequest().hasAnyRole(USER_ROLES))
-            .exceptionHandling(e -> e.authenticationEntryPoint((req, res, ex) -> {
-                res.setStatus(401);
-                res.setContentType("application/json");
-                res.getWriter().write("{\"code\":\"UNAUTHORIZED\",\"message\":\"Authentification requise ou invalide.\"}");
-            }))
+            .exceptionHandling(e -> e
+                .authenticationEntryPoint((req, res, ex) -> {
+                    res.setStatus(401);
+                    res.setContentType("application/json");
+                    res.getWriter().write("{\"code\":\"UNAUTHORIZED\",\"message\":\"Authentification requise ou invalide.\"}");
+                })
+                // Réponse écrite directement : le gestionnaire par défaut passe par sendError(403), donc par /error,
+                // où le filtre JWT ne s'exécute pas ; la requête y devenait anonyme et repartait en 401
+                // (le front croyait alors la session expirée). MockMvc ne passe pas par /error : visible en prod seulement.
+                .accessDeniedHandler((req, res, ex) -> {
+                    res.setStatus(403);
+                    res.setContentType("application/json");
+                    res.setCharacterEncoding("UTF-8");
+                    res.getWriter().write("{\"code\":\"FORBIDDEN\",\"message\":\"Accès refusé.\"}");
+                }))
             .addFilterBefore(new JwtAuthenticationFilter(jwtService), UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

@@ -60,6 +60,10 @@ public class UserAccount {
     @Column(name = "birth_date")
     private LocalDate birthDate;
 
+    /** Fiche entreprise rattachée (comptes ENTREPRISE) : référence vers alumni-student-company-service (ALUM-168). */
+    @Column(name = "company_id")
+    private UUID companyId;
+
     @Column(name = "failed_login_attempts", nullable = false)
     private int failedLoginAttempts;
 
@@ -134,6 +138,11 @@ public class UserAccount {
         this.email = newEmail;
     }
 
+    /** Rattache le compte à sa fiche entreprise. */
+    public void attachToCompany(UUID companyId) {
+        this.companyId = companyId;
+    }
+
     /** Mise à jour partielle : un argument null laisse la valeur inchangée ; un téléphone vide l'efface. */
     public void updateProfile(String firstName, String lastName, String phone, Gender gender, LocalDate birthDate) {
         if (firstName != null) {
@@ -188,6 +197,9 @@ public class UserAccount {
     public String getPhone() { return phone; }
     public Gender getGender() { return gender; }
     public LocalDate getBirthDate() { return birthDate; }
+
+    public UUID getCompanyId() { return companyId; }
+
     public int getFailedLoginAttempts() { return failedLoginAttempts; }
     public Instant getLockedUntil() { return lockedUntil; }
     public Instant getLastLoginAt() { return lastLoginAt; }

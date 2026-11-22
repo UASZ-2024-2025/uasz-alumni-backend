@@ -1,6 +1,7 @@
 package com.uasz.alumni.alumnistudentcompany.controller;
 
-import com.uasz.alumni.alumnistudentcompany.exceptions.NotImplementedYetException;
+import com.uasz.alumni.alumnistudentcompany.service.StudentCvService;
+import com.uasz.alumni.alumnistudentcompany.service.StudentProfileService;
 import com.uasz.alumni.alumnistudentcompany.spi.api.StudentsApi;
 import com.uasz.alumni.alumnistudentcompany.spi.model.AvailabilityStatus;
 import com.uasz.alumni.alumnistudentcompany.spi.model.CvRequest;
@@ -15,34 +16,39 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class StudentsController implements StudentsApi {
 
+    private final StudentProfileService studentProfileService;
+    private final StudentCvService studentCvService;
+
+    public StudentsController(StudentProfileService studentProfileService, StudentCvService studentCvService) {
+        this.studentProfileService = studentProfileService;
+        this.studentCvService = studentCvService;
+    }
+
     @Override
     public ResponseEntity<StudentPagedResponse> searchStudents(String query, String specialty, Integer graduationYear,
-                                                               AvailabilityStatus availability, Integer page, Integer size) {
-        // TODO : recherche multi-critères paginée
-        throw new NotImplementedYetException("searchStudents");
+            AvailabilityStatus availability, Integer page, Integer size) {
+        return ResponseEntity
+                .ok(studentProfileService.search(query, specialty, graduationYear, availability, page, size));
     }
 
     @Override
     public ResponseEntity<StudentProfile> getStudentById(UUID id) {
-        // TODO : profil détaillé -> 200 / 404
-        throw new NotImplementedYetException("getStudentById");
+        return ResponseEntity.ok(studentProfileService.getById(id));
     }
 
     @Override
-    public ResponseEntity<StudentProfile> updateStudentProfile(UUID id, StudentProfileUpdateRequest studentProfileUpdateRequest) {
-        // TODO : mise à jour du profil (propriétaire) -> 200 / 400 / 404
-        throw new NotImplementedYetException("updateStudentProfile");
+    public ResponseEntity<StudentProfile> updateStudentProfile(UUID id,
+            StudentProfileUpdateRequest studentProfileUpdateRequest) {
+        return ResponseEntity.ok(studentProfileService.update(id, studentProfileUpdateRequest));
     }
 
     @Override
     public ResponseEntity<CvResponse> getStudentCv(UUID id) {
-        // TODO : CV de l'étudiant -> 200 / 404
-        throw new NotImplementedYetException("getStudentCv");
+        return ResponseEntity.ok(studentCvService.get(id));
     }
 
     @Override
     public ResponseEntity<CvResponse> updateStudentCv(UUID id, CvRequest cvRequest) {
-        // TODO : créer/mettre à jour le CV -> 200 / 400 / 404
-        throw new NotImplementedYetException("updateStudentCv");
+        return ResponseEntity.ok(studentCvService.update(id, cvRequest));
     }
 }

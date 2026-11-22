@@ -61,6 +61,8 @@ Le JWT de l'utilisateur n'est **jamais** relayé à un autre service.
 | --- | --- | --- | --- | --- |
 | `user-service` | `alumni-student-company-service` | `POST /internal/profiles` (`SERVICE` seulement) | confirmation de l'email d'un compte ETUDIANT ou ALUMNI | en place (ALUM-83) |
 | `job-offer-service` | `notification-messaging-service` | `POST /notifications/send` (`SERVICE` ou `ADMINISTRATEUR`) | changement de statut d'une candidature | en place (ALUM-83, sur ALUM-173) ; l'émission elle-même relève d'ALUM-135 |
+| `alumni-student-company-service` | `user-service` | `PUT /internal/users/{id}/company` (`SERVICE` seulement) | création de la fiche par un compte ENTREPRISE (asynchrone) ou rattachement par un administrateur (synchrone, `PUT /companies/{id}/owner`) | en place (ALUM-168) |
+| `job-offer-service` | `alumni-student-company-service` | `GET /internal/companies/{id}` (`SERVICE` seulement) | publication d'une offre (lecture synchrone : gestionnaire et validation de la fiche) | en place (ALUM-148) |
 
 `ServiceTokenProvider` signe avec jjwt, la bibliothèque déjà utilisée pour les jetons utilisateurs, en
 imposant **HS256**. Côté appelé comme côté appelant, le démarrage échoue si `service-token.issuer` est égal à

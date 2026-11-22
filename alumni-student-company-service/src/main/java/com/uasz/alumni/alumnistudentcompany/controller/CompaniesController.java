@@ -1,10 +1,12 @@
 package com.uasz.alumni.alumnistudentcompany.controller;
 
 import com.uasz.alumni.alumnistudentcompany.security.AuthenticatedUser;
+import com.uasz.alumni.alumnistudentcompany.service.CompanyOwnerService;
 import com.uasz.alumni.alumnistudentcompany.service.CompanyService;
 import com.uasz.alumni.alumnistudentcompany.spi.api.CompaniesApi;
 import com.uasz.alumni.alumnistudentcompany.spi.model.Company;
 import com.uasz.alumni.alumnistudentcompany.spi.model.CompanyCreateRequest;
+import com.uasz.alumni.alumnistudentcompany.spi.model.CompanyOwnerRequest;
 import com.uasz.alumni.alumnistudentcompany.spi.model.CompanyPagedResponse;
 import com.uasz.alumni.alumnistudentcompany.spi.model.CompanyUpdateRequest;
 import org.springframework.http.HttpStatus;
@@ -20,9 +22,11 @@ import java.util.UUID;
 public class CompaniesController implements CompaniesApi {
 
     private final CompanyService service;
+    private final CompanyOwnerService owners;
 
-    public CompaniesController(CompanyService service) {
+    public CompaniesController(CompanyService service, CompanyOwnerService owners) {
         this.service = service;
+        this.owners = owners;
     }
 
     @Override
@@ -37,6 +41,12 @@ public class CompaniesController implements CompaniesApi {
     }
 
     @Override
+    @PreAuthorize("hasRole('ENTREPRISE')")
+    public ResponseEntity<Company> getMyCompany() {
+        return ResponseEntity.ok(service.mine(caller()));
+    }
+
+    @Override
     public ResponseEntity<Company> getCompanyById(UUID id) {
         return ResponseEntity.ok(service.get(id));
     }
@@ -44,6 +54,12 @@ public class CompaniesController implements CompaniesApi {
     @Override
     public ResponseEntity<Company> updateCompany(UUID id, CompanyUpdateRequest companyUpdateRequest) {
         return ResponseEntity.ok(service.update(id, companyUpdateRequest, caller()));
+    }
+
+    @Override
+    @PreAuthorize("hasRole('ADMINISTRATEUR')")
+    public ResponseEntity<Company> assignCompanyOwner(UUID id, CompanyOwnerRequest companyOwnerRequest) {
+        return ResponseEntity.ok(owners.assignOwner(id, companyOwnerRequest.getOwnerId(), caller()));
     }
 
     /** La signature imposée par le SPI ne donne pas accès au jeton : on lit l'appelant dans le contexte de sécurité. */

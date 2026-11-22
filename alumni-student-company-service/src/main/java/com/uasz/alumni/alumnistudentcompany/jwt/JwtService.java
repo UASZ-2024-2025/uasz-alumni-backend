@@ -81,8 +81,10 @@ public class JwtService {
                 if (SERVICE_ROLE.equals(role)) {
                     return Optional.empty(); // un jeton utilisateur ne porte jamais le rôle SERVICE
                 }
+                String companyId = claims.get("companyId", String.class);
                 return Optional.of(new AuthenticatedUser(
-                        UUID.fromString(claims.getSubject()), claims.get("email", String.class), role));
+                        UUID.fromString(claims.getSubject()), claims.get("email", String.class), role,
+                        companyId == null || companyId.isBlank() ? null : UUID.fromString(companyId)));
             }
             if (serviceIssuer != null && serviceIssuer.equals(claims.getIssuer())) {
                 Set<String> audience = claims.getAudience();

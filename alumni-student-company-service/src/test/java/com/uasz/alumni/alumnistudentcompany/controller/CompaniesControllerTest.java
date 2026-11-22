@@ -35,6 +35,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import com.uasz.alumni.alumnistudentcompany.service.CompanyOwnerService;
 
 /** Routes /companies côté web : filtre JWT réel, seul le parsing du jeton est simulé. */
 @WebMvcTest(controllers = CompaniesController.class, properties = "security.api.prefix=/v1")
@@ -43,12 +44,14 @@ class CompaniesControllerTest {
 
     @Autowired MockMvc mvc;
     @MockitoBean CompanyService service;
+    @MockitoBean CompanyOwnerService owners;
     @MockitoBean JwtService jwtService;
 
     private final UUID companyId = UUID.randomUUID();
     private final AuthenticatedUser alumni = new AuthenticatedUser(UUID.randomUUID(), "a@uasz.sn", "ALUMNI");
     private final AuthenticatedUser etudiant = new AuthenticatedUser(UUID.randomUUID(), "e@uasz.sn", "ETUDIANT");
     private final AuthenticatedUser admin = new AuthenticatedUser(UUID.randomUUID(), "admin@uasz.sn", "ADMINISTRATEUR");
+    private final AuthenticatedUser entreprise = new AuthenticatedUser(UUID.randomUUID(), "rh@uasz.sn", "ENTREPRISE");
 
     private static final String VALID_BODY =
             "{\"name\":\"Gainde 2000\",\"sector\":\"Informatique\",\"contactEmail\":\"contact@gainde.sn\"}";
@@ -59,6 +62,7 @@ class CompaniesControllerTest {
         when(jwtService.parse("alumni")).thenReturn(Optional.of(alumni));
         when(jwtService.parse("etudiant")).thenReturn(Optional.of(etudiant));
         when(jwtService.parse("admin")).thenReturn(Optional.of(admin));
+        when(jwtService.parse("entreprise")).thenReturn(Optional.of(entreprise));
     }
 
     private static MockHttpServletRequestBuilder as(String token, MockHttpServletRequestBuilder req) {
@@ -115,6 +119,32 @@ class CompaniesControllerTest {
     }
 
     @Test
+    void unCompteEntrepriseLitSaFiche() throws Exception {
+        when(service.mine(entreprise)).thenReturn(new Company().name("Gainde 2000").ownerId(entreprise.id()));
+
+        mvc.perform(as("entreprise", get("/v1/companies/me")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Gainde 2000"));
+    }
+
+    @Test
+    void maFicheSansFicheDonne404() throws Exception {
+        when(service.mine(entreprise)).thenThrow(
+                new ApiException(HttpStatus.NOT_FOUND, "COMPANY_NOT_FOUND", "Vous n'avez pas encore de fiche entreprise"));
+
+        mvc.perform(as("entreprise", get("/v1/companies/me")))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("COMPANY_NOT_FOUND"));
+    }
+
+    @Test
+    void maFicheEstReserveeAuRoleEntreprise() throws Exception {
+        mvc.perform(as("alumni", get("/v1/companies/me"))).andExpect(status().isForbidden());
+        mvc.perform(get("/v1/companies/me")).andExpect(status().isUnauthorized());
+        verify(service, never()).mine(any());
+    }
+
+    @Test
     void uneFicheInconnueDonne404() throws Exception {
         when(service.get(companyId)).thenThrow(new ApiException(HttpStatus.NOT_FOUND, "COMPANY_NOT_FOUND", "introuvable"));
 
@@ -141,5 +171,30 @@ class CompaniesControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.isPartner").value(true));
         verify(service).update(eq(companyId), any(), eq(admin));
+    }
+
+    @Test
+    void lAdministrateurRattacheUneFiche() throws Exception {
+        UUID owner = UUID.randomUUID();
+        when(owners.assignOwner(eq(companyId), eq(owner), eq(admin)))
+                .thenReturn(new Company().name("Gainde 2000").ownerId(owner));
+
+        mvc.perform(as("admin", json(put("/v1/companies/" + companyId + "/owner"), "{\"ownerId\":\"" + owner + "\"}")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ownerId").value(owner.toString()));
+    }
+
+    @Test
+    void unNonAdministrateurNePeutPasRattacherUneFiche() throws Exception {
+        mvc.perform(as("alumni", json(put("/v1/companies/" + companyId + "/owner"),
+                        "{\"ownerId\":\"" + UUID.randomUUID() + "\"}")))
+                .andExpect(status().isForbidden());
+        verify(owners, never()).assignOwner(any(), any(), any());
+    }
+
+    @Test
+    void unCorpsSansOwnerIdDonne400() throws Exception {
+        mvc.perform(as("admin", json(put("/v1/companies/" + companyId + "/owner"), "{}")))
+                .andExpect(status().isBadRequest());
     }
 }

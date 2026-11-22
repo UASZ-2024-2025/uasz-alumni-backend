@@ -1,6 +1,7 @@
 package com.uasz.alumni.notificationmessaging.service;
 
 import com.uasz.alumni.notificationmessaging.exceptions.ApiException;
+import com.uasz.alumni.notificationmessaging.model.ChatUser;
 import com.uasz.alumni.notificationmessaging.model.PrivateMessageEntity;
 import com.uasz.alumni.notificationmessaging.repository.PrivateMessageRepository;
 import com.uasz.alumni.notificationmessaging.spi.model.ConversationSummary;
@@ -13,6 +14,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -28,9 +30,11 @@ public class PrivateMessagingService {
     private static final int MAX_PAGE_SIZE = 100;
 
     private final PrivateMessageRepository repository;
+    private final ChatUserDirectory directory;
 
-    public PrivateMessagingService(PrivateMessageRepository repository) {
+    public PrivateMessagingService(PrivateMessageRepository repository, ChatUserDirectory directory) {
         this.repository = repository;
+        this.directory = directory;
     }
 
     @Transactional(readOnly = true)
@@ -41,11 +45,18 @@ public class PrivateMessagingService {
             UUID other = m.getSenderId().equals(me) ? m.getRecipientId() : m.getSenderId();
             lastByOther.putIfAbsent(other, m);
         }
+        // Noms tirés de l'annuaire local (alimenté par les jetons) : absent tant que l'interlocuteur
+        // ne s'est jamais connecté à ce service, le front affiche alors un nom par défaut.
+        Map<UUID, ChatUser> users = directory.find(lastByOther.keySet());
         List<ConversationSummary> result = new ArrayList<>();
         lastByOther.forEach((other, last) -> {
             ConversationSummary s = new ConversationSummary();
             s.setRecipientId(other);
-            // TODO : recipientName / recipientRole viennent du user-service
+            ChatUser u = users.get(other);
+            if (u != null) {
+                s.setRecipientName(u.getDisplayName());
+                s.setRecipientRole(u.getAppRole());
+            }
             s.setLastMessage(last.getContent());
             s.setLastMessageTime(toOffset(last.getSentAt()));
             s.setUnreadCount((int) repository
@@ -62,8 +73,9 @@ public class PrivateMessagingService {
         Page<PrivateMessageEntity> result = repository.findConversation(
                 me, other, PageRequest.of(p, s, Sort.by(Sort.Direction.DESC, "sentAt")));
 
+        Map<UUID, ChatUser> users = directory.find(Set.of(me, other));
         PrivateMessagePagedResponse response = new PrivateMessagePagedResponse();
-        response.setContent(result.getContent().stream().map(this::toDto).toList());
+        response.setContent(result.getContent().stream().map(m -> toDto(m, users)).toList());
         response.setTotalElements((int) result.getTotalElements());
         response.setPage(p);
         response.setSize(s);
@@ -83,7 +95,7 @@ public class PrivateMessagingService {
         }
         PrivateMessageEntity saved = repository.save(new PrivateMessageEntity(me, recipientId, content.trim()));
         // TODO (AL-45) : déclencher la notification MESSAGE_RECEIVED pour recipientId
-        return toDto(saved);
+        return toDto(saved, directory.find(Set.of(me, recipientId)));
     }
 
     @Transactional
@@ -103,16 +115,22 @@ public class PrivateMessagingService {
         repository.delete(m);
     }
 
-    private PrivateMessage toDto(PrivateMessageEntity m) {
+    private PrivateMessage toDto(PrivateMessageEntity m, Map<UUID, ChatUser> users) {
         PrivateMessage dto = new PrivateMessage();
         dto.setId(m.getId());
         dto.setSenderId(m.getSenderId());
         dto.setRecipientId(m.getRecipientId());
-        // TODO : senderName / recipientName viennent du user-service
+        dto.setSenderName(nameOf(users, m.getSenderId()));
+        dto.setRecipientName(nameOf(users, m.getRecipientId()));
         dto.setContent(m.getContent());
         dto.setIsRead(m.getReadAt() != null);
         dto.setCreatedAt(toOffset(m.getSentAt()));
         return dto;
+    }
+
+    private static String nameOf(Map<UUID, ChatUser> users, UUID id) {
+        ChatUser u = users.get(id);
+        return u == null ? null : u.getDisplayName();
     }
 
     private static OffsetDateTime toOffset(Instant instant) {

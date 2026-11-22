@@ -1,5 +1,116 @@
 # Journal des modifications des contrats OpenAPI
 
+## 1.11.0 (émission des notifications, ALUM-135)
+
+Évolution compatible : aucune opération ni aucun champ retiré ; seule une réponse est ajoutée.
+
+### notification-messaging-service
+- `POST /notifications/send` est implémenté (il renvoyait 501) : la notification est enregistrée et apparaît dans
+  le centre de notifications du destinataire ; le canal `EMAIL` l'envoie en plus par e-mail. `channel` absent :
+  `IN_APP`. `PUSH` : hors périmètre, la notification reste visible dans l'application.
+- **Précision** : `POST /notifications/send` (`triggerNotification`) déclare la réponse 403, déjà renvoyée par la
+  sécurité à un utilisateur qui n'est pas administrateur (ALUM-83).
+- `info.version` passe de 1.1.0 à **1.11.0** (alignée sur la version du SPI).
+
+SPI `notification-messaging-service-spi` publié en **1.11.0** (pom parent `alumni-spis` 1.11.0).
+
+## 1.10.0 (dépôt et suivi des candidatures, ALUM-172)
+
+Évolution compatible : aucune opération ni aucun champ retiré ; seules des réponses sont ajoutées.
+
+### job-offer-service
+- `POST /offers/{offerId}/applications` et `GET /applications` sont implémentés (ils renvoyaient 501).
+- **Précision** : `POST /offers/{offerId}/applications` (`submitApplication`) déclare 403 (appelant qui n'est pas
+  étudiant, ou `studentId` différent de son compte) et 404 (offre introuvable). Une offre qui n'est pas OPEN, ou
+  dont l'échéance est passée, est refusée en 400 `OFFER_NOT_OPEN`.
+- **Précision** : `GET /applications` (`listMyApplications`) déclare 403 : un étudiant ne lit que ses propres
+  candidatures, l'administrateur celles de tous ; les autres rôles sont refusés.
+- `info.version` passe de 1.6.0 à **1.10.0** (alignée sur la version du SPI).
+
+SPI `job-offer-service-spi` publié en **1.10.0** (pom parent `alumni-spis` 1.10.0).
+
+## 1.9.0 (CV de l'étudiant, ALUM-109)
+
+Évolution compatible : aucune opération ni aucun champ retiré ; seule une réponse est ajoutée.
+
+### alumni-student-company-service
+- `GET /students/{id}/cv` et `PUT /students/{id}/cv` sont implémentés (ils renvoyaient 501). `{id}` accepte
+  l'identifiant du profil étudiant ou celui de son compte ; 404 `CV_NOT_FOUND` tant que l'étudiant n'a pas de CV.
+- **Précision** : `PUT /students/{id}/cv` (`updateStudentCv`) déclare la réponse 403 (modification par un
+  utilisateur qui n'est ni l'étudiant concerné ni un administrateur).
+- `info.version` passe de 1.8.0 à **1.9.0**.
+
+SPI `alumni-student-company-service-spi` publié en **1.9.0** (pom parent `alumni-spis` 1.9.0).
+
+## 1.8.0 (fiche entreprise du compte connecté, ALUM-224)
+
+Évolution compatible : aucune opération ni aucun champ retiré ; seule une opération est ajoutée.
+
+### alumni-student-company-service
+- **Ajout** de `GET /companies/me` (`getMyCompany`, rôle ENTREPRISE) : fiche dont le compte connecté est le
+  gestionnaire, 404 s'il n'en a pas encore. Relance le rattachement du compte dans user-service si le jeton n'a pas
+  encore de `companyId`.
+- `info.version` passe de 1.7.0 à **1.8.0**.
+
+SPI `alumni-student-company-service-spi` publié en **1.8.0** (pom parent `alumni-spis` 1.8.0).
+
+## 1.7.0 (recherche d'Alumni par spécialité, ALUM-105)
+
+Évolution compatible : aucune opération ni aucun champ retiré ; seuls un paramètre et une réponse sont ajoutés.
+
+### alumni-student-company-service
+- **Ajout** du paramètre de requête `specialty` (string, facultatif) sur `GET /alumni` (`searchAlumni`) :
+  filtre de recherche par spécialité, le « secteur » de l'écran (ALUM-105).
+- **Précision** : `PUT /alumni/{id}` (`updateAlumniProfile`) déclare la réponse 403 (modification par un
+  utilisateur qui n'est pas le propriétaire du profil) (ALUM-100).
+- `info.version` passe de 1.5.0 à **1.7.0**.
+
+SPI `alumni-student-company-service-spi` publié en **1.7.0** (pom parent `alumni-spis` 1.7.0).
+
+## 1.6.0 (publication et gestion des offres, ALUM-148)
+
+Évolution compatible : aucune opération ni aucun champ retiré ; seules des réponses et des descriptions sont ajoutées.
+
+### job-offer-service
+- **Ajout** des réponses `403` sur `updateOffer` et `updateOfferStatus` (auteur de l'offre ou ADMINISTRATEUR), `400` sur
+  `updateOfferStatus` (transition interdite), `503` sur `createOffer` (fiche entreprise indisponible).
+- **Précisions** : règles de publication (gestionnaire de la fiche, entreprise validée), visibilité des offres selon
+  leur statut (`searchOffers`, `getOfferById`), mise à jour partielle de `updateOffer`, archivage par `deleteOffer`,
+  transitions de statut, fermeture automatique à la date limite.
+- `info.version` passe de 1.0.0 à **1.6.0** pour s'aligner sur le SPI.
+
+SPI `job-offer-service-spi` publié en **1.6.0** (pom parent `alumni-spis` 1.6.0).
+
+## 1.5.0 (rattachement d'un compte ENTREPRISE à sa fiche, ALUM-168)
+
+Évolution compatible : aucune opération ni aucun champ retiré ; seuls des champs, des opérations et des réponses sont ajoutés.
+
+### user-service
+- **Ajout** du champ `User.companyId` (uuid, facultatif) : fiche entreprise rattachée au compte ENTREPRISE. Également
+  présent dans le jeton d'accès (claim `companyId`).
+- **Ajout** du tag `Internal` et de `PUT /internal/users/{id}/company` (`linkCompanyAccount`, `UserCompanyLinkRequest`) :
+  rattachement idempotent, jeton de service uniquement (ADR-0010). 409 si le compte n'est pas ENTREPRISE ou déjà rattaché
+  à une autre fiche.
+- `info.version` passe de 1.0.0 à **1.5.0** pour s'aligner sur les SPI.
+
+### alumni-student-company-service
+- **Ajout** de la réponse `409` sur `createCompany` (un compte ENTREPRISE ne gère qu'une seule fiche).
+- **Ajout** de `PUT /companies/{id}/owner` (`assignCompanyOwner`, `CompanyOwnerRequest`) : rattachement d'une fiche à un
+  compte ENTREPRISE par un administrateur (409, 503).
+- **Ajout** de `GET /internal/companies/{id}` (`getCompanyForService`) : lecture de la fiche par un autre service.
+- `info.version` passe de 1.4.1 à **1.5.0**.
+
+SPI `user-service-spi` et `alumni-student-company-service-spi` publiés en **1.5.0** (pom parent `alumni-spis` 1.5.0).
+
+## alumni-student-company-service 1.4.1 (précision sur les diplômés, ALUM-88)
+
+Évolution compatible : seule une description change.
+
+- **Précision** sur `getPromotionGraduates` : l'`id` de chaque diplômé est celui du profil Alumni (à utiliser avec
+  `GET /alumni/{id}`, pas `GET /students/{id}`). Remarque de revue sur la #37.
+- SPI `alumni-student-company-service-spi` publié en **1.4.1** (pom parent `alumni-spis` 1.4.1) ;
+  alumni-student-company-service passe à `alumni.spi.version` 1.4.1.
+
 ## alumni-student-company-service 1.4.0 (promotions académiques, ALUM-88)
 
 Évolution compatible : aucune opération ni aucun champ retiré ; seules des réponses et des descriptions sont ajoutées.

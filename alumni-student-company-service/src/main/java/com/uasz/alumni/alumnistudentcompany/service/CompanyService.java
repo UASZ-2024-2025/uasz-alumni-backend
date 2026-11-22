@@ -9,6 +9,7 @@ import com.uasz.alumni.alumnistudentcompany.spi.model.CompanyCreateRequest;
 import com.uasz.alumni.alumnistudentcompany.spi.model.CompanyPagedResponse;
 import com.uasz.alumni.alumnistudentcompany.spi.model.CompanyUpdateRequest;
 import com.uasz.alumni.alumnistudentcompany.utils.CompanyMapper;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -21,20 +22,24 @@ import java.util.Locale;
 import java.util.UUID;
 
 /**
- * Règles métier des fiches entreprises (ALUM-96). Le contrôle du rôle à la création est porté par @PreAuthorize sur
- * le contrôleur ; ici : gestionnaire de la fiche, statut de partenaire et validation des champs.
+ * Règles métier des fiches entreprises (ALUM-96, ALUM-168). Le contrôle du rôle à la création est porté par
+ * @PreAuthorize sur le contrôleur ; ici : gestionnaire de la fiche, statut de partenaire, validation des champs,
+ * une seule fiche par compte ENTREPRISE et rattachement du compte à sa fiche.
  */
 @Service
 public class CompanyService {
 
     static final String ADMIN_ROLE = "ADMINISTRATEUR";
+    static final String ENTERPRISE_ROLE = "ENTREPRISE";
     private static final int DEFAULT_PAGE_SIZE = 20;
     private static final int MAX_PAGE_SIZE = 100;
 
     private final CompanyRepository repository;
+    private final ApplicationEventPublisher events;
 
-    public CompanyService(CompanyRepository repository) {
+    public CompanyService(CompanyRepository repository, ApplicationEventPublisher events) {
         this.repository = repository;
+        this.events = events;
     }
 
     @Transactional(readOnly = true)
@@ -70,6 +75,12 @@ public class CompanyService {
 
     @Transactional
     public Company create(CompanyCreateRequest request, AuthenticatedUser caller) {
+        boolean enterpriseAccount = ENTERPRISE_ROLE.equals(caller.role());
+        if (enterpriseAccount && repository.existsByOwnerId(caller.id())) {
+            throw new ApiException(HttpStatus.CONFLICT, "COMPANY_ALREADY_EXISTS",
+                    "Un compte ENTREPRISE ne gère qu'une seule fiche entreprise");
+        }
+
         CompanyEntity entity = new CompanyEntity();
         entity.setOwnerId(caller.id());
         entity.setName(requireText(request.getName(), "name"));
@@ -82,7 +93,12 @@ public class CompanyService {
         entity.setLogoUrl(request.getLogoUrl());
         entity.setPartner(false); // jamais partenaire à la création : seul l'administrateur valide
 
-        return CompanyMapper.toDto(repository.save(entity));
+        CompanyEntity saved = repository.save(entity);
+        if (enterpriseAccount) {
+            // Traité après le commit, en asynchrone : user-service renseigne User.companyId (ALUM-168)
+            events.publishEvent(new CompanyAccountLinkRequested(caller.id(), saved.getId()));
+        }
+        return CompanyMapper.toDto(saved);
     }
 
     @Transactional
@@ -126,6 +142,22 @@ public class CompanyService {
         }
 
         return CompanyMapper.toDto(repository.save(entity));
+    }
+
+    /**
+     * Fiche du compte ENTREPRISE connecté (ALUM-224). Si le jeton n'a pas encore de {@code companyId} (rattachement
+     * manqué à la création, ou jeton émis avant), le rattachement est relancé après le commit : user-service est
+     * idempotent, et le prochain jeton portera le {@code companyId}.
+     */
+    @Transactional
+    public Company mine(AuthenticatedUser caller) {
+        CompanyEntity entity = repository.findFirstByOwnerIdOrderByCreatedAtAsc(caller.id()).orElseThrow(() ->
+                new ApiException(HttpStatus.NOT_FOUND, "COMPANY_NOT_FOUND",
+                        "Vous n'avez pas encore de fiche entreprise"));
+        if (ENTERPRISE_ROLE.equals(caller.role()) && caller.companyId() == null) {
+            events.publishEvent(new CompanyAccountLinkRequested(caller.id(), entity.getId()));
+        }
+        return CompanyMapper.toDto(entity);
     }
 
     private CompanyEntity findOrThrow(UUID id) {
