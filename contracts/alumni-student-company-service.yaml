@@ -6,7 +6,7 @@ info:
     des entreprises partenaires et des promotions académiques pour la plateforme Alumni UASZ.
   contact:
     name: Équipe Projet Intégrateur - M2 GL - UASZ
-  version: 1.7.0
+  version: 1.9.0
 servers:
   - url: https://api.alumni-uasz.sn/alumni-student-company-service/v1
     description: Serveur de production
@@ -187,6 +187,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
       security:
@@ -449,6 +451,33 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - bearerAuth: []
+
+  /companies/me:
+    get:
+      tags:
+        - Companies
+      summary: Fiche entreprise du compte connecté
+      description: |
+        Réservé au rôle ENTREPRISE. Renvoie la fiche dont le compte connecté est le gestionnaire (`ownerId`).
+        404 tant que le compte n'a pas créé sa fiche (l'écran propose alors de la créer).
+        Si le jeton ne porte pas encore de `companyId`, le rattachement du compte à la fiche dans user-service
+        est relancé en arrière-plan (idempotent) : un rattachement manqué à la création se rattrape ainsi.
+      operationId: getMyCompany
+      responses:
+        "200":
+          description: Fiche entreprise du compte connecté
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Company"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
       security:
         - bearerAuth: []
 

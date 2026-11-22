@@ -212,6 +212,16 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST:-db}:5432/notification_messaging_db
       SPRING_DATASOURCE_USERNAME: notification_messaging_svc
       SPRING_DATASOURCE_PASSWORD: ${NOTIFICATION_MESSAGING_DB_PASSWORD}
+      # Canal EMAIL (ALUM-135) : SMTP réel de mail.env. Sans lui (MAIL_HOST vide), les e-mails sont sautés :
+      # Mailpit tourne sur vm-a, injoignable depuis vm-b.
+      MAIL_HOST: ${MAIL_HOST:-}
+      MAIL_PORT: ${MAIL_PORT:-25}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-no-reply@alumni-uasz.sn}
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: ${MAIL_STARTTLS:-false}
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_REQUIRED: ${MAIL_STARTTLS:-false}
+      FRONTEND_URL: https://${DEMO_DOMAIN}
 
 volumes:
   caddy-data:

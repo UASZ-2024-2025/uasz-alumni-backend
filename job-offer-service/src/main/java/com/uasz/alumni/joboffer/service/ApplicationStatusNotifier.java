@@ -26,6 +26,7 @@ public class ApplicationStatusNotifier {
     private static final Logger log = LoggerFactory.getLogger(ApplicationStatusNotifier.class);
 
     static final String TITLE = "Mise à jour de votre candidature";
+    static final String NEW_APPLICATION_TITLE = "Nouvelle candidature";
 
     private static final Map<ApplicationStatus, String> LABELS = Map.of(
             ApplicationStatus.SUBMITTED, "soumise",
@@ -57,6 +58,32 @@ public class ApplicationStatusNotifier {
         } catch (RuntimeException e) {
             // Retries épuisés ou erreur non transitoire : le changement de statut, déjà validé, reste acquis.
             log.error("Notification non délivrée pour la candidature {} : {}", event.applicationId(), e.toString());
+        }
+    }
+
+    /**
+     * ALUM-172 : prévient le recruteur d'une nouvelle candidature. Le contrat n'a pas de type dédié : on reprend
+     * APPLICATION_STATUS_CHANGED (une candidature qui passe à SUBMITTED), avec l'id de la candidature en référence.
+     */
+    @Async(AsyncResilienceConfig.INTER_SERVICE_EXECUTOR)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onSubmitted(ApplicationSubmitted event) {
+        if (event.recruiterId() == null) {
+            return;
+        }
+        SendNotificationRequest request = new SendNotificationRequest(
+                event.recruiterId(),
+                NotificationType.APPLICATION_STATUS_CHANGED,
+                NEW_APPLICATION_TITLE,
+                "%s a postulé à votre offre « %s ».".formatted(event.studentName(), event.offerTitle()));
+        request.setChannel(NotificationChannel.IN_APP);
+        request.setReferenceId(event.applicationId().toString());
+        try {
+            notifications.send(request);
+            log.info("Recruteur notifié de la candidature {}", event.applicationId());
+        } catch (RuntimeException e) {
+            // la candidature, déjà enregistrée, reste acquise
+            log.error("Notification non délivrée au recruteur (candidature {}) : {}", event.applicationId(), e.toString());
         }
     }
 }

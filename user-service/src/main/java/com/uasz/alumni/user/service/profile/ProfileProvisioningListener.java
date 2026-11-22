@@ -22,9 +22,9 @@ import org.springframework.web.client.HttpServerErrorException;
  * journalisé et n'annule jamais l'activation du compte (ADR-0006) : une panne d'alumni-student-company-service
  * ne bloque pas l'inscription.
  *
- * <p>Un <b>501</b> n'est pas une panne : le service distant ne sait pas encore créer ce type de profil
- * (profil étudiant, en attendant ALUM-92). Il est journalisé en WARN, pas en ERROR, et le compte sera rattrapé
- * par ALUM-214.
+ * <p>Un <b>501</b> n'est pas une panne : le service distant ne sait pas encore créer ce type de profil.
+ * Il est journalisé en WARN, pas en ERROR. Un compte sans profil (501, échec) est rattrapé au démarrage
+ * suivant par {@link ProfileBackfill} (ALUM-214).
  */
 @Component
 public class ProfileProvisioningListener {

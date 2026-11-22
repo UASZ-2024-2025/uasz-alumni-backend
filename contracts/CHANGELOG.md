@@ -1,5 +1,59 @@
 # Journal des modifications des contrats OpenAPI
 
+## 1.11.0 (émission des notifications, ALUM-135)
+
+Évolution compatible : aucune opération ni aucun champ retiré ; seule une réponse est ajoutée.
+
+### notification-messaging-service
+- `POST /notifications/send` est implémenté (il renvoyait 501) : la notification est enregistrée et apparaît dans
+  le centre de notifications du destinataire ; le canal `EMAIL` l'envoie en plus par e-mail. `channel` absent :
+  `IN_APP`. `PUSH` : hors périmètre, la notification reste visible dans l'application.
+- **Précision** : `POST /notifications/send` (`triggerNotification`) déclare la réponse 403, déjà renvoyée par la
+  sécurité à un utilisateur qui n'est pas administrateur (ALUM-83).
+- `info.version` passe de 1.1.0 à **1.11.0** (alignée sur la version du SPI).
+
+SPI `notification-messaging-service-spi` publié en **1.11.0** (pom parent `alumni-spis` 1.11.0).
+
+## 1.10.0 (dépôt et suivi des candidatures, ALUM-172)
+
+Évolution compatible : aucune opération ni aucun champ retiré ; seules des réponses sont ajoutées.
+
+### job-offer-service
+- `POST /offers/{offerId}/applications` et `GET /applications` sont implémentés (ils renvoyaient 501).
+- **Précision** : `POST /offers/{offerId}/applications` (`submitApplication`) déclare 403 (appelant qui n'est pas
+  étudiant, ou `studentId` différent de son compte) et 404 (offre introuvable). Une offre qui n'est pas OPEN, ou
+  dont l'échéance est passée, est refusée en 400 `OFFER_NOT_OPEN`.
+- **Précision** : `GET /applications` (`listMyApplications`) déclare 403 : un étudiant ne lit que ses propres
+  candidatures, l'administrateur celles de tous ; les autres rôles sont refusés.
+- `info.version` passe de 1.6.0 à **1.10.0** (alignée sur la version du SPI).
+
+SPI `job-offer-service-spi` publié en **1.10.0** (pom parent `alumni-spis` 1.10.0).
+
+## 1.9.0 (CV de l'étudiant, ALUM-109)
+
+Évolution compatible : aucune opération ni aucun champ retiré ; seule une réponse est ajoutée.
+
+### alumni-student-company-service
+- `GET /students/{id}/cv` et `PUT /students/{id}/cv` sont implémentés (ils renvoyaient 501). `{id}` accepte
+  l'identifiant du profil étudiant ou celui de son compte ; 404 `CV_NOT_FOUND` tant que l'étudiant n'a pas de CV.
+- **Précision** : `PUT /students/{id}/cv` (`updateStudentCv`) déclare la réponse 403 (modification par un
+  utilisateur qui n'est ni l'étudiant concerné ni un administrateur).
+- `info.version` passe de 1.8.0 à **1.9.0**.
+
+SPI `alumni-student-company-service-spi` publié en **1.9.0** (pom parent `alumni-spis` 1.9.0).
+
+## 1.8.0 (fiche entreprise du compte connecté, ALUM-224)
+
+Évolution compatible : aucune opération ni aucun champ retiré ; seule une opération est ajoutée.
+
+### alumni-student-company-service
+- **Ajout** de `GET /companies/me` (`getMyCompany`, rôle ENTREPRISE) : fiche dont le compte connecté est le
+  gestionnaire, 404 s'il n'en a pas encore. Relance le rattachement du compte dans user-service si le jeton n'a pas
+  encore de `companyId`.
+- `info.version` passe de 1.7.0 à **1.8.0**.
+
+SPI `alumni-student-company-service-spi` publié en **1.8.0** (pom parent `alumni-spis` 1.8.0).
+
 ## 1.7.0 (recherche d'Alumni par spécialité, ALUM-105)
 
 Évolution compatible : aucune opération ni aucun champ retiré ; seuls un paramètre et une réponse sont ajoutés.

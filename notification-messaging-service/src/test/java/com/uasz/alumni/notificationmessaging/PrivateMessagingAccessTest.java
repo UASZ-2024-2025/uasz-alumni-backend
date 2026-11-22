@@ -104,6 +104,21 @@ class PrivateMessagingAccessTest {
     }
 
     @Test
+    void roleNonAutorise_403EtPas401() throws Exception {
+        // Vrai serveur HTTP (pas MockMvc) : un refus @PreAuthorize passait par /error et repartait en 401
+        String entreprise = Jwts.builder()
+                .subject(UUID.randomUUID().toString())
+                .issuer(ISSUER)
+                .claim("role", "ENTREPRISE")
+                .signWith(Keys.hmacShaKeyFor(Base64.getDecoder().decode(SECRET)))
+                .compact();
+        HttpResponse<String> r = http.send(HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/v1/messages/groups"))
+                .header("Authorization", "Bearer " + entreprise).GET().build(), HttpResponse.BodyHandlers.ofString());
+        assertThat(r.statusCode()).isEqualTo(403);
+        assertThat(r.body()).contains("FORBIDDEN");
+    }
+
+    @Test
     void messageVide_400() throws Exception {
         UUID a = UUID.randomUUID();
         UUID b = UUID.randomUUID();

@@ -144,6 +144,22 @@ public class CompanyService {
         return CompanyMapper.toDto(repository.save(entity));
     }
 
+    /**
+     * Fiche du compte ENTREPRISE connecté (ALUM-224). Si le jeton n'a pas encore de {@code companyId} (rattachement
+     * manqué à la création, ou jeton émis avant), le rattachement est relancé après le commit : user-service est
+     * idempotent, et le prochain jeton portera le {@code companyId}.
+     */
+    @Transactional
+    public Company mine(AuthenticatedUser caller) {
+        CompanyEntity entity = repository.findFirstByOwnerIdOrderByCreatedAtAsc(caller.id()).orElseThrow(() ->
+                new ApiException(HttpStatus.NOT_FOUND, "COMPANY_NOT_FOUND",
+                        "Vous n'avez pas encore de fiche entreprise"));
+        if (ENTERPRISE_ROLE.equals(caller.role()) && caller.companyId() == null) {
+            events.publishEvent(new CompanyAccountLinkRequested(caller.id(), entity.getId()));
+        }
+        return CompanyMapper.toDto(entity);
+    }
+
     private CompanyEntity findOrThrow(UUID id) {
         return repository.findById(id).orElseThrow(() ->
                 new ApiException(HttpStatus.NOT_FOUND, "COMPANY_NOT_FOUND", "Entreprise introuvable : " + id));
