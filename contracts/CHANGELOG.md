@@ -1,5 +1,23 @@
 # Journal des modifications des contrats OpenAPI
 
+## 1.13.0 (messagerie privée alignée sur les groupes, modification d'un message, ALUM-258)
+
+Évolution compatible : aucune opération ni aucun champ retiré ; seuls des opérations et des champs sont ajoutés.
+
+### notification-messaging-service
+- `PATCH /messages/{messageId}` (`editPrivateMessage`) et `PATCH /messages/groups/{groupId}/messages/{messageId}`
+  (`editGroupMessage`) : l'auteur modifie son message dans les 15 minutes qui suivent l'envoi (400
+  `EDIT_WINDOW_EXPIRED` au-delà, `MESSAGE_DELETED` pour un message supprimé). Nouveau schéma `EditMessageRequest`.
+- `PrivateMessage` et `GroupMessage` : champ `editedAt`. `PrivateMessage` : champ `deleted`.
+- **Changement de comportement** : `DELETE /messages/{messageId}` laisse le message dans le fil avec `deleted` à
+  true et un contenu vide, comme dans les groupes (il était effacé).
+- `PATCH /messages/conversations/{recipientId}/preferences` (`updateConversationPreferences`) : épingler, archiver,
+  mettre en sourdine une conversation privée (mêmes schémas que les groupes). `ConversationSummary` : champs
+  `preferences`, `lastMessageSenderId` et `lastMessageDeleted` ; liste triée épinglées d'abord.
+- `info.version` passe de 1.11.0 à **1.13.0** (1.12.0 est prise par user-service, ALUM-74).
+
+SPI `notification-messaging-service-spi` publié en **1.13.0** (pom parent `alumni-spis` 1.13.0).
+
 ## 1.11.0 (émission des notifications, ALUM-135)
 
 Évolution compatible : aucune opération ni aucun champ retiré ; seule une réponse est ajoutée.

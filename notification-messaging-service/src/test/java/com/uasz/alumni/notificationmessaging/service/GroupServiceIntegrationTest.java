@@ -261,6 +261,33 @@ class GroupServiceIntegrationTest {
             refuse(() -> service.deleteMessage(g.getId(), UUID.randomUUID(), fatou), HttpStatus.NOT_FOUND);
         }
 
+        @Test
+        void seulLAuteurModifieSonMessageDansLes15Minutes() {
+            Group g = creer("Promo GL", awa, moussa);
+            plusTard();
+            GroupMessage m = service.sendMessage(g.getId(), "Réunion à 10h", awa);
+
+            horloge.avancer(Duration.ofMinutes(10));
+            GroupMessage modifie = service.editMessage(g.getId(), m.getId(), "Réunion à 11h", awa);
+            assertThat(modifie.getContent()).isEqualTo("Réunion à 11h");
+            assertThat(modifie.getEditedAt()).isEqualTo(horloge.instant().atOffset(ZoneOffset.UTC));
+            assertThat(fil(g, moussa)).contains("TEXT:Réunion à 11h");
+
+            // Même le propriétaire ne réécrit pas le message d'un autre.
+            refuse(() -> service.editMessage(g.getId(), m.getId(), "Autre", fatou), HttpStatus.FORBIDDEN);
+            refuse(() -> service.editMessage(g.getId(), m.getId(), "  ", awa), HttpStatus.BAD_REQUEST);
+            UUID systeme = service.getMessages(g.getId(), 0, 30, awa).getContent().getFirst().getId();
+            refuse(() -> service.editMessage(g.getId(), systeme, "Autre", fatou), HttpStatus.BAD_REQUEST);
+
+            horloge.avancer(Duration.ofMinutes(6));
+            refuse(() -> service.editMessage(g.getId(), m.getId(), "Trop tard", awa), HttpStatus.BAD_REQUEST);
+
+            // Écriture réservée aux administrateurs : le membre ne modifie plus ses messages.
+            GroupMessage deMoussa = service.sendMessage(g.getId(), "Présent", moussa);
+            service.updateSettings(g.getId(), new GroupSettings().onlyAdminsCanSend(true), fatou);
+            refuse(() -> service.editMessage(g.getId(), deMoussa.getId(), "Absent", moussa), HttpStatus.FORBIDDEN);
+        }
+
         private int nonLus(AuthenticatedUser u, Group g) {
             return service.listGroups(u).stream().filter(s -> s.getId().equals(g.getId()))
                     .findFirst().orElseThrow().getUnreadCount();

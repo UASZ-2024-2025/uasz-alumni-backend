@@ -20,7 +20,8 @@ public class PrivateMessageEntity {
     @Column(name = "recipient_id", nullable = false)
     private UUID recipientId;
 
-    @Column(nullable = false, length = 5000)
+    /** {@code null} une fois le message supprimé. */
+    @Column(length = 5000)
     private String content;
 
     @Column(name = "sent_at", nullable = false)
@@ -29,14 +30,31 @@ public class PrivateMessageEntity {
     @Column(name = "read_at")
     private Instant readAt;
 
+    @Column(nullable = false)
+    private boolean deleted;
+
+    @Column(name = "edited_at")
+    private Instant editedAt;
+
     protected PrivateMessageEntity() {}
 
-    public PrivateMessageEntity(UUID senderId, UUID recipientId, String content) {
+    public PrivateMessageEntity(UUID senderId, UUID recipientId, String content, Instant sentAt) {
         this.id = UUID.randomUUID();
         this.senderId = senderId;
         this.recipientId = recipientId;
         this.content = content;
-        this.sentAt = Instant.now();
+        this.sentAt = sentAt;
+    }
+
+    /** Suppression pour les deux interlocuteurs : le message reste dans le fil, sans contenu. */
+    public void delete() {
+        this.deleted = true;
+        this.content = null;
+    }
+
+    public void edit(String newContent, Instant now) {
+        this.content = newContent;
+        this.editedAt = now;
     }
 
     public UUID getId() { return id; }
@@ -45,4 +63,6 @@ public class PrivateMessageEntity {
     public String getContent() { return content; }
     public Instant getSentAt() { return sentAt; }
     public Instant getReadAt() { return readAt; }
+    public boolean isDeleted() { return deleted; }
+    public Instant getEditedAt() { return editedAt; }
 }

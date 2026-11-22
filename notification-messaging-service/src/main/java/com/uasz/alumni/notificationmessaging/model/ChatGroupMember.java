@@ -16,7 +16,7 @@ import java.util.UUID;
  */
 @Entity
 @Table(name = "chat_group_members")
-public class ChatGroupMember {
+public class ChatGroupMember implements PersonalPreferences {
 
     @Id
     private UUID id;
@@ -67,15 +67,12 @@ public class ChatGroupMember {
         return groupRole == GroupMemberRole.OWNER;
     }
 
-    public boolean isMuted(OffsetDateTime now) {
-        return mutedForever || (mutedUntil != null && mutedUntil.isAfter(now));
-    }
-
     public void changeRole(GroupMemberRole role) { this.groupRole = role; }
     public void markRead(OffsetDateTime when) { this.lastReadAt = when; }
-    public void setPinned(boolean pinned) { this.pinned = pinned; }
-    public void setArchived(boolean archived) { this.archived = archived; }
+    @Override public void setPinned(boolean pinned) { this.pinned = pinned; }
+    @Override public void setArchived(boolean archived) { this.archived = archived; }
 
+    @Override
     public void mute(OffsetDateTime until, boolean forever) {
         this.mutedUntil = forever ? null : until;
         this.mutedForever = forever;
@@ -87,8 +84,8 @@ public class ChatGroupMember {
     public GroupMemberRole getGroupRole() { return groupRole; }
     public OffsetDateTime getJoinedAt() { return joinedAt; }
     public OffsetDateTime getLastReadAt() { return lastReadAt; }
-    public boolean isPinned() { return pinned; }
-    public boolean isArchived() { return archived; }
-    public OffsetDateTime getMutedUntil() { return mutedUntil; }
-    public boolean isMutedForever() { return mutedForever; }
+    @Override public boolean isPinned() { return pinned; }
+    @Override public boolean isArchived() { return archived; }
+    @Override public OffsetDateTime getMutedUntil() { return mutedUntil; }
+    @Override public boolean isMutedForever() { return mutedForever; }
 }
