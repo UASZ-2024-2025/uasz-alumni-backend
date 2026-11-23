@@ -144,6 +144,8 @@ services:
       SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: ${MAIL_STARTTLS:-false}
       SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_REQUIRED: ${MAIL_STARTTLS:-false}
       FRONTEND_URL: https://${DEMO_DOMAIN}
+      # Pièces jointes des messages (ALUM-261) : media.env (relu depuis SSM par deploy.sh). Vide : désactivées.
+      CLOUDINARY_URL: ${CLOUDINARY_URL:-}
       EMAIL_CONFIRMATION_TTL: 24h
       JWT_ACCESS_TTL: 15m
       REFRESH_TOKEN_TTL: 7d

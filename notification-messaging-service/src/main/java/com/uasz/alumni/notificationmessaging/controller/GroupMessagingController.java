@@ -103,7 +103,7 @@ public class GroupMessagingController implements GroupMessagingApi {
     @Override
     public ResponseEntity<GroupMessage> sendGroupMessage(UUID groupId, SendMessageRequest sendMessageRequest) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(groups.sendMessage(groupId, sendMessageRequest.getContent(), caller()));
+                .body(groups.sendMessage(groupId, sendMessageRequest, caller()));
     }
 
     @Override

@@ -104,6 +104,18 @@ Commandes à lancer dans Session Manager (`sudo -i`) :
 
   À chaque déploiement, le journal indique la source des e-mails : `e-mails : SMTP smtp-relay.brevo.com`,
   `e-mails : Mailpit (/alumni-demo/mail absent)` ou `... (MAIL_SSM_PARAM non défini dans demo.env)`.
+- **Pièces jointes de la messagerie (Cloudinary, ALUM-261)** : images, documents et messages vocaux des discussions.
+  Sans réglage, elles sont désactivées (le reste de la messagerie fonctionne). Pour les activer :
+  1. Dans la console Cloudinary : *Settings > Security*, cocher **Allow delivery of PDF and ZIP files** (sinon les PDF
+     joints ne s'ouvrent pas). Relever l'**API environment variable** (*Settings > API Keys*).
+  2. Créer dans *Systems Manager > Parameter Store* le paramètre **SecureString** `/alumni-demo/cloudinary`, de valeur
+     `cloudinary://<api_key>:<api_secret>@<cloud_name>`.
+  3. Mettre la pile à jour (`aws cloudformation deploy`, voir « Mise en place ») : le droit de vm-b sur ce paramètre
+     vient de `demo-stack.yaml`.
+  4. Relancer le workflow « CD - Démo AWS » (`service` = `none`). Sur vm-b, `deploy.sh` relit le paramètre à chaque
+     déploiement (`CLOUDINARY_SSM_PARAM`, sinon le préfixe de `MAIL_SSM_PARAM` + `/cloudinary`) et l'écrit dans
+     `/opt/alumni/media.env`. Le journal indique `pièces jointes : Cloudinary (...)`, `désactivées (... absent)` ou
+     `illisible, réglage actuel conservé` (droit IAM manquant). Hors AWS : `CLOUDINARY_URL=...` dans `demo.env`.
 - **Offres d'emploi (vm-b → vm-a)** : job-offer-service lit les fiches entreprises sur vm-a par l'IP privée
   (port 8082, ouvert seulement entre les deux machines). `bootstrap.sh` écrit l'URL dans le `demo.env` de vm-b.
   Sur une vm-b installée avant cette option, ajouter la ligne une fois (*Run Command* ou Session Manager, sur vm-b) :

@@ -3,6 +3,7 @@ package com.uasz.alumni.notificationmessaging.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.uasz.alumni.notificationmessaging.config.AttachmentStorageConfig;
 import com.uasz.alumni.notificationmessaging.exceptions.ApiException;
 import com.uasz.alumni.notificationmessaging.spi.model.ConversationSummary;
 import com.uasz.alumni.notificationmessaging.spi.model.GroupPreferences;
@@ -33,7 +34,8 @@ import org.springframework.test.context.DynamicPropertySource;
 /** Messagerie privée alignée sur les groupes : suppression pour les deux, modification, préférences. */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({PrivateMessagingService.class, ChatUserDirectory.class, PrivateMessagingServiceIntegrationTest.Horloge.class})
+@Import({PrivateMessagingService.class, ChatUserDirectory.class, MessageAttachments.class, AttachmentStorageConfig.class,
+        PrivateMessagingServiceIntegrationTest.Horloge.class})
 class PrivateMessagingServiceIntegrationTest {
 
     private static final EmbeddedPostgres POSTGRES = demarrer();

@@ -60,6 +60,15 @@ jwt:
 service-token:
   issuer: alumni-uasz-internal
 
+# Pièces jointes des messages (ALUM-261). CLOUDINARY_URL vide : pièces jointes désactivées (enabled=false),
+# le reste de la messagerie fonctionne. Format : cloudinary://<api_key>:<api_secret>@<cloud_name>
+attachments:
+  cloudinary-url: ${CLOUDINARY_URL:}
+  folder: ${CLOUDINARY_FOLDER:alumni-uasz/messages}
+  max-image-bytes: 10485760
+  max-file-bytes: 10485760
+  max-audio-seconds: 120
+
 notification:
   mail:
     from: ${MAIL_FROM:no-reply@alumni-uasz.sn}

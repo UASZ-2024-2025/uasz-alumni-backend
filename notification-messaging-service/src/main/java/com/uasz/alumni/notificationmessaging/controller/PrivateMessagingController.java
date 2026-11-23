@@ -50,7 +50,7 @@ public class PrivateMessagingController implements PrivateMessagingApi {
     @Override
     public ResponseEntity<PrivateMessage> sendPrivateMessage(
             UUID recipientId, SendMessageRequest sendMessageRequest) {
-        PrivateMessage created = service.send(me(), recipientId, sendMessageRequest.getContent());
+        PrivateMessage created = service.send(me(), recipientId, sendMessageRequest);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 

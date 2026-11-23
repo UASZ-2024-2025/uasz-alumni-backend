@@ -12,7 +12,7 @@
 
   <groupId>com.uasz.alumni</groupId>
   <artifactId>alumni-spis</artifactId>
-  <version>1.13.0</version>
+  <version>1.14.0</version>
   <packaging>pom</packaging>
   <name>alumni-spis</name>
   <description>Alumni UASZ - SPIs (interfaces + modeles) generes depuis /contracts</description>

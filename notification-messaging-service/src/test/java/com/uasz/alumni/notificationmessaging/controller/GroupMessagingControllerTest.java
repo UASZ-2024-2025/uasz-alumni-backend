@@ -21,6 +21,7 @@ import com.uasz.alumni.notificationmessaging.jwt.JwtService;
 import com.uasz.alumni.notificationmessaging.security.AuthenticatedUser;
 import com.uasz.alumni.notificationmessaging.service.ChatUserDirectory;
 import com.uasz.alumni.notificationmessaging.service.GroupService;
+import com.uasz.alumni.notificationmessaging.spi.model.SendMessageRequest;
 import com.uasz.alumni.notificationmessaging.spi.model.Group;
 import com.uasz.alumni.notificationmessaging.spi.model.GroupMessage;
 import com.uasz.alumni.notificationmessaging.spi.model.GroupMessageType;
@@ -116,7 +117,7 @@ class GroupMessagingControllerTest {
 
     @Test
     void envoiDUnMessage201EtSuppression204() throws Exception {
-        when(service.sendMessage(groupId, "Bonjour", etudiant)).thenReturn(
+        when(service.sendMessage(groupId, new SendMessageRequest().content("Bonjour"), etudiant)).thenReturn(
                 new GroupMessage().id(UUID.randomUUID()).content("Bonjour").type(GroupMessageType.TEXT).deleted(false));
 
         mvc.perform(as("etudiant", json(post("/v1/messages/groups/" + groupId + "/messages"), "{\"content\":\"Bonjour\"}")))

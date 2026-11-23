@@ -8,9 +8,11 @@ import com.uasz.alumni.notificationmessaging.repository.PrivateConversationPrefe
 import com.uasz.alumni.notificationmessaging.repository.PrivateMessageRepository;
 import com.uasz.alumni.notificationmessaging.spi.model.ConversationSummary;
 import com.uasz.alumni.notificationmessaging.spi.model.GroupPreferences;
+import com.uasz.alumni.notificationmessaging.spi.model.GroupMessageType;
 import com.uasz.alumni.notificationmessaging.spi.model.GroupPreferencesUpdateRequest;
 import com.uasz.alumni.notificationmessaging.spi.model.PrivateMessage;
 import com.uasz.alumni.notificationmessaging.spi.model.PrivateMessagePagedResponse;
+import com.uasz.alumni.notificationmessaging.spi.model.SendMessageRequest;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -42,14 +44,16 @@ public class PrivateMessagingService {
     private final PrivateMessageRepository repository;
     private final PrivateConversationPreferenceRepository preferences;
     private final ChatUserDirectory directory;
+    private final MessageAttachments attachments;
     private final Clock clock;
 
     public PrivateMessagingService(PrivateMessageRepository repository,
                                    PrivateConversationPreferenceRepository preferences,
-                                   ChatUserDirectory directory, Clock clock) {
+                                   ChatUserDirectory directory, MessageAttachments attachments, Clock clock) {
         this.repository = repository;
         this.preferences = preferences;
         this.directory = directory;
+        this.attachments = attachments;
         this.clock = clock;
     }
 
@@ -80,6 +84,8 @@ public class PrivateMessagingService {
             s.setLastMessage(last.getContent());
             s.setLastMessageSenderId(last.getSenderId());
             s.setLastMessageDeleted(last.isDeleted());
+            s.setLastMessageType(last.getType());
+            s.setLastMessageAttachmentKind(last.getAttachment() == null ? null : last.getAttachment().getKind());
             s.setLastMessageTime(toOffset(last.getSentAt()));
             s.setUnreadCount((int) repository
                     .countBySenderIdAndRecipientIdAndReadAtIsNull(other, me));
@@ -107,11 +113,19 @@ public class PrivateMessagingService {
         return response;
     }
 
+    /** Message texte. */
     @Transactional
     public PrivateMessage send(UUID me, UUID recipientId, String content) {
+        return send(me, recipientId, new SendMessageRequest().content(content));
+    }
+
+    /** Texte, sticker ou pièce jointe (ALUM-261, voir {@link MessageAttachments#compose}). */
+    @Transactional
+    public PrivateMessage send(UUID me, UUID recipientId, SendMessageRequest request) {
         requireOther(me, recipientId);
-        String text = validText(content);
-        PrivateMessageEntity saved = repository.save(new PrivateMessageEntity(me, recipientId, text, now().toInstant()));
+        MessageAttachments.Composed c = attachments.compose(request, me, PrivateMessagingService::validText);
+        PrivateMessageEntity saved = repository.save(new PrivateMessageEntity(
+                me, recipientId, c.type(), c.content(), c.sticker(), c.attachment(), now().toInstant()));
         // TODO (AL-45) : déclencher la notification MESSAGE_RECEIVED pour recipientId
         return toDto(saved, directory.find(Set.of(me, recipientId)));
     }
@@ -128,6 +142,9 @@ public class PrivateMessagingService {
     @Transactional
     public PrivateMessage edit(UUID me, UUID messageId, String content) {
         PrivateMessageEntity m = requireOwnMessage(me, messageId);
+        if (m.getType() == GroupMessageType.STICKER) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_MESSAGE", "Un sticker ne peut pas être modifié.");
+        }
         Instant now = now().toInstant();
         MessageEdits.requireEditable(m.isDeleted(), toOffset(m.getSentAt()), toOffset(now));
         String text = validText(content);
@@ -144,7 +161,7 @@ public class PrivateMessagingService {
      */
     @Transactional
     public void delete(UUID me, UUID messageId) {
-        requireOwnMessage(me, messageId).delete();
+        attachments.discard(requireOwnMessage(me, messageId).delete());
     }
 
     /** Préférences personnelles de l'appelant sur sa conversation avec {@code other}. */
@@ -189,7 +206,10 @@ public class PrivateMessagingService {
         dto.setRecipientId(m.getRecipientId());
         dto.setSenderName(nameOf(users, m.getSenderId()));
         dto.setRecipientName(nameOf(users, m.getRecipientId()));
+        dto.setType(m.getType());
         dto.setContent(m.getContent());
+        dto.setSticker(m.getSticker());
+        dto.setAttachment(attachments.view(m.getAttachment()));
         dto.setIsRead(m.getReadAt() != null);
         dto.setDeleted(m.isDeleted());
         dto.setCreatedAt(toOffset(m.getSentAt()));
