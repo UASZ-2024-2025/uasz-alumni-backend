@@ -37,6 +37,27 @@ fusion dans develop ─► CI déjà validée dans la PR ─► workflow « CD -
 | `aws/demo-stack.yaml` | pile CloudFormation : machines, réseau, IP, rôles, bucket, budget | **oui** (jetable) |
 | `.github/workflows/deploy-demo.yml` | CD depuis `develop` | déclencheur AWS (SSM) |
 
+## Mise à jour de la pile (à lire avant tout `aws cloudformation deploy`)
+
+La base PostgreSQL est sur le disque de vm-a : **une mise à jour qui remplace vm-a efface toutes les données**
+(c'est arrivé le 23/11/2026 quand l'image Ubuntu suivait la dernière version publiée ; elle est désormais fixe,
+paramètre `AmiId`). Avant chaque mise à jour, dans CloudShell :
+```bash
+# 1. Sauvegarde fraîche vers S3
+I=$(aws ec2 describe-instances --filters Name=tag:Name,Values=alumni-demo-a Name=instance-state-name,Values=running \
+    --query 'Reservations[0].Instances[0].InstanceId' --output text)
+aws ssm send-command --instance-ids $I --document-name AWS-RunShellScript \
+  --parameters 'commands=["/opt/alumni/app/deploy/demo/scripts/backup.sh"]'
+# 2. Voir ce qui changerait, sans rien appliquer
+aws cloudformation deploy --stack-name alumni-demo --template-file deploy/demo/aws/demo-stack.yaml \
+  --capabilities CAPABILITY_IAM --no-execute-changeset
+aws cloudformation describe-change-set --stack-name alumni-demo --change-set-name <nom affiché> \
+  --query 'Changes[].ResourceChange.[LogicalResourceId,Action,Replacement]' --output table
+```
+Si `VmA` ou `VmB` affiche `Replacement = True` : ne pas appliquer, ou prévoir la restauration
+(`restore.sh s3://<bucket>/<sauvegarde>` sur la nouvelle vm-a, services de vm-b arrêtés pendant l'opération).
+Sinon : `aws cloudformation execute-change-set --change-set-name <nom> --stack-name alumni-demo`.
+
 ## Mise en place sur AWS (une seule fois)
 
 1. Console AWS, région **eu-west-3 (Paris)**, ouvrir **CloudShell** puis :

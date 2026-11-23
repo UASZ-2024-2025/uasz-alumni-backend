@@ -18,8 +18,13 @@ Parameters:
     AllowedValues: [t4g.small, t4g.medium]
     Description: ARM (Graviton). t4g.small est eligible au Free plan.
   AmiId:
-    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
-    Default: /aws/service/canonical/ubuntu/server/24.04/stable/current/arm64/hvm/ebs-gp3/ami-id
+    Type: AWS::EC2::Image::Id
+    Default: ami-02efb277a7839e588
+    Description: >-
+      Image FIXE (Ubuntu 24.04 arm64, eu-west-3), celle des machines en service. Changer d'image REMPLACE
+      vm-a et vm-b et efface la base (disque de vm-a) : sauvegarder puis restaurer (voir README).
+      Derniere image : aws ssm get-parameter --name
+      /aws/service/canonical/ubuntu/server/24.04/stable/current/arm64/hvm/ebs-gp3/ami-id
   RepoUrl:
     Type: String
     Default: https://github.com/UASZ-2024-2025/uasz-alumni-backend.git
