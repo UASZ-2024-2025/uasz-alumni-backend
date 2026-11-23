@@ -6,7 +6,7 @@ info:
     ainsi que de la gestion et de la distribution des notifications (In-App, Email, Push).
   contact:
     name: Équipe Projet Intégrateur - M2 GL - UASZ
-  version: 1.13.0
+  version: 1.15.0
 servers:
   - url: https://api.alumni-uasz.sn/notification-messaging-service/v1
     description: Serveur de production
@@ -19,6 +19,12 @@ tags:
     description: |
       Groupes de discussion (création, membres, réglages, échanges collectifs entre étudiants, Alumni et enseignants).
       Réservés aux rôles ETUDIANT, ALUMNI, ENSEIGNANT et ADMINISTRATEUR (403 pour ENTREPRISE).
+  - name: MessageAttachments
+    description: |
+      Pièces jointes des messages (images, documents, messages vocaux) stockées chez Cloudinary.
+      Le navigateur envoie le fichier directement à Cloudinary avec la signature délivrée par le service, puis envoie
+      le message avec la réponse de Cloudinary. Les fichiers sont en accès authentifié : seuls les participants
+      reçoivent des liens signés.
   - name: Notifications
     description: Centre de notifications système, alertes et suivi de lecture
 
@@ -90,6 +96,9 @@ paths:
       tags:
         - PrivateMessaging
       summary: Envoyer un message privé à un utilisateur
+      description: |
+        Texte, sticker ou pièce jointe (voir `SendMessageRequest`). 503 `ATTACHMENTS_DISABLED` pour une pièce jointe
+        quand le stockage n'est pas configuré.
       operationId: sendPrivateMessage
       parameters:
         - name: recipientId
@@ -115,6 +124,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
       security:
         - bearerAuth: []
 
@@ -639,7 +650,8 @@ paths:
       summary: Envoyer un message dans un groupe
       description: |
         Membres uniquement ; si `settings.onlyAdminsCanSend` vaut true, seuls OWNER et ADMIN peuvent écrire (403 sinon).
-        Le contenu ne peut pas être vide et fait au plus 4000 caractères (400).
+        Texte (au plus 4000 caractères), sticker ou pièce jointe avec légende facultative (voir `SendMessageRequest`).
+        503 `ATTACHMENTS_DISABLED` pour une pièce jointe quand le stockage n'est pas configuré.
       operationId: sendGroupMessage
       parameters:
         - name: groupId
@@ -669,6 +681,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
       security:
         - bearerAuth: []
 
@@ -779,6 +793,65 @@ paths:
       security:
         - bearerAuth: []
 
+
+  /messages/attachments/settings:
+    get:
+      tags:
+        - MessageAttachments
+      summary: Réglages des pièces jointes (activées, tailles et durée maximales)
+      description: >-
+        `enabled` vaut false tant que le stockage n'est pas configuré : le front masque alors les boutons
+        de pièce jointe et de message vocal.
+      operationId: getAttachmentSettings
+      responses:
+        "200":
+          description: Réglages des pièces jointes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttachmentSettings"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      security:
+        - bearerAuth: []
+
+  /messages/attachments/uploads:
+    post:
+      tags:
+        - MessageAttachments
+      summary: Obtenir une autorisation d'envoi d'un fichier vers le stockage
+      description: |
+        Renseigner `groupId` (membre pouvant écrire dans le groupe, 403 sinon) ou `recipientId` (pas soi-même),
+        exactement l'un des deux. Le navigateur envoie ensuite le fichier en `multipart/form-data` à `uploadUrl`
+        avec les champs `file`, `api_key`, `timestamp`, `signature`, `public_id`, `type` et, s'il est présent,
+        `allowed_formats` ; puis il envoie le message avec la réponse de Cloudinary (`AttachmentUpload`).
+        400 `UNSUPPORTED_FILE_TYPE` pour une extension refusée ; 503 `ATTACHMENTS_DISABLED` sans stockage configuré.
+      operationId: createAttachmentUpload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AttachmentUploadRequest"
+      responses:
+        "200":
+          description: Autorisation d'envoi (valable une heure)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttachmentUploadTicket"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      security:
+        - bearerAuth: []
 
   /notifications:
     get:
@@ -946,6 +1019,10 @@ components:
           description: Auteur du dernier message (l'appelant ou son interlocuteur).
         lastMessageDeleted:
           type: boolean
+        lastMessageType:
+          $ref: "#/components/schemas/GroupMessageType"
+        lastMessageAttachmentKind:
+          $ref: "#/components/schemas/AttachmentKind"
         lastMessageTime:
           type: string
           format: date-time
@@ -972,9 +1049,16 @@ components:
           format: uuid
         recipientName:
           type: string
+        type:
+          $ref: "#/components/schemas/GroupMessageType"
         content:
           type: string
-          description: Texte du message ; vide si le message a été supprimé.
+          description: Texte du message, ou légende d'une pièce jointe ; vide si le message a été supprimé.
+        sticker:
+          type: string
+          description: Code du sticker quand `type` vaut STICKER.
+        attachment:
+          $ref: "#/components/schemas/MessageAttachment"
         isRead:
           type: boolean
         deleted:
@@ -989,12 +1073,168 @@ components:
 
     SendMessageRequest:
       type: object
-      required:
-        - content
+      description: |
+        Un texte (`content`), un sticker (`sticker`, sans texte) ou une pièce jointe (`attachment`, avec `content`
+        en légende facultative). 400 `EMPTY_MESSAGE` si rien n'est fourni, `INVALID_MESSAGE` si sticker et pièce
+        jointe sont combinés, `INVALID_STICKER`, `INVALID_ATTACHMENT` (signature, propriétaire ou type incorrects)
+        ou `ATTACHMENT_TOO_LARGE`.
       properties:
         content:
           type: string
           example: "Bonjour ! Seriez-vous disponible pour discuter des opportunités dans votre entreprise ?"
+        sticker:
+          type: string
+          pattern: "^[a-z0-9-]{1,40}$"
+          example: "bravo"
+        attachment:
+          $ref: "#/components/schemas/AttachmentUpload"
+
+    AttachmentKind:
+      type: string
+      description: IMAGE (photo), FILE (document) ou AUDIO (message vocal).
+      enum:
+        - IMAGE
+        - FILE
+        - AUDIO
+
+    MessageAttachment:
+      type: object
+      properties:
+        kind:
+          $ref: "#/components/schemas/AttachmentKind"
+        fileName:
+          type: string
+          example: "rapport-de-stage.pdf"
+        format:
+          type: string
+          example: "pdf"
+        sizeBytes:
+          type: integer
+          format: int64
+        durationSeconds:
+          type: number
+          format: double
+          description: Durée d'un message vocal.
+        width:
+          type: integer
+        height:
+          type: integer
+        url:
+          type: string
+          description: Lien signé vers le fichier (l'audio est servi en mp3, lisible par tous les navigateurs).
+        previewUrl:
+          type: string
+          description: Version réduite d'une image, pour l'affichage dans le fil.
+
+    AttachmentUpload:
+      type: object
+      description: >-
+        Réponse de Cloudinary à l'envoi du fichier, recopiée dans le message. Seuls `publicId` et `version` sont
+        signés : taille, format, durée et dimensions sont relus auprès du stockage par le service, les valeurs
+        envoyées ici sont indicatives.
+      required:
+        - kind
+        - publicId
+        - version
+        - signature
+        - fileName
+        - sizeBytes
+      properties:
+        kind:
+          $ref: "#/components/schemas/AttachmentKind"
+        publicId:
+          type: string
+          description: "`public_id` renvoyé par Cloudinary (celui de l'autorisation d'envoi)."
+        version:
+          type: integer
+          format: int64
+        signature:
+          type: string
+          description: "`signature` de la réponse de Cloudinary, vérifiée par le service."
+        format:
+          type: string
+        fileName:
+          type: string
+          description: Nom du fichier d'origine, affiché dans le fil.
+        sizeBytes:
+          type: integer
+          format: int64
+        durationSeconds:
+          type: number
+          format: double
+        width:
+          type: integer
+        height:
+          type: integer
+
+    AttachmentSettings:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        maxImageBytes:
+          type: integer
+          format: int64
+        maxFileBytes:
+          type: integer
+          format: int64
+        maxAudioSeconds:
+          type: integer
+        fileExtensions:
+          type: array
+          description: Extensions acceptées pour un document (FILE).
+          items:
+            type: string
+        imageExtensions:
+          type: array
+          items:
+            type: string
+
+    AttachmentUploadRequest:
+      type: object
+      required:
+        - kind
+        - fileName
+      properties:
+        kind:
+          $ref: "#/components/schemas/AttachmentKind"
+        fileName:
+          type: string
+          example: "rapport-de-stage.pdf"
+        groupId:
+          type: string
+          format: uuid
+        recipientId:
+          type: string
+          format: uuid
+
+    AttachmentUploadTicket:
+      type: object
+      properties:
+        uploadUrl:
+          type: string
+          example: "https://api.cloudinary.com/v1_1/demo/raw/upload"
+        apiKey:
+          type: string
+        timestamp:
+          type: integer
+          format: int64
+        signature:
+          type: string
+        publicId:
+          type: string
+        type:
+          type: string
+          example: "authenticated"
+        allowedFormats:
+          type: string
+          description: Formats acceptés par Cloudinary (champ `allowed_formats`), absent pour un document.
+        overwrite:
+          type: boolean
+          description: >-
+            Toujours false, à envoyer tel quel (champ `overwrite`, signé) : un fichier déjà déposé ne peut pas être
+            remplacé avec la même autorisation.
+          example: false
 
     EditMessageRequest:
       type: object
@@ -1228,6 +1468,8 @@ components:
           type: string
         lastMessageType:
           $ref: "#/components/schemas/GroupMessageType"
+        lastMessageAttachmentKind:
+          $ref: "#/components/schemas/AttachmentKind"
         lastMessageTime:
           type: string
           format: date-time
@@ -1280,10 +1522,14 @@ components:
 
     GroupMessageType:
       type: string
-      description: TEXT pour un message d'un membre, SYSTEM pour un événement du groupe (création, ajout, départ...).
+      description: |
+        TEXT pour un message d'un membre, SYSTEM pour un événement du groupe (création, ajout, départ...),
+        STICKER et ATTACHMENT (image, document ou message vocal). Aussi utilisé par la messagerie privée (jamais SYSTEM).
       enum:
         - TEXT
         - SYSTEM
+        - STICKER
+        - ATTACHMENT
 
     GroupMessage:
       type: object
@@ -1304,7 +1550,12 @@ components:
           $ref: "#/components/schemas/GroupMessageType"
         content:
           type: string
-          description: Texte du message ; vide si le message a été supprimé.
+          description: Texte du message, ou légende d'une pièce jointe ; vide si le message a été supprimé.
+        sticker:
+          type: string
+          description: Code du sticker quand `type` vaut STICKER.
+        attachment:
+          $ref: "#/components/schemas/MessageAttachment"
         deleted:
           type: boolean
         createdAt:
@@ -1361,6 +1612,12 @@ components:
             $ref: "#/components/schemas/ErrorResponse"
     NotFound:
       description: Ressource non trouvée
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    ServiceUnavailable:
+      description: Fonction indisponible (stockage des pièces jointes non configuré ou momentanément injoignable)
       content:
         application/json:
           schema:

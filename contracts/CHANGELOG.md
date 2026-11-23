@@ -1,5 +1,43 @@
 # Journal des modifications des contrats OpenAPI
 
+## 1.15.0 (pièces jointes : envoi sans remplacement, ALUM-261)
+
+Évolution compatible : un champ ajouté en réponse.
+
+### notification-messaging-service
+- `AttachmentUploadTicket.overwrite` (toujours false) : à renvoyer tel quel à Cloudinary ; signé, il empêche de
+  remplacer un fichier déjà déposé avec la même autorisation.
+- `AttachmentUpload` : seuls `publicId` et `version` sont signés ; taille, format, durée et dimensions sont relus auprès
+  du stockage (fichier refusé = effacé ; version différente = 400 `INVALID_ATTACHMENT`).
+- `ServiceUnavailable` couvre aussi un stockage momentanément injoignable (503 `STORAGE_UNAVAILABLE`).
+- Un fichier n'est joint qu'à un seul message (sinon 400 `INVALID_ATTACHMENT`) ; `MessageAttachment.fileName` prend
+  l'extension du fichier stocké.
+- Modification : refusée pour un sticker ou un message vocal (400 `INVALID_MESSAGE`) ; un texte vide retire la légende
+  d'une pièce jointe.
+
+### Version
+- `info.version` passe de 1.14.0 à **1.15.0**.
+
+## 1.14.0 (pièces jointes, stickers et messages vocaux, ALUM-261)
+
+Évolution compatible : aucune opération ni aucun champ retiré ; `SendMessageRequest.content` devient facultatif.
+
+### notification-messaging-service
+- Nouveau tag `MessageAttachments` : `GET /messages/attachments/settings` (`getAttachmentSettings`) et
+  `POST /messages/attachments/uploads` (`createAttachmentUpload`, autorisation d'envoi direct vers Cloudinary,
+  503 `ATTACHMENTS_DISABLED` sans stockage configuré). Nouvelle réponse `ServiceUnavailable`.
+- `GroupMessageType` : valeurs `STICKER` et `ATTACHMENT` ; le type sert aussi à la messagerie privée.
+- `SendMessageRequest` : `sticker` et `attachment` (`AttachmentUpload`) ; `content` n'est plus obligatoire (légende
+  d'une pièce jointe). Envoi privé et de groupe : réponse 503.
+- `PrivateMessage` et `GroupMessage` : champs `sticker` et `attachment` (`MessageAttachment`, lien signé) ;
+  `PrivateMessage` : champ `type`.
+- `ConversationSummary` : `lastMessageType` et `lastMessageAttachmentKind` ; `GroupSummary` : `lastMessageAttachmentKind`.
+- Nouveaux schémas : `AttachmentKind`, `MessageAttachment`, `AttachmentUpload`, `AttachmentSettings`,
+  `AttachmentUploadRequest`, `AttachmentUploadTicket`.
+- `info.version` passe de 1.13.0 à **1.14.0**.
+
+SPI `notification-messaging-service-spi` publié en **1.14.0** (pom parent `alumni-spis` 1.14.0).
+
 ## 1.13.0 (messagerie privée alignée sur les groupes, modification d'un message, ALUM-258)
 
 Évolution compatible : aucune opération ni aucun champ retiré ; seuls des opérations et des champs sont ajoutés.

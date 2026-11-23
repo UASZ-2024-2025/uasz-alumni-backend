@@ -13,6 +13,8 @@ import org.springframework.data.repository.query.Param;
 
 public interface PrivateMessageRepository extends JpaRepository<PrivateMessageEntity, UUID> {
 
+    boolean existsByAttachmentPublicId(String publicId);
+
     @Query("""
         select m from PrivateMessageEntity m
         where (m.senderId = :me and m.recipientId = :other)

@@ -53,7 +53,7 @@ final class GroupViews {
         return Preferences.view(me, now);
     }
 
-    static GroupMessage message(ChatGroupMessage m, ChatUser sender) {
+    static GroupMessage message(ChatGroupMessage m, ChatUser sender, MessageAttachments attachments) {
         return new GroupMessage()
                 .id(m.getId())
                 .groupId(m.getGroupId())
@@ -61,6 +61,8 @@ final class GroupViews {
                 .senderName(sender != null ? sender.getDisplayName() : null)
                 .type(m.getType())
                 .content(m.getContent())
+                .sticker(m.getSticker())
+                .attachment(attachments.view(m.getAttachment()))
                 .deleted(m.isDeleted())
                 .createdAt(m.getCreatedAt())
                 .editedAt(m.getEditedAt());

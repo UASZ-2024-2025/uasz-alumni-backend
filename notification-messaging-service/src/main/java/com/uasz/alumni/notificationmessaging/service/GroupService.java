@@ -10,6 +10,7 @@ import com.uasz.alumni.notificationmessaging.repository.ChatGroupMessageReposito
 import com.uasz.alumni.notificationmessaging.repository.ChatGroupRepository;
 import com.uasz.alumni.notificationmessaging.security.AuthenticatedUser;
 import com.uasz.alumni.notificationmessaging.spi.model.Group;
+import com.uasz.alumni.notificationmessaging.spi.model.SendMessageRequest;
 import com.uasz.alumni.notificationmessaging.spi.model.GroupCreateRequest;
 import com.uasz.alumni.notificationmessaging.spi.model.GroupMemberRole;
 import com.uasz.alumni.notificationmessaging.spi.model.GroupMemberRoleUpdateRequest;
@@ -64,14 +65,17 @@ public class GroupService {
     private final ChatGroupMemberRepository members;
     private final ChatGroupMessageRepository messages;
     private final ChatUserDirectory directory;
+    private final MessageAttachments attachments;
     private final Clock clock;
 
     public GroupService(ChatGroupRepository groups, ChatGroupMemberRepository members,
-                        ChatGroupMessageRepository messages, ChatUserDirectory directory, Clock clock) {
+                        ChatGroupMessageRepository messages, ChatUserDirectory directory,
+                        MessageAttachments attachments, Clock clock) {
         this.groups = groups;
         this.members = members;
         this.messages = messages;
         this.directory = directory;
+        this.attachments = attachments;
         this.clock = clock;
     }
 
@@ -101,6 +105,7 @@ public class GroupService {
                     .memberCount((int) members.countByGroupId(g.getId()))
                     .lastMessage(last.map(ChatGroupMessage::getContent).orElse(null))
                     .lastMessageType(last.map(ChatGroupMessage::getType).orElse(null))
+                    .lastMessageAttachmentKind(last.map(ChatGroupMessage::getAttachment).map(a -> a.getKind()).orElse(null))
                     .lastMessageTime(last.map(ChatGroupMessage::getCreatedAt).orElse(g.getCreatedAt()))
                     .unreadCount((int) messages.countUnread(g.getId(), caller.id(), readSince(me)))
                     .preferences(GroupViews.preferences(me, now)));
@@ -139,7 +144,7 @@ public class GroupService {
         java.util.Collections.reverse(chronological);
         Map<UUID, ChatUser> senders = directory.find(chronological.stream().map(ChatGroupMessage::getSenderId).toList());
         return new GroupMessagePagedResponse()
-                .content(chronological.stream().map(m -> GroupViews.message(m, senders.get(m.getSenderId()))).toList())
+                .content(chronological.stream().map(m -> GroupViews.message(m, senders.get(m.getSenderId()), attachments)).toList())
                 .totalElements((int) result.getTotalElements())
                 .page(p)
                 .size(s);
@@ -231,6 +236,7 @@ public class GroupService {
         if (!owner && !ADMINISTRATEUR.equals(caller.role())) {
             throw forbidden("Seul le propriétaire du groupe ou un administrateur peut le supprimer.");
         }
+        discardFiles(g.getId());
         groups.delete(g); // membres et messages suivent (ON DELETE CASCADE)
     }
 
@@ -294,6 +300,7 @@ public class GroupService {
         members.flush(); // libère l'index « un seul propriétaire » avant une éventuelle passation
         List<ChatGroupMember> remaining = members.findByGroupIdOrderByJoinedAtAsc(groupId);
         if (remaining.isEmpty()) {
+            discardFiles(groupId);
             groups.delete(g);
             return;
         }
@@ -314,18 +321,25 @@ public class GroupService {
 
     // ───── Messages ─────
 
+    /** Message texte. */
     public GroupMessage sendMessage(UUID groupId, String content, AuthenticatedUser caller) {
+        return sendMessage(groupId, new SendMessageRequest().content(content), caller);
+    }
+
+    /** Texte, sticker ou pièce jointe (ALUM-261, voir {@link MessageAttachments#compose}). */
+    public GroupMessage sendMessage(UUID groupId, SendMessageRequest request, AuthenticatedUser caller) {
         OffsetDateTime now = now();
         ChatGroup g = requireGroup(groupId);
         ChatGroupMember me = requireMember(groupId, caller);
         if (g.isOnlyAdminsCanSend() && !me.isGroupAdmin()) {
             throw forbidden("Seuls les administrateurs peuvent envoyer des messages dans ce groupe.");
         }
-        String text = validText(content);
-        ChatGroupMessage saved = messages.save(new ChatGroupMessage(groupId, caller.id(), GroupMessageType.TEXT, text, now));
+        MessageAttachments.Composed c = attachments.compose(request, caller.id(), GroupService::validText);
+        ChatGroupMessage saved = messages.save(
+                new ChatGroupMessage(groupId, caller.id(), c.type(), c.content(), c.sticker(), c.attachment(), now));
         g.touch(now);
         me.markRead(now); // son propre message n'est pas un non-lu
-        return GroupViews.message(saved, directory.find(List.of(caller.id())).get(caller.id()));
+        return GroupViews.message(saved, directory.find(List.of(caller.id())).get(caller.id()), attachments);
     }
 
     /**
@@ -341,6 +355,7 @@ public class GroupService {
         if (message.getType() == GroupMessageType.SYSTEM) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_MESSAGE", "Les messages système ne peuvent pas être modifiés.");
         }
+        attachments.requireEditable(message.getType(), message.getAttachment());
         if (!message.getSenderId().equals(caller.id())) {
             throw forbidden("Vous ne pouvez modifier que vos propres messages.");
         }
@@ -348,11 +363,11 @@ public class GroupService {
             throw forbidden("Seuls les administrateurs peuvent écrire dans ce groupe.");
         }
         MessageEdits.requireEditable(message.isDeleted(), message.getCreatedAt(), now);
-        String text = validText(content);
-        if (!text.equals(message.getContent())) {
+        String text = attachments.editedContent(message.getType(), content, GroupService::validText);
+        if (!Objects.equals(text, message.getContent())) {
             message.edit(text, now);
         }
-        return GroupViews.message(message, directory.find(List.of(caller.id())).get(caller.id()));
+        return GroupViews.message(message, directory.find(List.of(caller.id())).get(caller.id()), attachments);
     }
 
     /** L'auteur supprime son message ; OWNER et ADMIN suppriment celui de n'importe quel membre. */
@@ -370,7 +385,7 @@ public class GroupService {
         if (!message.getSenderId().equals(caller.id()) && !me.isGroupAdmin()) {
             throw forbidden("Vous ne pouvez supprimer que vos propres messages.");
         }
-        message.delete();
+        attachments.discard(message.delete());
     }
 
     public void markAsRead(UUID groupId, AuthenticatedUser caller) {
@@ -451,6 +466,11 @@ public class GroupService {
                     "Le nom du groupe doit contenir entre 3 et 100 caractères.");
         }
         return name;
+    }
+
+    /** Fichiers joints aux messages du groupe, effacés avec lui. */
+    private void discardFiles(UUID groupId) {
+        messages.findByGroupIdAndAttachmentPublicIdIsNotNull(groupId).forEach(m -> attachments.discard(m.getAttachment()));
     }
 
     private static String validText(String content) {

@@ -21,8 +21,9 @@ APP="$ROOT/app"
 ENV_FILE="$ROOT/demo.env"
 TAGS_FILE="$ROOT/tags.env"
 MAIL_FILE="$ROOT/mail.env"
+MEDIA_FILE="$ROOT/media.env"
 COMPOSE=(docker compose --project-directory "$APP/deploy/demo" -f "$APP/deploy/demo/compose.yml"
-         --env-file "$ENV_FILE" --env-file "$MAIL_FILE" --env-file "$TAGS_FILE")
+         --env-file "$ENV_FILE" --env-file "$MAIL_FILE" --env-file "$MEDIA_FILE" --env-file "$TAGS_FILE")
 HEALTH_TIMEOUT=${HEALTH_TIMEOUT:-420}
 
 log() { printf '[deploy %s] %s\n' "$(date -u +%H:%M:%S)" "$*"; }
@@ -38,8 +39,8 @@ while [ $# -gt 0 ]; do
 done
 
 [ -f "$ENV_FILE" ] || { echo "$ENV_FILE absent : lancer d'abord bootstrap.sh" >&2; exit 1; }
-touch "$TAGS_FILE" "$MAIL_FILE"
-chmod 600 "$MAIL_FILE"
+touch "$TAGS_FILE" "$MAIL_FILE" "$MEDIA_FILE"
+chmod 600 "$MAIL_FILE" "$MEDIA_FILE"
 
 # Un seul déploiement à la fois sur la machine
 exec 9>"$ROOT/.deploy.lock"
@@ -71,9 +72,9 @@ fi
 # 1b. SMTP réel (Brevo...) : si MAIL_SSM_PARAM est défini dans demo.env, mail.env est relu à chaque
 #     déploiement depuis ce paramètre SecureString (lignes MAIL_*=...). Paramètre absent -> Mailpit.
 MAIL_PARAM=$(sed -n 's/^MAIL_SSM_PARAM=//p' "$ENV_FILE" | tail -1)
+AWS_BIN=$(command -v aws || echo /snap/bin/aws)   # snap : hors du PATH des commandes SSM
+REGION=$(sed -n 's/^AWS_DEFAULT_REGION=//p' "$ENV_FILE" | tail -1)
 if [ -n "$MAIL_PARAM" ]; then
-  AWS_BIN=$(command -v aws || echo /snap/bin/aws)   # snap : hors du PATH des commandes SSM
-  REGION=$(sed -n 's/^AWS_DEFAULT_REGION=//p' "$ENV_FILE" | tail -1)
   if out=$("$AWS_BIN" ssm get-parameter --name "$MAIL_PARAM" --with-decryption ${REGION:+--region "$REGION"} \
              --query Parameter.Value --output text 2>&1); then
     printf '%s\n' "$out" | tr -d '\r' | grep -E '^MAIL_(HOST|PORT|USERNAME|PASSWORD|FROM|STARTTLS)=' \
@@ -88,6 +89,33 @@ if [ -n "$MAIL_PARAM" ]; then
 else
   # Jamais silencieux : on sait toujours d'où viennent les réglages SMTP
   log "e-mails : $(sed -n 's/^MAIL_HOST=//p' "$ENV_FILE" | tail -1 | grep . || echo Mailpit) (MAIL_SSM_PARAM non défini dans demo.env)"
+fi
+
+# 1c. Pièces jointes de la messagerie (ALUM-261, Cloudinary) : seulement sur la machine de notification-messaging
+#     (profil vm-b). media.env est relu à chaque déploiement depuis le paramètre SecureString CLOUDINARY_SSM_PARAM,
+#     ou à défaut <préfixe de MAIL_SSM_PARAM>/cloudinary (ex. /alumni-demo/cloudinary). Valeur du paramètre :
+#     cloudinary://<api_key>:<api_secret>@<cloud_name>. Paramètre absent -> pièces jointes désactivées.
+PROFILES=$(sed -n 's/^COMPOSE_PROFILES=//p' "$ENV_FILE" | tail -1)
+MEDIA_PARAM=$(sed -n 's/^CLOUDINARY_SSM_PARAM=//p' "$ENV_FILE" | tail -1)
+[ -n "$MEDIA_PARAM" ] || [ -z "$MAIL_PARAM" ] || MEDIA_PARAM="${MAIL_PARAM%/*}/cloudinary"
+if [[ ",${PROFILES:-vm-a,vm-b}," == *",vm-b,"* ]] && [ -n "$MEDIA_PARAM" ]; then
+  if out=$("$AWS_BIN" ssm get-parameter --name "$MEDIA_PARAM" --with-decryption ${REGION:+--region "$REGION"} \
+             --query Parameter.Value --output text 2>&1); then
+    # valeur acceptée : « cloudinary://... » ou « CLOUDINARY_URL=cloudinary://... »
+    url=$(printf '%s\n' "$out" | tr -d '\r' | sed -n 's#^\(CLOUDINARY_URL=\)\{0,1\}\(cloudinary://.*\)$#\2#p' | head -1)
+    if [ -n "$url" ]; then
+      printf 'CLOUDINARY_URL=%s\n' "$url" > "$MEDIA_FILE.new"; log "pièces jointes : Cloudinary ($MEDIA_PARAM)"
+    else
+      : > "$MEDIA_FILE.new"; log "pièces jointes : désactivées ($MEDIA_PARAM ne contient pas d'URL cloudinary://)"
+    fi
+  elif echo "$out" | grep -q ParameterNotFound; then
+    : > "$MEDIA_FILE.new"; log "pièces jointes : désactivées ($MEDIA_PARAM absent)"
+  else
+    cp "$MEDIA_FILE" "$MEDIA_FILE.new"; log "pièces jointes : $MEDIA_PARAM illisible, réglage actuel conservé"
+  fi
+  install -m 600 "$MEDIA_FILE.new" "$MEDIA_FILE" && rm -f "$MEDIA_FILE.new"
+elif [[ ",${PROFILES:-vm-a,vm-b}," == *",vm-b,"* ]]; then
+  log "pièces jointes : $(grep -q '^CLOUDINARY_URL=.' "$ENV_FILE" && echo 'CLOUDINARY_URL de demo.env' || echo désactivées) (aucun paramètre SSM)"
 fi
 
 # 2. Versions des images (USER_SERVICE_TAG=..., FRONTEND_TAG=...)

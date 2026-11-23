@@ -3,6 +3,7 @@ package com.uasz.alumni.notificationmessaging.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.uasz.alumni.notificationmessaging.config.AttachmentStorageConfig;
 import com.uasz.alumni.notificationmessaging.exceptions.ApiException;
 import com.uasz.alumni.notificationmessaging.repository.ChatGroupRepository;
 import com.uasz.alumni.notificationmessaging.security.AuthenticatedUser;
@@ -48,7 +49,8 @@ import org.springframework.test.context.DynamicPropertySource;
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({GroupService.class, ChatUserDirectory.class, GroupServiceIntegrationTest.Horloge.class})
+@Import({GroupService.class, ChatUserDirectory.class, MessageAttachments.class, AttachmentStorageConfig.class,
+        GroupServiceIntegrationTest.Horloge.class})
 class GroupServiceIntegrationTest {
 
     private static final EmbeddedPostgres POSTGRES = demarrer();
