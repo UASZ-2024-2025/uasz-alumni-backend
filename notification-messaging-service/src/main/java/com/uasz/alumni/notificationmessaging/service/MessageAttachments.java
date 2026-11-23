@@ -70,6 +70,13 @@ public class MessageAttachments {
     private final long maxImageBytes;
     private final long maxFileBytes;
     private final int maxAudioSeconds;
+    /**
+     * Débit plafond d'un vocal (octets par seconde, 256 kbit/s). Un enregistrement du navigateur (webm) n'indique souvent pas
+     * sa durée et le stockage ne la donne pas : la durée mesurée par le navigateur n'est alors acceptée que si la taille
+     * réelle du fichier reste celle d'un vocal de la durée maximale (attachments.audio-max-bytes-per-second).
+     */
+    @Value("${attachments.audio-max-bytes-per-second:32000}")
+    private long audioMaxBytesPerSecond = 32_000;
 
     public MessageAttachments(AttachmentStorage storage, ChatGroupRepository groups, ChatGroupMemberRepository members,
                               ChatGroupMessageRepository groupMessages, PrivateMessageRepository privateMessages,
@@ -229,7 +236,9 @@ public class MessageAttachments {
             // fichier remplacé depuis la réponse signée : ce n'est plus celui qui a été envoyé
             throw badRequest("INVALID_ATTACHMENT", "Pièce jointe modifiée depuis l'envoi : renvoyez le fichier.");
         }
-        StoredAttachment candidate = new StoredAttachment(kind, publicId, upload.getVersion(), null, fileName, 0, null, null, null);
+        // seule valeur venue du navigateur : la durée d'un vocal, utilisée si le stockage ne la donne pas (voir checkLimits)
+        StoredAttachment candidate = new StoredAttachment(kind, publicId, upload.getVersion(), null, fileName, 0,
+                kind == AttachmentKind.AUDIO ? upload.getDurationSeconds() : null, null, null);
         try {
             return checkLimits(candidate, stored);
         } catch (ApiException refused) {
@@ -257,6 +266,7 @@ public class MessageAttachments {
         String publicId = candidate.getPublicId();
         String format = stored.format() == null ? null : stored.format().toLowerCase(Locale.ROOT);
         long size = stored.bytes();
+        Double duration = null;
         if (size < 0) {
             throw badRequest("INVALID_ATTACHMENT", "Taille de la pièce jointe inconnue : renvoyez le fichier.");
         }
@@ -275,9 +285,17 @@ public class MessageAttachments {
                 requireSize(size, maxFileBytes);
             }
             case AUDIO -> {
-                Double duration = stored.durationSeconds();
+                duration = stored.durationSeconds();
                 if (duration == null) {
-                    throw badRequest("INVALID_ATTACHMENT", "Durée du message vocal illisible : renvoyez-le.");
+                    Double measured = candidate.getDurationSeconds();
+                    if (measured == null || !Double.isFinite(measured) || measured <= 0) {
+                        throw badRequest("INVALID_ATTACHMENT", "Durée du message vocal illisible : renvoyez-le.");
+                    }
+                    if (size > (long) maxAudioSeconds * audioMaxBytesPerSecond) {
+                        throw badRequest("ATTACHMENT_TOO_LARGE",
+                                "Message vocal trop long (" + maxAudioSeconds + " secondes au maximum).");
+                    }
+                    duration = measured;
                 }
                 if (duration > maxAudioSeconds + AUDIO_TOLERANCE_SECONDS) {
                     throw badRequest("ATTACHMENT_TOO_LARGE",
@@ -287,7 +305,7 @@ public class MessageAttachments {
             }
         }
         return new StoredAttachment(kind, publicId, candidate.getVersion(), format, displayName(candidate.getFileName(), format), size,
-                kind == AttachmentKind.AUDIO ? stored.durationSeconds() : null,
+                duration,
                 kind == AttachmentKind.IMAGE ? stored.width() : null,
                 kind == AttachmentKind.IMAGE ? stored.height() : null);
     }
