@@ -1,5 +1,19 @@
 # Journal des modifications des contrats OpenAPI
 
+## 1.15.0 (pièces jointes : envoi sans remplacement, ALUM-261)
+
+Évolution compatible : un champ ajouté en réponse.
+
+### notification-messaging-service
+- `AttachmentUploadTicket.overwrite` (toujours false) : à renvoyer tel quel à Cloudinary ; signé, il empêche de
+  remplacer un fichier déjà déposé avec la même autorisation.
+- `AttachmentUpload` : seuls `publicId` et `version` sont signés ; taille, format, durée et dimensions sont relus auprès
+  du stockage (fichier refusé = effacé ; version différente = 400 `INVALID_ATTACHMENT`).
+- `ServiceUnavailable` couvre aussi un stockage momentanément injoignable (503 `STORAGE_UNAVAILABLE`).
+
+### Version
+- `info.version` passe de 1.14.0 à **1.15.0**.
+
 ## 1.14.0 (pièces jointes, stickers et messages vocaux, ALUM-261)
 
 Évolution compatible : aucune opération ni aucun champ retiré ; `SendMessageRequest.content` devient facultatif.
@@ -7,8 +21,7 @@
 ### notification-messaging-service
 - Nouveau tag `MessageAttachments` : `GET /messages/attachments/settings` (`getAttachmentSettings`) et
   `POST /messages/attachments/uploads` (`createAttachmentUpload`, autorisation d'envoi direct vers Cloudinary,
-  503 `ATTACHMENTS_DISABLED` sans stockage configuré ; `overwrite` toujours false, signé). Nouvelle réponse
-  `ServiceUnavailable`. Taille, format et durée d'une pièce jointe sont relus auprès du stockage.
+  503 `ATTACHMENTS_DISABLED` sans stockage configuré). Nouvelle réponse `ServiceUnavailable`.
 - `GroupMessageType` : valeurs `STICKER` et `ATTACHMENT` ; le type sert aussi à la messagerie privée.
 - `SendMessageRequest` : `sticker` et `attachment` (`AttachmentUpload`) ; `content` n'est plus obligatoire (légende
   d'une pièce jointe). Envoi privé et de groupe : réponse 503.
