@@ -72,6 +72,7 @@ class MessageAttachmentsIntegrationTest {
         registry.add("attachments.max-image-bytes", () -> 1000);
         registry.add("attachments.max-file-bytes", () -> 2000);
         registry.add("attachments.max-audio-seconds", () -> 60);
+        registry.add("attachments.audio-max-bytes-per-second", () -> 10); // plafond : 600 octets pour 60 s
     }
 
     @AfterAll
@@ -383,6 +384,25 @@ class MessageAttachmentsIntegrationTest {
 
             PrivateMessage texte = prive.send(awa.id(), fatou.id(), "Bonjour");
             refuse(() -> prive.edit(awa.id(), texte.getId(), " "), HttpStatus.BAD_REQUEST, "EMPTY_MESSAGE");
+        }
+
+        @Test
+        void unVocalSansDureeCoteStockagePrendCelleDuNavigateurSiSaTailleResteCelleDUnVocal() {
+            // webm enregistré par le navigateur : pas de durée dans le fichier, le stockage n'en donne pas
+            AttachmentUpload vocal = reel(envoi(awa, AttachmentKind.AUDIO, "", 500).durationSeconds(8.5),
+                    new AttachmentStorage.StoredFile(7, 500, "webm", null, null, null));
+            assertThat(prive.send(awa.id(), fatou.id(), piece(vocal)).getAttachment().getDurationSeconds()).isEqualTo(8.5);
+
+            AttachmentUpload annonceTropLong = reel(envoi(awa, AttachmentKind.AUDIO, "", 10).durationSeconds(600.0),
+                    new AttachmentStorage.StoredFile(7, 10, "webm", null, null, null));
+            refuse(() -> prive.send(awa.id(), fatou.id(), piece(annonceTropLong)), HttpStatus.BAD_REQUEST, "ATTACHMENT_TOO_LARGE");
+
+            // le navigateur annonce 5 s, mais le fichier pèse plus qu'un vocal de 60 s (10 octets/s ici)
+            long tropLourd = 1500;
+            AttachmentUpload menteur = reel(envoi(awa, AttachmentKind.AUDIO, "", 10).durationSeconds(5.0),
+                    new AttachmentStorage.StoredFile(7, tropLourd, "webm", null, null, null));
+            refuse(() -> prive.send(awa.id(), fatou.id(), piece(menteur)), HttpStatus.BAD_REQUEST, "ATTACHMENT_TOO_LARGE");
+            assertThat(stockage.effaces).contains(annonceTropLong.getPublicId(), menteur.getPublicId());
         }
 
         @Test
