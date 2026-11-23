@@ -275,7 +275,7 @@ class MessageAttachmentsIntegrationTest {
             assertThat(m.getAttachment().getPreviewUrl()).isEqualTo("https://stockage/apercu/" + photo.getPublicId());
 
             PrivateMessage vu = prive.getConversation(fatou.id(), awa.id(), 0, 10).getContent().getFirst();
-            assertThat(vu.getAttachment().getFileName()).isEqualTo(photo.getFileName());
+            assertThat(vu.getAttachment().getFileName()).isEqualTo("fichier.jpg"); // extension du fichier stocké
             ConversationSummary resume = prive.listConversations(fatou.id()).getFirst();
             assertThat(resume.getLastMessageType()).isEqualTo(GroupMessageType.ATTACHMENT);
             assertThat(resume.getLastMessageAttachmentKind()).isEqualTo(AttachmentKind.IMAGE);
@@ -334,6 +334,55 @@ class MessageAttachmentsIntegrationTest {
             assertThat(m.getAttachment().getFormat()).isEqualTo("jpg");
             assertThat(m.getAttachment().getSizeBytes()).isEqualTo(100L);
             assertThat(m.getAttachment().getWidth()).isEqualTo(1200);
+        }
+
+        @Test
+        void unMemeFichierNEstJointQuAUnSeulMessage() {
+            Group g = groupe();
+            AttachmentUpload doc = envoi(awa, AttachmentKind.FILE, ".pdf", 10);
+            prive.send(awa.id(), fatou.id(), piece(doc));
+            refuse(() -> prive.send(awa.id(), fatou.id(), piece(doc)), HttpStatus.BAD_REQUEST, "INVALID_ATTACHMENT");
+            refuse(() -> groups.sendMessage(g.getId(), piece(doc), awa), HttpStatus.BAD_REQUEST, "INVALID_ATTACHMENT");
+
+            AttachmentUpload photo = envoi(awa, AttachmentKind.IMAGE, "", 10);
+            groups.sendMessage(g.getId(), piece(photo), awa);
+            refuse(() -> prive.send(awa.id(), fatou.id(), piece(photo)), HttpStatus.BAD_REQUEST, "INVALID_ATTACHMENT");
+            // le fichier reste : il appartient au premier message
+            assertThat(stockage.effaces).isEmpty();
+        }
+
+        @Test
+        void uneLegendeTropLongueEstRefuseeAvantDeLireLeStockage() {
+            AttachmentUpload doc = envoi(awa, AttachmentKind.FILE, ".pdf", 10);
+            stockage.injoignable = true; // le stockage n'est pas consulté
+            refuse(() -> prive.send(awa.id(), fatou.id(), piece(doc).content("x".repeat(5001))),
+                    HttpStatus.BAD_REQUEST, "MESSAGE_TOO_LONG");
+            assertThat(stockage.effaces).isEmpty();
+        }
+
+        @Test
+        void leNomAfficheReprendLExtensionDuFichierStocke() {
+            AttachmentUpload photo = envoi(awa, AttachmentKind.IMAGE, "", 10).fileName("vacances.png");
+            assertThat(prive.send(awa.id(), fatou.id(), piece(photo)).getAttachment().getFileName()).isEqualTo("vacances.jpg");
+            AttachmentUpload doc = envoi(awa, AttachmentKind.FILE, ".pdf", 10).fileName("rapport.docx");
+            assertThat(prive.send(awa.id(), fatou.id(), piece(doc)).getAttachment().getFileName()).isEqualTo("rapport.pdf");
+            assertThat(MessageAttachments.displayName("CV final.PDF", "pdf")).isEqualTo("CV final.PDF"); // même extension, casse gardée;
+            assertThat(MessageAttachments.displayName("a".repeat(255), "pdf")).hasSize(255).endsWith("a.pdf");
+        }
+
+        @Test
+        void unVocalNeSeModifiePasEtLaLegendeDUnePieceJointeSeRetire() {
+            PrivateMessage vocal = prive.send(awa.id(), fatou.id(), piece(envoi(awa, AttachmentKind.AUDIO, "", 10)).content("Écoute"));
+            refuse(() -> prive.edit(awa.id(), vocal.getId(), "Écoute ça"), HttpStatus.BAD_REQUEST, "INVALID_MESSAGE");
+
+            PrivateMessage doc = prive.send(awa.id(), fatou.id(), piece(envoi(awa, AttachmentKind.FILE, ".pdf", 10)).content("Le sujet"));
+            PrivateMessage sansLegende = prive.edit(awa.id(), doc.getId(), "  ");
+            assertThat(sansLegende.getContent()).isNull();
+            assertThat(sansLegende.getEditedAt()).isNotNull();
+            assertThat(sansLegende.getAttachment()).isNotNull();
+
+            PrivateMessage texte = prive.send(awa.id(), fatou.id(), "Bonjour");
+            refuse(() -> prive.edit(awa.id(), texte.getId(), " "), HttpStatus.BAD_REQUEST, "EMPTY_MESSAGE");
         }
 
         @Test
@@ -408,6 +457,10 @@ class MessageAttachmentsIntegrationTest {
             GroupMessage modifie = groups.editMessage(g.getId(), m.getId(), "Le sujet de l'examen", awa);
             assertThat(modifie.getContent()).isEqualTo("Le sujet de l'examen");
             assertThat(modifie.getAttachment()).isNotNull();
+            assertThat(groups.editMessage(g.getId(), m.getId(), "", awa).getContent()).isNull();
+
+            GroupMessage vocal = groups.sendMessage(g.getId(), piece(envoi(awa, AttachmentKind.AUDIO, "", 10)), awa);
+            refuse(() -> groups.editMessage(g.getId(), vocal.getId(), "Écoute", awa), HttpStatus.BAD_REQUEST, "INVALID_MESSAGE");
         }
 
         @Test

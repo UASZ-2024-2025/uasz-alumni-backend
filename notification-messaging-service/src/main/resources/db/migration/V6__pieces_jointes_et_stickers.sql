@@ -42,3 +42,10 @@ ALTER TABLE private_message
         OR (type = 'STICKER' AND sticker IS NOT NULL)
         OR (type = 'ATTACHMENT' AND attachment_public_id IS NOT NULL)),
     ADD CONSTRAINT chk_private_message_attachment_kind CHECK (attachment_kind IN ('IMAGE', 'FILE', 'AUDIO'));
+
+-- Un fichier n'appartient qu'à un message : sinon supprimer l'un effacerait le fichier de l'autre.
+-- (Un message supprimé perd son attachment_public_id, l'index ne le compte plus.)
+CREATE UNIQUE INDEX uq_chat_group_messages_attachment ON chat_group_messages (attachment_public_id)
+    WHERE attachment_public_id IS NOT NULL;
+CREATE UNIQUE INDEX uq_private_message_attachment ON private_message (attachment_public_id)
+    WHERE attachment_public_id IS NOT NULL;

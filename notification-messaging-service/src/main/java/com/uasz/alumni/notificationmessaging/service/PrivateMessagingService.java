@@ -8,7 +8,6 @@ import com.uasz.alumni.notificationmessaging.repository.PrivateConversationPrefe
 import com.uasz.alumni.notificationmessaging.repository.PrivateMessageRepository;
 import com.uasz.alumni.notificationmessaging.spi.model.ConversationSummary;
 import com.uasz.alumni.notificationmessaging.spi.model.GroupPreferences;
-import com.uasz.alumni.notificationmessaging.spi.model.GroupMessageType;
 import com.uasz.alumni.notificationmessaging.spi.model.GroupPreferencesUpdateRequest;
 import com.uasz.alumni.notificationmessaging.spi.model.PrivateMessage;
 import com.uasz.alumni.notificationmessaging.spi.model.PrivateMessagePagedResponse;
@@ -23,6 +22,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
@@ -142,13 +142,11 @@ public class PrivateMessagingService {
     @Transactional
     public PrivateMessage edit(UUID me, UUID messageId, String content) {
         PrivateMessageEntity m = requireOwnMessage(me, messageId);
-        if (m.getType() == GroupMessageType.STICKER) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_MESSAGE", "Un sticker ne peut pas être modifié.");
-        }
+        attachments.requireEditable(m.getType(), m.getAttachment());
         Instant now = now().toInstant();
         MessageEdits.requireEditable(m.isDeleted(), toOffset(m.getSentAt()), toOffset(now));
-        String text = validText(content);
-        if (!text.equals(m.getContent())) {
+        String text = attachments.editedContent(m.getType(), content, PrivateMessagingService::validText);
+        if (!Objects.equals(text, m.getContent())) {
             m.edit(text, now);
         }
         return toDto(m, directory.find(Set.of(m.getSenderId(), m.getRecipientId())));

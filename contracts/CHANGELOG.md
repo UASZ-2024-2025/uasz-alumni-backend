@@ -10,6 +10,10 @@
 - `AttachmentUpload` : seuls `publicId` et `version` sont signés ; taille, format, durée et dimensions sont relus auprès
   du stockage (fichier refusé = effacé ; version différente = 400 `INVALID_ATTACHMENT`).
 - `ServiceUnavailable` couvre aussi un stockage momentanément injoignable (503 `STORAGE_UNAVAILABLE`).
+- Un fichier n'est joint qu'à un seul message (sinon 400 `INVALID_ATTACHMENT`) ; `MessageAttachment.fileName` prend
+  l'extension du fichier stocké.
+- Modification : refusée pour un sticker ou un message vocal (400 `INVALID_MESSAGE`) ; un texte vide retire la légende
+  d'une pièce jointe.
 
 ### Version
 - `info.version` passe de 1.14.0 à **1.15.0**.

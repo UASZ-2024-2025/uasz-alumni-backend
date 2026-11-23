@@ -21,6 +21,8 @@ public interface ChatGroupMessageRepository extends JpaRepository<ChatGroupMessa
     /** Messages à pièce jointe d'un groupe (fichiers à effacer quand le groupe disparaît). */
     java.util.List<ChatGroupMessage> findByGroupIdAndAttachmentPublicIdIsNotNull(UUID groupId);
 
+    boolean existsByAttachmentPublicId(String publicId);
+
     /** Non-lus : messages TEXT non supprimés des autres membres, postérieurs à la dernière lecture. */
     @Query("""
             select count(m) from ChatGroupMessage m

@@ -355,9 +355,7 @@ public class GroupService {
         if (message.getType() == GroupMessageType.SYSTEM) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_MESSAGE", "Les messages système ne peuvent pas être modifiés.");
         }
-        if (message.getType() == GroupMessageType.STICKER) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_MESSAGE", "Un sticker ne peut pas être modifié.");
-        }
+        attachments.requireEditable(message.getType(), message.getAttachment());
         if (!message.getSenderId().equals(caller.id())) {
             throw forbidden("Vous ne pouvez modifier que vos propres messages.");
         }
@@ -365,8 +363,8 @@ public class GroupService {
             throw forbidden("Seuls les administrateurs peuvent écrire dans ce groupe.");
         }
         MessageEdits.requireEditable(message.isDeleted(), message.getCreatedAt(), now);
-        String text = validText(content);
-        if (!text.equals(message.getContent())) {
+        String text = attachments.editedContent(message.getType(), content, GroupService::validText);
+        if (!Objects.equals(text, message.getContent())) {
             message.edit(text, now);
         }
         return GroupViews.message(message, directory.find(List.of(caller.id())).get(caller.id()), attachments);

@@ -5,7 +5,9 @@ import com.uasz.alumni.notificationmessaging.model.ChatGroup;
 import com.uasz.alumni.notificationmessaging.model.ChatGroupMember;
 import com.uasz.alumni.notificationmessaging.model.StoredAttachment;
 import com.uasz.alumni.notificationmessaging.repository.ChatGroupMemberRepository;
+import com.uasz.alumni.notificationmessaging.repository.ChatGroupMessageRepository;
 import com.uasz.alumni.notificationmessaging.repository.ChatGroupRepository;
+import com.uasz.alumni.notificationmessaging.repository.PrivateMessageRepository;
 import com.uasz.alumni.notificationmessaging.spi.model.AttachmentKind;
 import com.uasz.alumni.notificationmessaging.spi.model.AttachmentSettings;
 import com.uasz.alumni.notificationmessaging.spi.model.AttachmentUpload;
@@ -33,7 +35,8 @@ import org.springframework.transaction.event.TransactionalEventListener;
  * <ul>
  *   <li>Autorisation d'envoi : le fichier est rangé sous {@code <dossier>/<id de l'auteur>/<uuid>} ; seul celui qui
  *       peut écrire dans la conversation l'obtient.</li>
- *   <li>À l'envoi du message, la réponse du stockage est vérifiée (signature, auteur, type, taille).</li>
+ *   <li>À l'envoi du message, la réponse du stockage est vérifiée (signature, auteur, type, taille) ; un fichier
+ *       n'est joint qu'à un seul message.</li>
  *   <li>Un message supprimé efface son fichier, après la validation de la transaction.</li>
  * </ul>
  */
@@ -60,6 +63,8 @@ public class MessageAttachments {
     private final AttachmentStorage storage;
     private final ChatGroupRepository groups;
     private final ChatGroupMemberRepository members;
+    private final ChatGroupMessageRepository groupMessages;
+    private final PrivateMessageRepository privateMessages;
     private final ApplicationEventPublisher events;
     private final String folder;
     private final long maxImageBytes;
@@ -67,6 +72,7 @@ public class MessageAttachments {
     private final int maxAudioSeconds;
 
     public MessageAttachments(AttachmentStorage storage, ChatGroupRepository groups, ChatGroupMemberRepository members,
+                              ChatGroupMessageRepository groupMessages, PrivateMessageRepository privateMessages,
                               ApplicationEventPublisher events,
                               @Value("${attachments.folder:alumni-uasz/messages}") String folder,
                               @Value("${attachments.max-image-bytes:10485760}") long maxImageBytes,
@@ -75,6 +81,8 @@ public class MessageAttachments {
         this.storage = storage;
         this.groups = groups;
         this.members = members;
+        this.groupMessages = groupMessages;
+        this.privateMessages = privateMessages;
         this.events = events;
         this.folder = folder.replaceAll("^/+|/+$", "");
         this.maxImageBytes = maxImageBytes;
@@ -141,10 +149,32 @@ public class MessageAttachments {
             return new Composed(GroupMessageType.STICKER, null, request.getSticker(), null);
         }
         if (request.getAttachment() != null) {
-            StoredAttachment attachment = verify(request.getAttachment(), caller);
-            return new Composed(GroupMessageType.ATTACHMENT, hasText ? validText.apply(content) : null, null, attachment);
+            // légende contrôlée avant le fichier : un refus ici ne fait pas lire (ni effacer) le stockage
+            String caption = hasText ? validText.apply(content) : null;
+            return new Composed(GroupMessageType.ATTACHMENT, caption, null, verify(request.getAttachment(), caller));
         }
         return new Composed(GroupMessageType.TEXT, validText.apply(content), null, null);
+    }
+
+    /** Refuse la modification d'un sticker ou d'un message vocal (rien à corriger dans le texte). */
+    public void requireEditable(GroupMessageType type, StoredAttachment attachment) {
+        if (type == GroupMessageType.STICKER) {
+            throw badRequest("INVALID_MESSAGE", "Un sticker ne peut pas être modifié.");
+        }
+        if (attachment != null && attachment.getKind() == AttachmentKind.AUDIO) {
+            throw badRequest("INVALID_MESSAGE", "Un message vocal ne peut pas être modifié.");
+        }
+    }
+
+    /**
+     * Nouveau texte d'un message modifié : obligatoire pour un message texte ; pour une pièce jointe, la légende
+     * peut être retirée (texte vide → pas de légende).
+     */
+    public String editedContent(GroupMessageType type, String content, UnaryOperator<String> validText) {
+        if (type == GroupMessageType.ATTACHMENT && (content == null || content.isBlank())) {
+            return null;
+        }
+        return validText.apply(content);
     }
 
     /** Vue d'une pièce jointe avec ses liens signés ; null sans pièce jointe. */
@@ -187,6 +217,10 @@ public class MessageAttachments {
                 || !publicId.startsWith(folder + "/" + caller + "/")
                 || !storage.isAuthentic(publicId, upload.getVersion(), upload.getSignature())) {
             throw badRequest("INVALID_ATTACHMENT", "Pièce jointe invalide : renvoyez le fichier.");
+        }
+        if (groupMessages.existsByAttachmentPublicId(publicId) || privateMessages.existsByAttachmentPublicId(publicId)) {
+            // déjà joint à un autre message (qui le garde) : le supprimer effacerait le fichier des deux
+            throw badRequest("INVALID_ATTACHMENT", "Pièce jointe déjà envoyée : renvoyez le fichier.");
         }
         String fileName = fileName(upload.getFileName());
         // Taille, durée, format et dimensions : ceux du fichier réellement stocké, jamais ceux annoncés par le navigateur.
@@ -252,7 +286,7 @@ public class MessageAttachments {
                 requireSize(size, maxFileBytes);
             }
         }
-        return new StoredAttachment(kind, publicId, candidate.getVersion(), format, candidate.getFileName(), size,
+        return new StoredAttachment(kind, publicId, candidate.getVersion(), format, displayName(candidate.getFileName(), format), size,
                 kind == AttachmentKind.AUDIO ? stored.durationSeconds() : null,
                 kind == AttachmentKind.IMAGE ? stored.width() : null,
                 kind == AttachmentKind.IMAGE ? stored.height() : null);
@@ -305,6 +339,17 @@ public class MessageAttachments {
             throw badRequest("INVALID_ATTACHMENT", "Nom de fichier manquant.");
         }
         return name.length() > MAX_FILE_NAME ? name.substring(name.length() - MAX_FILE_NAME) : name;
+    }
+
+    /** Nom affiché avec l'extension du fichier réellement stocké (« photo.png » devient « photo.jpg » si c'est un jpg). */
+    static String displayName(String name, String format) {
+        String extension = extension(name);
+        if (format == null || format.equals(extension)) {
+            return name;
+        }
+        String base = extension.isEmpty() ? name : name.substring(0, name.length() - extension.length() - 1);
+        String suffix = "." + format;
+        return base.substring(0, Math.min(base.length(), MAX_FILE_NAME - suffix.length())) + suffix;
     }
 
     private static ApiException badRequest(String code, String message) {
