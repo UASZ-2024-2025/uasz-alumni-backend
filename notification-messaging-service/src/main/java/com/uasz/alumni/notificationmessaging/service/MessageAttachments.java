@@ -189,10 +189,38 @@ public class MessageAttachments {
             throw badRequest("INVALID_ATTACHMENT", "Pièce jointe invalide : renvoyez le fichier.");
         }
         String fileName = fileName(upload.getFileName());
-        String format = upload.getFormat() == null ? null : upload.getFormat().toLowerCase(Locale.ROOT);
-        long size = upload.getSizeBytes() == null ? -1 : upload.getSizeBytes();
+        // Taille, durée, format et dimensions : ceux du fichier réellement stocké, jamais ceux annoncés par le navigateur.
+        AttachmentStorage.StoredFile stored = describe(publicId, kind);
+        StoredAttachment candidate = new StoredAttachment(kind, publicId, upload.getVersion(), null, fileName, 0, null, null, null);
+        try {
+            return checkLimits(candidate, stored);
+        } catch (ApiException refused) {
+            storage.delete(candidate); // fichier refusé : il ne doit pas rester chez le stockage
+            throw refused;
+        }
+    }
+
+    private AttachmentStorage.StoredFile describe(String publicId, AttachmentKind kind) {
+        AttachmentStorage.StoredFile stored;
+        try {
+            stored = storage.describe(publicId, kind);
+        } catch (AttachmentStorage.StorageUnavailableException e) {
+            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "STORAGE_UNAVAILABLE",
+                    "Le stockage des pièces jointes ne répond pas : réessayez dans un instant.");
+        }
+        if (stored == null) {
+            throw badRequest("INVALID_ATTACHMENT", "Pièce jointe introuvable : renvoyez le fichier.");
+        }
+        return stored;
+    }
+
+    private StoredAttachment checkLimits(StoredAttachment candidate, AttachmentStorage.StoredFile stored) {
+        AttachmentKind kind = candidate.getKind();
+        String publicId = candidate.getPublicId();
+        String format = stored.format() == null ? null : stored.format().toLowerCase(Locale.ROOT);
+        long size = stored.bytes();
         if (size < 0) {
-            throw badRequest("INVALID_ATTACHMENT", "Taille de la pièce jointe manquante.");
+            throw badRequest("INVALID_ATTACHMENT", "Taille de la pièce jointe inconnue : renvoyez le fichier.");
         }
         switch (kind) {
             case IMAGE -> {
@@ -209,18 +237,21 @@ public class MessageAttachments {
                 requireSize(size, maxFileBytes);
             }
             case AUDIO -> {
-                Double duration = upload.getDurationSeconds();
-                if (duration != null && duration > maxAudioSeconds + AUDIO_TOLERANCE_SECONDS) {
+                Double duration = stored.durationSeconds();
+                if (duration == null) {
+                    throw badRequest("INVALID_ATTACHMENT", "Durée du message vocal illisible : renvoyez-le.");
+                }
+                if (duration > maxAudioSeconds + AUDIO_TOLERANCE_SECONDS) {
                     throw badRequest("ATTACHMENT_TOO_LARGE",
                             "Message vocal trop long (" + maxAudioSeconds + " secondes au maximum).");
                 }
                 requireSize(size, maxFileBytes);
             }
         }
-        return new StoredAttachment(kind, publicId, upload.getVersion(), format, fileName, size,
-                kind == AttachmentKind.AUDIO ? upload.getDurationSeconds() : null,
-                kind == AttachmentKind.IMAGE ? upload.getWidth() : null,
-                kind == AttachmentKind.IMAGE ? upload.getHeight() : null);
+        return new StoredAttachment(kind, publicId, candidate.getVersion(), format, candidate.getFileName(), size,
+                kind == AttachmentKind.AUDIO ? stored.durationSeconds() : null,
+                kind == AttachmentKind.IMAGE ? stored.width() : null,
+                kind == AttachmentKind.IMAGE ? stored.height() : null);
     }
 
     private void requireCanWriteInGroup(UUID groupId, UUID caller) {

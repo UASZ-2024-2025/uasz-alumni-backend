@@ -23,6 +23,11 @@ public class DisabledAttachmentStorage implements AttachmentStorage {
     }
 
     @Override
+    public StoredFile describe(String publicId, AttachmentKind kind) {
+        return null;
+    }
+
+    @Override
     public String url(StoredAttachment attachment) {
         return null;
     }

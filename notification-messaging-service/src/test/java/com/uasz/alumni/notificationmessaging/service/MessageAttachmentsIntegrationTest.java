@@ -27,7 +27,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -80,7 +82,18 @@ class MessageAttachmentsIntegrationTest {
     /** Stockage simulé : une réponse est authentique si sa signature vaut « sig-<publicId>-<version> ». */
     static class FauxStockage implements AttachmentStorage {
         boolean actif = true;
+        boolean injoignable = false;
         final List<String> effaces = new CopyOnWriteArrayList<>();
+        /** Fichiers réellement déposés : ce que le stockage en dit, quoi qu'annonce le navigateur. */
+        final Map<String, StoredFile> fichiers = new ConcurrentHashMap<>();
+
+        @Override
+        public StoredFile describe(String publicId, AttachmentKind kind) {
+            if (injoignable) {
+                throw new StorageUnavailableException("panne", null);
+            }
+            return fichiers.get(publicId);
+        }
 
         @Override public boolean enabled() { return actif; }
 
@@ -124,7 +137,9 @@ class MessageAttachmentsIntegrationTest {
     @BeforeEach
     void utilisateurs() {
         stockage.actif = true;
+        stockage.injoignable = false;
         stockage.effaces.clear();
+        stockage.fichiers.clear();
         fatou = connecte("Fatou Sow", "ENSEIGNANT");
         awa = connecte("Awa Diop", "ALUMNI");
         intrus = connecte("Ibou Ba", "ETUDIANT");
@@ -147,11 +162,25 @@ class MessageAttachmentsIntegrationTest {
         });
     }
 
-    /** Réponse d'envoi telle que le navigateur la recopie, pour un fichier rangé chez {@code auteur}. */
-    private static AttachmentUpload envoi(AuthenticatedUser auteur, AttachmentKind kind, String suffixe, long taille) {
+    /**
+     * Fichier déposé chez le stockage pour {@code auteur} ({@code taille} octets ; image jpg 1200x800, vocal de 10 s),
+     * et réponse d'envoi telle que le navigateur la recopie.
+     */
+    private AttachmentUpload envoi(AuthenticatedUser auteur, AttachmentKind kind, String suffixe, long taille) {
         String publicId = DOSSIER + "/" + auteur.id() + "/" + UUID.randomUUID() + suffixe;
+        stockage.fichiers.put(publicId, switch (kind) {
+            case IMAGE -> new AttachmentStorage.StoredFile(taille, "jpg", null, 1200, 800);
+            case AUDIO -> new AttachmentStorage.StoredFile(taille, "webm", 10.0, null, null);
+            case FILE -> new AttachmentStorage.StoredFile(taille, null, null, null, null);
+        });
         return new AttachmentUpload().kind(kind).publicId(publicId).version(7L).signature("sig-" + publicId + "-7")
                 .fileName("fichier" + suffixe).sizeBytes(taille);
+    }
+
+    /** Ce que le stockage dit vraiment du fichier (remplace la description par défaut d'{@link #envoi}). */
+    private AttachmentUpload reel(AttachmentUpload upload, AttachmentStorage.StoredFile fichier) {
+        stockage.fichiers.put(upload.getPublicId(), fichier);
+        return upload;
     }
 
     private static SendMessageRequest piece(AttachmentUpload upload) {
@@ -254,8 +283,9 @@ class MessageAttachmentsIntegrationTest {
 
         @Test
         void unVocalGardeSaDureeEtUnDocumentSonExtension() {
-            PrivateMessage vocal = prive.send(awa.id(), fatou.id(),
-                    piece(envoi(awa, AttachmentKind.AUDIO, "", 500).format("webm").durationSeconds(12.4).width(10)));
+            AttachmentUpload enregistrement = reel(envoi(awa, AttachmentKind.AUDIO, "", 500),
+                    new AttachmentStorage.StoredFile(500, "webm", 12.4, 10, 10));
+            PrivateMessage vocal = prive.send(awa.id(), fatou.id(), piece(enregistrement.durationSeconds(99.0)));
             assertThat(vocal.getAttachment().getDurationSeconds()).isEqualTo(12.4);
             assertThat(vocal.getAttachment().getWidth()).isNull();
             assertThat(vocal.getAttachment().getPreviewUrl()).isNull();
@@ -278,13 +308,46 @@ class MessageAttachmentsIntegrationTest {
                     HttpStatus.BAD_REQUEST, "ATTACHMENT_TOO_LARGE");
             refuse(() -> prive.send(awa.id(), fatou.id(), piece(envoi(awa, AttachmentKind.IMAGE, "", 1001).format("png"))),
                     HttpStatus.BAD_REQUEST, "ATTACHMENT_TOO_LARGE");
-            refuse(() -> prive.send(awa.id(), fatou.id(), piece(envoi(awa, AttachmentKind.AUDIO, "", 10).durationSeconds(75.0))),
-                    HttpStatus.BAD_REQUEST, "ATTACHMENT_TOO_LARGE");
+            AttachmentUpload long_ = reel(envoi(awa, AttachmentKind.AUDIO, "", 10), new AttachmentStorage.StoredFile(10, "webm", 75.0, null, null));
+            refuse(() -> prive.send(awa.id(), fatou.id(), piece(long_)), HttpStatus.BAD_REQUEST, "ATTACHMENT_TOO_LARGE");
             refuse(() -> prive.send(awa.id(), fatou.id(), piece(envoi(awa, AttachmentKind.FILE, ".exe", 10))),
                     HttpStatus.BAD_REQUEST, "UNSUPPORTED_FILE_TYPE");
-            refuse(() -> prive.send(awa.id(), fatou.id(), piece(envoi(awa, AttachmentKind.IMAGE, "", 10).format("svg"))),
+            refuse(() -> prive.send(awa.id(), fatou.id(), piece(reel(envoi(awa, AttachmentKind.IMAGE, "", 10), new AttachmentStorage.StoredFile(10, "svg", null, 1, 1)).format("png"))),
                     HttpStatus.BAD_REQUEST, "UNSUPPORTED_FILE_TYPE");
             refuse(() -> prive.send(awa.id(), fatou.id(), new SendMessageRequest()), HttpStatus.BAD_REQUEST, "EMPTY_MESSAGE");
+        }
+
+        @Test
+        void tailleDureeEtFormatSontCeuxDuFichierStockePasCeuxAnnoncesParLeNavigateur() {
+            // Le navigateur annonce 10 octets et un vocal de 3 s : le stockage a reçu 50 Mo et 10 minutes.
+            AttachmentUpload gros = reel(envoi(awa, AttachmentKind.FILE, ".pdf", 10),
+                    new AttachmentStorage.StoredFile(50_000_000, null, null, null, null));
+            refuse(() -> prive.send(awa.id(), fatou.id(), piece(gros)), HttpStatus.BAD_REQUEST, "ATTACHMENT_TOO_LARGE");
+            AttachmentUpload long_ = reel(envoi(awa, AttachmentKind.AUDIO, "", 10).durationSeconds(3.0),
+                    new AttachmentStorage.StoredFile(10, "webm", 600.0, null, null));
+            refuse(() -> prive.send(awa.id(), fatou.id(), piece(long_)), HttpStatus.BAD_REQUEST, "ATTACHMENT_TOO_LARGE");
+            // un fichier refusé est effacé du stockage
+            assertThat(stockage.effaces).containsExactly(gros.getPublicId(), long_.getPublicId());
+
+            AttachmentUpload photo = envoi(awa, AttachmentKind.IMAGE, "", 100).format("gif").width(1).height(1).sizeBytes(1L);
+            PrivateMessage m = prive.send(awa.id(), fatou.id(), piece(photo));
+            assertThat(m.getAttachment().getFormat()).isEqualTo("jpg");
+            assertThat(m.getAttachment().getSizeBytes()).isEqualTo(100L);
+            assertThat(m.getAttachment().getWidth()).isEqualTo(1200);
+        }
+
+        @Test
+        void unFichierAbsentDuStockageOuUnStockageEnPanneSontSignales() {
+            AttachmentUpload jamaisDepose = envoi(awa, AttachmentKind.FILE, ".pdf", 10);
+            stockage.fichiers.remove(jamaisDepose.getPublicId());
+            refuse(() -> prive.send(awa.id(), fatou.id(), piece(jamaisDepose)), HttpStatus.BAD_REQUEST, "INVALID_ATTACHMENT");
+
+            AttachmentUpload vocal = reel(envoi(awa, AttachmentKind.AUDIO, "", 10), new AttachmentStorage.StoredFile(10, "webm", null, null, null));
+            refuse(() -> prive.send(awa.id(), fatou.id(), piece(vocal)), HttpStatus.BAD_REQUEST, "INVALID_ATTACHMENT");
+
+            stockage.injoignable = true;
+            refuse(() -> prive.send(awa.id(), fatou.id(), piece(envoi(awa, AttachmentKind.FILE, ".pdf", 10))),
+                    HttpStatus.SERVICE_UNAVAILABLE, "STORAGE_UNAVAILABLE");
         }
 
         @Test

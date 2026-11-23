@@ -2,6 +2,7 @@ package com.uasz.alumni.notificationmessaging.service;
 
 import com.cloudinary.Cloudinary;
 import com.cloudinary.Transformation;
+import com.cloudinary.api.exceptions.NotFound;
 import com.uasz.alumni.notificationmessaging.model.StoredAttachment;
 import com.uasz.alumni.notificationmessaging.spi.model.AttachmentKind;
 import com.uasz.alumni.notificationmessaging.spi.model.AttachmentUploadTicket;
@@ -63,6 +64,24 @@ public class CloudinaryAttachmentStorage implements AttachmentStorage {
     @Override
     public boolean isAuthentic(String publicId, long version, String signature) {
         return signature != null && cloudinary.verifyApiResponseSignature(publicId, String.valueOf(version), signature);
+    }
+
+    @Override
+    public StoredFile describe(String publicId, AttachmentKind kind) {
+        Map<?, ?> r;
+        try {
+            r = cloudinary.api().resource(publicId, Map.of("resource_type", resourceType(kind), "type", TYPE));
+        } catch (NotFound e) {
+            return null;
+        } catch (Exception e) {
+            throw new StorageUnavailableException("Stockage injoignable : " + e.getMessage(), e);
+        }
+        return new StoredFile(
+                r.get("bytes") instanceof Number n ? n.longValue() : -1,
+                r.get("format") instanceof String s ? s : null,
+                r.get("duration") instanceof Number n ? n.doubleValue() : null,
+                r.get("width") instanceof Number n ? n.intValue() : null,
+                r.get("height") instanceof Number n ? n.intValue() : null);
     }
 
     @Override
