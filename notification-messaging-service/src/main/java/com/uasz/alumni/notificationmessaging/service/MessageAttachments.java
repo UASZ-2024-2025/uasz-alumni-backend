@@ -191,6 +191,10 @@ public class MessageAttachments {
         String fileName = fileName(upload.getFileName());
         // Taille, durée, format et dimensions : ceux du fichier réellement stocké, jamais ceux annoncés par le navigateur.
         AttachmentStorage.StoredFile stored = describe(publicId, kind);
+        if (stored.version() != upload.getVersion()) {
+            // fichier remplacé depuis la réponse signée : ce n'est plus celui qui a été envoyé
+            throw badRequest("INVALID_ATTACHMENT", "Pièce jointe modifiée depuis l'envoi : renvoyez le fichier.");
+        }
         StoredAttachment candidate = new StoredAttachment(kind, publicId, upload.getVersion(), null, fileName, 0, null, null, null);
         try {
             return checkLimits(candidate, stored);

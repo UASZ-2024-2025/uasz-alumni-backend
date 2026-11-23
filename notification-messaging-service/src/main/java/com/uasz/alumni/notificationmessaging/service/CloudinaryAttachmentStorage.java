@@ -47,6 +47,7 @@ public class CloudinaryAttachmentStorage implements AttachmentStorage {
         params.put("public_id", publicId);
         params.put("timestamp", timestamp);
         params.put("type", TYPE);
+        params.put("overwrite", false); // signé : la même autorisation ne peut pas remplacer un fichier déjà vérifié
         if (allowedFormats != null) {
             params.put("allowed_formats", allowedFormats);
         }
@@ -58,7 +59,8 @@ public class CloudinaryAttachmentStorage implements AttachmentStorage {
                 .signature(signature)
                 .publicId(publicId)
                 .type(TYPE)
-                .allowedFormats(allowedFormats);
+                .allowedFormats(allowedFormats)
+                .overwrite(false);
     }
 
     @Override
@@ -77,6 +79,7 @@ public class CloudinaryAttachmentStorage implements AttachmentStorage {
             throw new StorageUnavailableException("Stockage injoignable : " + e.getMessage(), e);
         }
         return new StoredFile(
+                r.get("version") instanceof Number n ? n.longValue() : -1,
                 r.get("bytes") instanceof Number n ? n.longValue() : -1,
                 r.get("format") instanceof String s ? s : null,
                 r.get("duration") instanceof Number n ? n.doubleValue() : null,

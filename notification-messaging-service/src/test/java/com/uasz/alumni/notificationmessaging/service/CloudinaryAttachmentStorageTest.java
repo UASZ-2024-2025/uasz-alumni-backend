@@ -37,9 +37,10 @@ class CloudinaryAttachmentStorageTest {
         assertThat(t.getTimestamp()).isEqualTo(ts);
         assertThat(t.getApiKey()).isEqualTo("123456");
         assertThat(t.getType()).isEqualTo("authenticated");
+        assertThat(t.getOverwrite()).isFalse();
         assertThat(t.getUploadUrl()).isEqualTo("https://api.cloudinary.com/v1_1/demo-uasz/image/upload");
         assertThat(t.getSignature()).isEqualTo(
-                sha1("allowed_formats=jpg,png&public_id=alumni/u1/abc&timestamp=" + ts + "&type=authenticated" + SECRET));
+                sha1("allowed_formats=jpg,png&overwrite=false&public_id=alumni/u1/abc&timestamp=" + ts + "&type=authenticated" + SECRET));
     }
 
     @Test
@@ -48,7 +49,7 @@ class CloudinaryAttachmentStorageTest {
         AttachmentUploadTicket vocal = storage.ticket("alumni/u1/v", AttachmentKind.AUDIO, null);
         assertThat(vocal.getUploadUrl()).endsWith("/video/upload");
         assertThat(vocal.getSignature()).isEqualTo(
-                sha1("public_id=alumni/u1/v&timestamp=" + MAINTENANT.getEpochSecond() + "&type=authenticated" + SECRET));
+                sha1("overwrite=false&public_id=alumni/u1/v&timestamp=" + MAINTENANT.getEpochSecond() + "&type=authenticated" + SECRET));
     }
 
     @Test

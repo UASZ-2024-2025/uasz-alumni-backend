@@ -1229,6 +1229,12 @@ components:
         allowedFormats:
           type: string
           description: Formats acceptés par Cloudinary (champ `allowed_formats`), absent pour un document.
+        overwrite:
+          type: boolean
+          description: >-
+            Toujours false, à envoyer tel quel (champ `overwrite`, signé) : un fichier déjà déposé ne peut pas être
+            remplacé avec la même autorisation.
+          example: false
 
     EditMessageRequest:
       type: object

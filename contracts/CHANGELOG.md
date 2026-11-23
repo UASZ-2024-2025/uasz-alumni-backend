@@ -7,7 +7,8 @@
 ### notification-messaging-service
 - Nouveau tag `MessageAttachments` : `GET /messages/attachments/settings` (`getAttachmentSettings`) et
   `POST /messages/attachments/uploads` (`createAttachmentUpload`, autorisation d'envoi direct vers Cloudinary,
-  503 `ATTACHMENTS_DISABLED` sans stockage configuré). Nouvelle réponse `ServiceUnavailable`.
+  503 `ATTACHMENTS_DISABLED` sans stockage configuré ; `overwrite` toujours false, signé). Nouvelle réponse
+  `ServiceUnavailable`. Taille, format et durée d'une pièce jointe sont relus auprès du stockage.
 - `GroupMessageType` : valeurs `STICKER` et `ATTACHMENT` ; le type sert aussi à la messagerie privée.
 - `SendMessageRequest` : `sticker` et `attachment` (`AttachmentUpload`) ; `content` n'est plus obligatoire (légende
   d'une pièce jointe). Envoi privé et de groupe : réponse 503.

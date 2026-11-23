@@ -27,7 +27,7 @@ public interface AttachmentStorage {
     StoredFile describe(String publicId, AttachmentKind kind);
 
     /** Caractéristiques d'un fichier stocké (durée pour l'audio, dimensions pour une image, sinon null). */
-    record StoredFile(long bytes, String format, Double durationSeconds, Integer width, Integer height) {
+    record StoredFile(long version, long bytes, String format, Double durationSeconds, Integer width, Integer height) {
     }
 
     /** Le stockage n'a pas pu répondre (réseau, quota) : l'envoi peut être retenté. */
