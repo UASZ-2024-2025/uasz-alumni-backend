@@ -4,8 +4,10 @@ import com.uasz.alumni.alumnistudentcompany.exceptions.NotImplementedYetExceptio
 import com.uasz.alumni.alumnistudentcompany.model.Experience;
 import com.uasz.alumni.alumnistudentcompany.security.AuthenticatedUser;
 import com.uasz.alumni.alumnistudentcompany.service.AlumniExperienceService;
+import com.uasz.alumni.alumnistudentcompany.service.AlumniHomeSummaryService;
 import com.uasz.alumni.alumnistudentcompany.service.AlumniProfileService;
 import com.uasz.alumni.alumnistudentcompany.spi.api.AlumniApi;
+import com.uasz.alumni.alumnistudentcompany.spi.model.AlumniHomeSummary;
 import com.uasz.alumni.alumnistudentcompany.spi.model.AlumniPagedResponse;
 import com.uasz.alumni.alumnistudentcompany.spi.model.AlumniProfile;
 import com.uasz.alumni.alumnistudentcompany.spi.model.AlumniProfileUpdateRequest;
@@ -26,10 +28,20 @@ public class AlumniController implements AlumniApi {
 
     private final AlumniExperienceService experiences;
     private final AlumniProfileService profiles;
+    private final AlumniHomeSummaryService homeSummary;
 
-    public AlumniController(AlumniExperienceService experiences, AlumniProfileService profiles) {
+    public AlumniController(AlumniExperienceService experiences, AlumniProfileService profiles,
+                            AlumniHomeSummaryService homeSummary) {
         this.experiences = experiences;
         this.profiles = profiles;
+        this.homeSummary = homeSummary;
+    }
+
+    @Override
+    @PreAuthorize("hasRole('ALUMNI')")
+    public ResponseEntity<AlumniHomeSummary> getMyAlumniHomeSummary() {
+        // L'Alumni est déduit du jeton uniquement (aucun identifiant en paramètre).
+        return ResponseEntity.ok(homeSummary.summaryForCurrentUser());
     }
 
     @Override

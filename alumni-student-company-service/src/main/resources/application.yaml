@@ -58,3 +58,17 @@ user-service:
     delay-ms: 500
     multiplier: 2
     max-delay-ms: 5000
+
+# Client de notification-messaging-service : messages non lus de la synthèse d'accueil Alumni (ALUM-246).
+# ADR-0006 : REST, JWT de l'utilisateur propagé, timeouts courts et un seul retry (lecture sur une page d'accueil) ;
+# service injoignable = compteur à 0, jamais d'erreur pour l'appelant.
+notification-messaging-service:
+  base-url: ${NOTIFICATION_SERVICE_URL}
+  connect-timeout: 1s
+  read-timeout: 2s
+  retry:
+    # 1 essai + 1 retry après 200 ms
+    max-retries: 1
+    delay-ms: 200
+    multiplier: 2
+    max-delay-ms: 1000
