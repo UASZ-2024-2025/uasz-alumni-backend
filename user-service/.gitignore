@@ -38,3 +38,4 @@ build/
 k8s/overlays/dev/*.env
 backups/
 .sonar/
+.schemathesis/

@@ -21,6 +21,7 @@ public final class UserMapper {
                 .phone(account.getPhone())
                 .gender(account.getGender())
                 .birthDate(account.getBirthDate())
+                .companyId(account.getCompanyId())
                 .createdAt(account.getCreatedAt() == null ? null : account.getCreatedAt().atOffset(ZoneOffset.UTC));
     }
 }

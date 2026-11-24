@@ -34,6 +34,11 @@ public class SecurityConfig {
 
     private static final String ADMIN = RoleName.ADMINISTRATEUR.name();
 
+    /** Rôles utilisateurs : le rôle SERVICE n'a pas accès à l'API des utilisateurs (ADR-0010). */
+    private static final String[] USER_ROLES = Arrays.stream(RoleName.values())
+            .map(Enum::name)
+            .toArray(String[]::new);
+
     private final String apiPrefix;
     private final List<String> allowedOrigins;
 
@@ -86,13 +91,15 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/actuator/health/**", "/actuator/info").permitAll()
+                // Appels inter-services : jeton de service obligatoire (un JWT utilisateur reçoit 403)
+                .requestMatchers(apiPrefix + "/internal/**").hasRole(JwtService.SERVICE_ROLE)
                 .requestMatchers(HttpMethod.POST, publicPosts).permitAll()
                 // ADMINISTRATEUR uniquement
                 .requestMatchers(HttpMethod.GET, apiPrefix + "/users").hasRole(ADMIN)
                 .requestMatchers(HttpMethod.POST, apiPrefix + "/users").hasRole(ADMIN)
                 .requestMatchers(HttpMethod.PATCH, apiPrefix + "/users/*/status").hasRole(ADMIN)
                 .requestMatchers(HttpMethod.DELETE, apiPrefix + "/users/*").hasRole(ADMIN)
-                .anyRequest().authenticated())
+                .anyRequest().hasAnyRole(USER_ROLES))
             .addFilterBefore(new JwtAuthenticationFilter(jwtService, users, clock),
                     UsernamePasswordAuthenticationFilter.class);
 

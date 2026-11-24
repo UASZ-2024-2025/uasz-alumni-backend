@@ -6,7 +6,7 @@ info:
     du dépôt et suivi des candidatures et des propositions directes d'opportunités.
   contact:
     name: Équipe Projet Intégrateur - M2 GL - UASZ
-  version: 1.0.0
+  version: 1.10.0
 servers:
   - url: https://api.alumni-uasz.sn/job-offer-service/v1
     description: Serveur de production
@@ -26,7 +26,12 @@ paths:
       tags:
         - Offers
       summary: Recherche et liste des offres d'emplois et de stages
+      description: |
+        Consultation publique. Sans paramètre `status`, seules les offres **OPEN** dont la date limite n'est pas
+        dépassée sont renvoyées. Les offres CLOSED ou ARCHIVED ne sont visibles que de leur auteur (ou d'un
+        ADMINISTRATEUR) : un autre appelant obtient une liste vide.
       operationId: searchOffers
+      security: []
       parameters:
         - name: query
           in: query
@@ -89,6 +94,11 @@ paths:
       tags:
         - Offers
       summary: Publier une nouvelle offre d'emploi ou de stage
+      description: |
+        Réservé aux rôles ENTREPRISE, ALUMNI et ADMINISTRATEUR. L'appelant doit être le gestionnaire de la fiche
+        `companyId` (sauf ADMINISTRATEUR) ; pour un compte ENTREPRISE rattaché, `companyId` doit être celui de son
+        compte (claim `companyId` du jeton). L'entreprise doit être validée (`isPartner`), sinon la publication est
+        refusée (403, code `COMPANY_NOT_VALIDATED`). `publisherId` est l'appelant. La date limite ne peut pas être passée.
       operationId: createOffer
       requestBody:
         required: true
@@ -108,7 +118,17 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Forbidden"
+          description: Rôle non autorisé, appelant non gestionnaire de l'entreprise, ou entreprise non validée
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Fiche entreprise momentanément indisponible (alumni-student-company-service)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
       security:
         - bearerAuth: []
 
@@ -118,6 +138,7 @@ paths:
         - Offers
       summary: Obtenir les détails d'une offre
       operationId: getOfferById
+      security: []
       parameters:
         - $ref: "#/components/parameters/EntityId"
       responses:
@@ -134,6 +155,9 @@ paths:
       tags:
         - Offers
       summary: Mettre à jour une offre d'emploi/stage
+      description: |
+        Mise à jour partielle (les champs absents sont conservés ; `companyId` ne change pas). Réservée à l'auteur de
+        l'offre ou à un ADMINISTRATEUR (403 sinon). Une offre ARCHIVED n'est plus modifiable (400).
       operationId: updateOffer
       parameters:
         - $ref: "#/components/parameters/EntityId"
@@ -154,6 +178,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
       security:
@@ -163,6 +189,9 @@ paths:
       tags:
         - Offers
       summary: Supprimer ou archiver une offre
+      description: |
+        Réservé à l'auteur de l'offre ou à un ADMINISTRATEUR. Une offre qui a reçu des candidatures est **archivée**
+        (statut ARCHIVED) pour conserver l'historique ; sinon elle est supprimée. Dans les deux cas : 204.
       operationId: deleteOffer
       parameters:
         - $ref: "#/components/parameters/EntityId"
@@ -183,6 +212,10 @@ paths:
       tags:
         - Offers
       summary: Changer le statut d'une offre (ex. Clôturer l'offre)
+      description: |
+        Réservé à l'auteur de l'offre ou à un ADMINISTRATEUR. Transitions : OPEN vers CLOSED ou ARCHIVED, CLOSED vers
+        OPEN (si la date limite n'est pas dépassée) ou ARCHIVED ; ARCHIVED est définitif (400 sinon). Une offre OPEN
+        passe automatiquement à CLOSED le lendemain de sa date limite.
       operationId: updateOfferStatus
       parameters:
         - $ref: "#/components/parameters/EntityId"
@@ -199,8 +232,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/JobOffer"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
       security:
@@ -264,6 +301,10 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
         "409":
           description: Vous avez déjà postulé à cette offre
           content:
@@ -312,6 +353,8 @@ paths:
                 $ref: "#/components/schemas/ApplicationPagedResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
       security:
         - bearerAuth: []
 

@@ -1,0 +1,27 @@
+# Responsables par dossier. La dernière règle qui correspond l'emporte.
+# Deux owners par dossier : un auteur ne peut pas approuver sa propre PR,
+# le second owner évite donc de bloquer les PR du premier.
+# Répartition déduite des contributions ; à ajuster une fois les binômes validés.
+
+# Par défaut (README, fichiers racine, nouveaux dossiers)
+*                                   @maniangdieng @Yahyadrame
+
+# CI/CD, templates et infra
+/.github/                           @maty382 @maniangdieng
+/docker/                            @AmzaOmar @maniangdieng
+/sonar/                             @AmzaOmar @maniangdieng
+/alumni-uasz-infra/                 @AmzaOmar @maniangdieng
+
+# Contrats OpenAPI et SPIs générées
+/contracts/                         @cherifkane @jeeyna
+/spis/                              @cherifkane @jeeyna
+
+# Microservices
+/user-service/                      @Aissatou183 @cherifkane
+/alumni-student-company-service/    @jeeyna @MameDiarra-D
+/job-offer-service/                 @maniangdieng @AmzaOmar
+/analytics-matching-service/        @writemanSN @OmarFaye1
+/notification-messaging-service/    @AmzaOmar @maniangdieng
+
+# Documentation
+/docs/                              @AmzaOmar @Djaraf0826

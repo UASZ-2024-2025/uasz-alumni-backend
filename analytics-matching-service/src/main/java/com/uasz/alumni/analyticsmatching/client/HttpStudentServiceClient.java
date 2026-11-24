@@ -1,12 +1,14 @@
 package com.uasz.alumni.analyticsmatching.client;
 
 import com.uasz.alumni.alumnistudentcompany.spi.model.StudentProfile;
+import java.net.http.HttpClient;
+import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatusCode;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
@@ -19,11 +21,16 @@ public class HttpStudentServiceClient implements StudentServiceClient {
     private final RestClient restClient;
 
     public HttpStudentServiceClient(
-            RestClient.Builder restClientBuilder,
             @Value("${services.student-service.url:http://localhost:8082}") String studentServiceUrl,
-            @Value("${security.api.prefix:/v1}") String apiPrefix) {
-        this.restClient = restClientBuilder
+            @Value("${security.api.prefix:/v1}") String apiPrefix,
+            @Value("${clients.connect-timeout:2s}") Duration connectTimeout,
+            @Value("${clients.read-timeout:3s}") Duration readTimeout) {
+        HttpClient jdk = HttpClient.newBuilder().connectTimeout(connectTimeout).build();
+        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(jdk);
+        factory.setReadTimeout(readTimeout);
+        this.restClient = RestClient.builder()
                 .baseUrl(studentServiceUrl + apiPrefix)
+                .requestFactory(factory)
                 .build();
     }
 
@@ -36,16 +43,7 @@ public class HttpStudentServiceClient implements StudentServiceClient {
             StudentProfile profile = restClient.get()
                     .uri("/students/{id}", studentId)
                     .retrieve()
-                    .onStatus(HttpStatusCode::is4xxClientError, (request, response) -> {
-                        throw HttpClientErrorException.create(
-                                response.getStatusCode(),
-                                response.getStatusText(),
-                                response.getHeaders(),
-                                null,
-                                null);
-                    })
                     .body(StudentProfile.class);
-
             return Optional.ofNullable(profile);
         } catch (HttpClientErrorException.NotFound e) {
             log.info("Étudiant introuvable dans alumni-student-company-service : {}", studentId);

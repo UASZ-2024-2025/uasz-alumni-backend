@@ -33,6 +33,8 @@ jobs:
             user-service:
               - 'user-service/**'
               - 'spis/repo/com/uasz/alumni/user-service-spi/**'
+              # client d'alumni-student-company-service (contrat consommé, ALUM-83)
+              - 'spis/repo/com/uasz/alumni/alumni-student-company-service-spi/**'
               - 'spis/repo/com/uasz/alumni/alumni-spis/**'
               - 'docker/**'
             alumni-student-company-service:
@@ -43,6 +45,8 @@ jobs:
             job-offer-service:
               - 'job-offer-service/**'
               - 'spis/repo/com/uasz/alumni/job-offer-service-spi/**'
+              # client de notification-messaging-service (contrat consommé, ALUM-83)
+              - 'spis/repo/com/uasz/alumni/notification-messaging-service-spi/**'
               - 'spis/repo/com/uasz/alumni/alumni-spis/**'
               - 'docker/**'
             analytics-matching-service:

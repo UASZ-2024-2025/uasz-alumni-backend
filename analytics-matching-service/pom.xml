@@ -18,7 +18,10 @@
 
   <properties>
     <java.version>21</java.version>
+    <jjwt.version>0.12.6</jjwt.version>
     <alumni.spi.version>1.0.0</alumni.spi.version>
+    <alumni-student-company.spi.version>1.9.0</alumni-student-company.spi.version>
+    <job-offer.spi.version>1.10.0</job-offer.spi.version>
   </properties>
 
   <repositories>
@@ -44,12 +47,12 @@
     <dependency>
       <groupId>com.uasz.alumni</groupId>
       <artifactId>alumni-student-company-service-spi</artifactId>
-      <version>${alumni.spi.version}</version>
+      <version>${alumni-student-company.spi.version}</version>
     </dependency>
     <dependency>
       <groupId>com.uasz.alumni</groupId>
       <artifactId>job-offer-service-spi</artifactId>
-      <version>${alumni.spi.version}</version>
+      <version>${job-offer.spi.version}</version>
     </dependency>
 
     <!-- Web / API REST -->
@@ -61,14 +64,6 @@
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-validation</artifactId>
     </dependency>
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-databind</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.fasterxml.jackson.datatype</groupId>
-      <artifactId>jackson-datatype-jsr310</artifactId>
-    </dependency>
 
     <!-- Sécurité -->
     <dependency>
@@ -76,22 +71,22 @@
       <artifactId>spring-boot-starter-security</artifactId>
     </dependency>
 
-    <!-- JWT -->
+    <!-- JWT (validation des access tokens émis par user-service) -->
     <dependency>
       <groupId>io.jsonwebtoken</groupId>
       <artifactId>jjwt-api</artifactId>
-      <version>0.12.6</version>
+      <version>${jjwt.version}</version>
     </dependency>
     <dependency>
       <groupId>io.jsonwebtoken</groupId>
       <artifactId>jjwt-impl</artifactId>
-      <version>0.12.6</version>
+      <version>${jjwt.version}</version>
       <scope>runtime</scope>
     </dependency>
     <dependency>
       <groupId>io.jsonwebtoken</groupId>
       <artifactId>jjwt-jackson</artifactId>
-      <version>0.12.6</version>
+      <version>${jjwt.version}</version>
       <scope>runtime</scope>
     </dependency>
 
@@ -127,14 +122,16 @@
       <artifactId>spring-boot-starter-test</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- @WebMvcTest (tests de contrôleur) : module séparé depuis Spring Boot 4 -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-webmvc-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Intégration Spring Security dans MockMvc (chaîne de filtres active en @WebMvcTest) -->
     <dependency>
       <groupId>org.springframework.security</groupId>
       <artifactId>spring-security-test</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.h2database</groupId>
-      <artifactId>h2</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>

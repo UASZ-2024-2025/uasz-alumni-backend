@@ -241,7 +241,7 @@ class AuthControllerRegisterWebTest {
         // (seul POST est public sur /auth/register).
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(URL)
                         .with(org.springframework.security.test.web.servlet.request
-                                .SecurityMockMvcRequestPostProcessors.user("x")))
+                                .SecurityMockMvcRequestPostProcessors.user("x").roles("ALUMNI")))
                 .andExpect(status().isMethodNotAllowed())
                 .andExpect(jsonPath("$.code").value("METHOD_NOT_ALLOWED"))
                 .andExpect(jsonPath("$.message", not(containsString("com.uasz"))));

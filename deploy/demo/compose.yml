@@ -1,0 +1,231 @@
+# Environnement de démo (ALUM-215) : plateforme complète derrière Caddy (HTTPS automatique).
+#
+# Même fichier sur une ou deux machines, la répartition se règle par COMPOSE_PROFILES :
+#   vm-a       : Caddy, frontend, PostgreSQL, Mailpit, user-service, alumni-student-company-service
+#   vm-b       : job-offer-service, analytics-matching-service, notification-messaging-service
+#   vm-a,vm-b  : tout sur un seul serveur (cas du futur serveur de l'université)
+#
+# Variables : /opt/alumni/demo.env (réseau + secrets), /opt/alumni/mail.env (SMTP réel, facultatif)
+# et /opt/alumni/tags.env (versions des images), écrits par scripts/bootstrap.sh et scripts/deploy.sh.
+# Modèle : .env.example. Sans SMTP réel, les e-mails partent dans Mailpit.
+name: alumni-demo
+
+x-logging: &logging
+  driver: json-file
+  options: {max-size: 10m, max-file: "3"}
+
+# Réglages JVM « petite machine », mesurés le 18/11/2026 : 220 à 285 Mo par service.
+x-backend-env: &backend-env
+  FORWARD_HEADERS_STRATEGY: native
+  JWT_SECRET: ${JWT_SECRET:?JWT_SECRET manquant}
+  JWT_ISSUER: alumni-uasz-user
+  CORS_ALLOWED_ORIGINS: https://${DEMO_DOMAIN:?DEMO_DOMAIN manquant}
+  JAVA_TOOL_OPTIONS: >-
+    -XX:+UseSerialGC -Xmx${JVM_HEAP:-160m} -Xss512k
+    -XX:MaxMetaspaceSize=192m -XX:ReservedCodeCacheSize=48m
+    -XX:TieredStopAtLevel=1 -XX:+ExitOnOutOfMemoryError
+  SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "4"
+  SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: "1"
+  SERVER_TOMCAT_THREADS_MAX: "30"
+  SERVER_TOMCAT_THREADS_MIN_SPARE: "2"
+
+x-backend: &backend
+  restart: unless-stopped
+  mem_limit: 450m
+  read_only: true
+  tmpfs: [/tmp]
+  security_opt: ["no-new-privileges:true"]
+  logging: *logging
+  depends_on:
+    # « required: false » : sur vm-b, la base tourne sur l'autre machine.
+    db: {condition: service_healthy, required: false}
+  healthcheck:
+    test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:$${SERVER_PORT}/actuator/health/readiness || exit 1"]
+    interval: 15s
+    timeout: 5s
+    retries: 5
+    start_period: 180s
+
+services:
+  # ------------------------------------------------------------------ vm-a
+  caddy:
+    profiles: [vm-a]
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443", "443:443/udp"]
+    environment:
+      DEMO_DOMAIN: ${DEMO_DOMAIN}
+      UPSTREAM_JOB_OFFER: ${UPSTREAM_JOB_OFFER:-job-offer-service:8083}
+      UPSTREAM_ANALYTICS: ${UPSTREAM_ANALYTICS:-analytics-matching-service:8084}
+      UPSTREAM_NOTIFICATION: ${UPSTREAM_NOTIFICATION:-notification-messaging-service:8085}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    mem_limit: 128m
+    logging: *logging
+
+  frontend:
+    profiles: [vm-a]
+    image: ${FRONTEND_IMAGE:-ghcr.io/uasz-2024-2025/alumni-uasz-frontend/frontend}:${FRONTEND_TAG:-develop}
+    restart: unless-stopped
+    mem_limit: 64m
+    read_only: true
+    tmpfs: [/tmp]
+    logging: *logging
+
+  db:
+    profiles: [vm-a]
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${PG_SUPERUSER_PASSWORD:?PG_SUPERUSER_PASSWORD manquant}
+      USER_DB_PASSWORD: ${USER_DB_PASSWORD:?}
+      ALUMNI_STUDENT_COMPANY_DB_PASSWORD: ${ALUMNI_STUDENT_COMPANY_DB_PASSWORD:?}
+      JOB_OFFER_DB_PASSWORD: ${JOB_OFFER_DB_PASSWORD:?}
+      ANALYTICS_MATCHING_DB_PASSWORD: ${ANALYTICS_MATCHING_DB_PASSWORD:?}
+      NOTIFICATION_MESSAGING_DB_PASSWORD: ${NOTIFICATION_MESSAGING_DB_PASSWORD:?}
+    command:
+      - postgres
+      - -c
+      - shared_buffers=96MB
+      - -c
+      - effective_cache_size=384MB
+      - -c
+      - work_mem=4MB
+      - -c
+      - maintenance_work_mem=32MB
+      - -c
+      - max_connections=60
+    # Port ouvert seulement sur l'IP privée (vm-b s'y connecte) ; 127.0.0.1 sur un seul serveur.
+    ports: ["${PRIVATE_BIND:-127.0.0.1}:5432:5432"]
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./postgres/init-dbs.sh:/docker-entrypoint-initdb.d/init-dbs.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    mem_limit: 320m
+    shm_size: 128m
+    logging: *logging
+
+  # E-mails de démo lisibles sur https://<domaine>/mailpit/ (identifiants : MAILPIT_UI_AUTH)
+  mailpit:
+    profiles: [vm-a]
+    image: axllent/mailpit:v1.21
+    restart: unless-stopped
+    environment:
+      MP_WEBROOT: mailpit
+      MP_UI_AUTH: ${MAILPIT_UI_AUTH:?MAILPIT_UI_AUTH manquant}
+      MP_MAX_MESSAGES: "1000"
+    mem_limit: 64m
+    logging: *logging
+
+  user-service:
+    <<: *backend
+    profiles: [vm-a]
+    image: ${IMAGE_PREFIX:-ghcr.io/uasz-2024-2025/uasz-alumni-backend}/user-service:${USER_SERVICE_TAG:-develop}
+    environment:
+      <<: *backend-env
+      SERVER_PORT: "8081"
+      API_PREFIX: /user-service/v1
+      SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST:-db}:5432/user_db
+      SPRING_DATASOURCE_USERNAME: user_svc
+      SPRING_DATASOURCE_PASSWORD: ${USER_DB_PASSWORD}
+      MAIL_HOST: ${MAIL_HOST:-mailpit}
+      MAIL_PORT: ${MAIL_PORT:-1025}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-no-reply@alumni-uasz.sn}
+      # Brevo (587) : STARTTLS obligatoire ; Mailpit : désactivé
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: ${MAIL_STARTTLS:-false}
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_REQUIRED: ${MAIL_STARTTLS:-false}
+      FRONTEND_URL: https://${DEMO_DOMAIN}
+      EMAIL_CONFIRMATION_TTL: 24h
+      JWT_ACCESS_TTL: 15m
+      REFRESH_TOKEN_TTL: 7d
+      PASSWORD_RESET_TTL: 1h
+      MAX_FAILED_ATTEMPTS: "5"
+      LOCK_DURATION: 15m
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-admin@alumni-uasz.sn}
+      BOOTSTRAP_ADMIN_FIRST_NAME: Admin
+      BOOTSTRAP_ADMIN_LAST_NAME: Alumni UASZ
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:?}
+      STUDENT_COMPANY_SERVICE_URL: http://alumni-student-company-service:8082/alumni-student-company-service/v1
+
+  alumni-student-company-service:
+    <<: *backend
+    profiles: [vm-a]
+    image: ${IMAGE_PREFIX:-ghcr.io/uasz-2024-2025/uasz-alumni-backend}/alumni-student-company-service:${ALUMNI_STUDENT_COMPANY_SERVICE_TAG:-develop}
+    # Port ouvert seulement sur l'IP privée : job-offer-service (vm-b) lit les fiches entreprises (ALUM-148).
+    ports: ["${PRIVATE_BIND:-127.0.0.1}:8082:8082"]
+    environment:
+      <<: *backend-env
+      SERVER_PORT: "8082"
+      API_PREFIX: /alumni-student-company-service/v1
+      SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST:-db}:5432/alumni_student_company_db
+      SPRING_DATASOURCE_USERNAME: alumni_student_company_svc
+      SPRING_DATASOURCE_PASSWORD: ${ALUMNI_STUDENT_COMPANY_DB_PASSWORD}
+      USER_SERVICE_URL: http://user-service:8081/user-service/v1
+
+  # ------------------------------------------------------------------ vm-b
+  job-offer-service:
+    <<: *backend
+    profiles: [vm-b]
+    image: ${IMAGE_PREFIX:-ghcr.io/uasz-2024-2025/uasz-alumni-backend}/job-offer-service:${JOB_OFFER_SERVICE_TAG:-develop}
+    ports: ["${PRIVATE_BIND:-127.0.0.1}:8083:8083"]
+    environment:
+      <<: *backend-env
+      SERVER_PORT: "8083"
+      API_PREFIX: /job-offer-service/v1
+      SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST:-db}:5432/job_offer_db
+      SPRING_DATASOURCE_USERNAME: job_offer_svc
+      SPRING_DATASOURCE_PASSWORD: ${JOB_OFFER_DB_PASSWORD}
+      NOTIFICATION_SERVICE_URL: http://notification-messaging-service:8085/notification-messaging-service/v1
+      STUDENT_COMPANY_SERVICE_URL: ${STUDENT_COMPANY_SERVICE_URL:-http://alumni-student-company-service:8082/alumni-student-company-service/v1}
+
+  analytics-matching-service:
+    <<: *backend
+    profiles: [vm-b]
+    image: ${IMAGE_PREFIX:-ghcr.io/uasz-2024-2025/uasz-alumni-backend}/analytics-matching-service:${ANALYTICS_MATCHING_SERVICE_TAG:-develop}
+    ports: ["${PRIVATE_BIND:-127.0.0.1}:8084:8084"]
+    environment:
+      <<: *backend-env
+      SERVER_PORT: "8084"
+      API_PREFIX: /analytics-matching-service/v1
+      SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST:-db}:5432/analytics_matching_db
+      SPRING_DATASOURCE_USERNAME: analytics_matching_svc
+      SPRING_DATASOURCE_PASSWORD: ${ANALYTICS_MATCHING_DB_PASSWORD}
+
+  notification-messaging-service:
+    <<: *backend
+    profiles: [vm-b]
+    image: ${IMAGE_PREFIX:-ghcr.io/uasz-2024-2025/uasz-alumni-backend}/notification-messaging-service:${NOTIFICATION_MESSAGING_SERVICE_TAG:-develop}
+    ports: ["${PRIVATE_BIND:-127.0.0.1}:8085:8085"]
+    environment:
+      <<: *backend-env
+      SERVER_PORT: "8085"
+      API_PREFIX: /notification-messaging-service/v1
+      SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST:-db}:5432/notification_messaging_db
+      SPRING_DATASOURCE_USERNAME: notification_messaging_svc
+      SPRING_DATASOURCE_PASSWORD: ${NOTIFICATION_MESSAGING_DB_PASSWORD}
+      # Pièces jointes des messages (ALUM-261) : media.env (relu depuis SSM par deploy.sh). Vide : désactivées.
+      CLOUDINARY_URL: ${CLOUDINARY_URL:-}
+      # Canal EMAIL (ALUM-135) : SMTP réel de mail.env. Sans lui (MAIL_HOST vide), les e-mails sont sautés :
+      # Mailpit tourne sur vm-a, injoignable depuis vm-b.
+      MAIL_HOST: ${MAIL_HOST:-}
+      MAIL_PORT: ${MAIL_PORT:-25}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-no-reply@alumni-uasz.sn}
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: ${MAIL_STARTTLS:-false}
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_REQUIRED: ${MAIL_STARTTLS:-false}
+      FRONTEND_URL: https://${DEMO_DOMAIN}
+
+volumes:
+  caddy-data:
+  caddy-config:
+  db-data:

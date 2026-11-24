@@ -3,8 +3,7 @@ package com.uasz.alumni.analyticsmatching.service;
 import com.uasz.alumni.alumnistudentcompany.spi.model.StudentProfile;
 import com.uasz.alumni.analyticsmatching.client.JobOfferServiceClient;
 import com.uasz.alumni.analyticsmatching.client.StudentServiceClient;
-import com.uasz.alumni.analyticsmatching.exceptions.BadRequestException;
-import com.uasz.alumni.analyticsmatching.exceptions.ResourceNotFoundException;
+import com.uasz.alumni.analyticsmatching.exceptions.ApiException;
 import com.uasz.alumni.analyticsmatching.spi.model.OfferMatchResult;
 import com.uasz.alumni.joboffer.spi.model.JobOffer;
 import com.uasz.alumni.joboffer.spi.model.OfferStatus;
@@ -17,6 +16,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -37,7 +37,8 @@ public class MatchingServiceImpl implements MatchingService {
     @Override
     public List<OfferMatchResult> getMatchingOffersForStudent(UUID studentId, Integer minScore) {
         if (studentId == null) {
-            throw new BadRequestException("L'identifiant de l'étudiant est obligatoire.");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "BAD_REQUEST",
+                    "L'identifiant de l'étudiant est obligatoire.");
         }
 
         // Seuil d'adéquation minimal (50% par défaut)
@@ -45,7 +46,8 @@ public class MatchingServiceImpl implements MatchingService {
 
         // 1. Récupération du profil étudiant depuis alumni-student-company-service
         StudentProfile student = studentServiceClient.getStudentProfile(studentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Étudiant introuvable avec l'identifiant : " + studentId));
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "STUDENT_NOT_FOUND",
+                        "Étudiant introuvable avec l'identifiant : " + studentId));
 
         // Normalisation des compétences de l'étudiant (minuscules, sans espaces superflus)
         Set<String> normalizedStudentSkills = (student.getSkills() != null)
