@@ -40,4 +40,11 @@ public interface AlumniRepository extends JpaRepository<Alumni, UUID>, JpaSpecif
             select count(a) from Alumni a
             where a.graduationYear = :graduationYear and lower(a.specialty) = lower(:specialty)""")
     long countByGraduationYearAndSpecialtyIgnoreCase(Integer graduationYear, String specialty);
+
+    /** Nombre d'Alumni ayant un poste ou une entreprise renseigné (insertion professionnelle). */
+    @Query("""
+            select count(a) from Alumni a
+            where (a.currentCompany is not null and trim(a.currentCompany) <> '')
+               or (a.currentPosition is not null and trim(a.currentPosition) <> '')""")
+    long countEmployed();
 }

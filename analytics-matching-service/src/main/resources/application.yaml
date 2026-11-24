@@ -40,3 +40,19 @@ jwt:
   # Base64, 32 octets minimum
   secret: ${JWT_SECRET}
   issuer: ${JWT_ISSUER}
+
+service-token:
+  issuer: alumni-uasz-internal
+  ttl: 5m
+
+clients:
+  student-company:
+    base-url: ${STUDENT_COMPANY_SERVICE_URL:http://localhost:8082/v1}
+  job-offer:
+    base-url: ${JOB_OFFER_SERVICE_URL:http://localhost:8083/v1}
+  connect-timeout: 2s
+  read-timeout: 3s
+
+analytics:
+  dashboard:
+    cache-ttl: PT5M
