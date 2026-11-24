@@ -41,6 +41,31 @@ jwt:
   secret: ${JWT_SECRET}
   issuer: ${JWT_ISSUER}
 
-# Service de notifications (appel inter-services, JWT de l'appelant relayé)
+# Jetons de service acceptés sur /internal/** (ADR-0010) : émetteur interne, audience = ce service
+service-token:
+  issuer: alumni-uasz-internal
+  ttl: 5m
+
+# Client de user-service : rattachement du compte ENTREPRISE à sa fiche (ALUM-168).
+# ADR-0006 : REST, timeouts, retry, appel non bloquant à la création de la fiche.
+user-service:
+  base-url: ${USER_SERVICE_URL}
+  connect-timeout: 2s
+  read-timeout: 3s
+  retry:
+    # 1 essai + 3 retries, délais 500 ms -> 1 s -> 2 s (plafond 5 s)
+    max-retries: 3
+    delay-ms: 500
+    multiplier: 2
+    max-delay-ms: 5000
+
+# Client de notification-messaging-service (ALUM-119, ADR-0006 : jeton de service, timeouts, retry, non bloquant)
 notification:
   base-url: ${NOTIFICATION_SERVICE_URL}
+  connect-timeout: 2s
+  read-timeout: 3s
+  retry:
+    max-retries: 3
+    delay-ms: 500
+    multiplier: 2
+    max-delay-ms: 5000

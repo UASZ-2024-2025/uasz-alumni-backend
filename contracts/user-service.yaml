@@ -5,7 +5,7 @@ info:
     Microservice de gestion des utilisateurs et de l'authentification pour la plateforme de gestion des Alumni du Master Informatique (UASZ).
   contact:
     name: Équipe Projet Intégrateur - M2 GL - UASZ
-  version: 1.0.0
+  version: 1.5.1
 servers:
   - url: https://api.alumni-uasz.sn/user-service/v1
     description: Serveur de production
@@ -18,6 +18,10 @@ tags:
     description: Gestion des utilisateurs
   - name: Roles
     description: Gestion des rôles
+  - name: Internal
+    description: |
+      Opérations réservées aux autres microservices (jeton de service, rôle SERVICE, voir ADR-0010).
+      Elles ne sont pas exposées au frontend.
 paths:
   /auth/register:
     post:
@@ -25,6 +29,7 @@ paths:
         - Auth
       summary: Inscription d'un nouvel utilisateur
       operationId: registerUser
+      security: []
       requestBody:
         content:
           application/json:
@@ -46,12 +51,17 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /auth/login:
     post:
       tags:
         - Auth
       summary: Connexion d'un utilisateur
       operationId: loginUser
+      security: []
       requestBody:
         content:
           application/json:
@@ -65,6 +75,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           description: Identifiants invalides
           content:
@@ -77,12 +89,23 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "423":
+          description: Compte temporairement verrouillé après trop d'échecs de connexion
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /auth/refresh-token:
     post:
       tags:
         - Auth
       summary: Rafraîchir le token d'accès
       operationId: refreshToken
+      security: []
       requestBody:
         content:
           application/json:
@@ -96,12 +119,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           description: Refresh token invalide ou expiré
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /auth/logout:
     post:
       tags:
@@ -117,8 +146,12 @@ paths:
       responses:
         "204":
           description: Déconnexion réussie
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
       security:
         - bearerAuth: []
   /auth/forgot-password:
@@ -127,6 +160,7 @@ paths:
         - Auth
       summary: Demande de réinitialisation du mot de passe
       operationId: forgotPassword
+      security: []
       requestBody:
         content:
           application/json:
@@ -141,12 +175,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /auth/reset-password:
     post:
       tags:
         - Auth
       summary: Réinitialisation du mot de passe via token
       operationId: resetPassword
+      security: []
       requestBody:
         content:
           application/json:
@@ -166,6 +207,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
         "422":
           description: Mot de passe non conforme à la politique de sécurité
           content:
@@ -178,6 +223,7 @@ paths:
         - Auth
       summary: Confirmation de l'adresse email (activation du compte)
       operationId: confirmEmail
+      security: []
       requestBody:
         content:
           application/json:
@@ -197,12 +243,17 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /auth/resend-confirmation:
     post:
       tags:
         - Auth
       summary: Renvoyer l'email de confirmation de compte
       operationId: resendConfirmation
+      security: []
       requestBody:
         content:
           application/json:
@@ -216,12 +267,58 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "409":
           description: Le compte est déjà activé
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /auth/change-password:
+    post:
+      tags:
+        - Auth
+      summary: Changer son mot de passe (utilisateur connecté)
+      description: |
+        Révoque tous les refresh tokens de l'utilisateur : il doit se reconnecter.
+        Politique : 8 à 72 octets, au moins une lettre et un chiffre.
+      operationId: changePassword
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordRequest"
+        required: true
+      responses:
+        "200":
+          description: Mot de passe modifié
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          description: Mot de passe actuel incorrect ou nouveau mot de passe identique
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "422":
+          description: Nouveau mot de passe non conforme à la politique de sécurité
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - bearerAuth: []
   /users:
     get:
       tags:
@@ -246,12 +343,15 @@ paths:
           schema:
             type: integer
             default: 0
+            minimum: 0
         - name: size
           in: query
           required: false
           schema:
             type: integer
             default: 20
+            minimum: 1
+            maximum: 100
       responses:
         "200":
           description: Liste paginée des utilisateurs
@@ -259,10 +359,46 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UserPagedResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+      security:
+        - bearerAuth: []
+    post:
+      tags:
+        - Users
+      summary: Créer un compte utilisateur (ADMINISTRATEUR)
+      description: |
+        Le compte est créé au statut EN_ATTENTE sans mot de passe utilisable. Un email invite
+        l'utilisateur à définir son mot de passe (lien traité par POST /auth/reset-password,
+        qui active le compte).
+      operationId: createUser
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserCreateRequest"
+        required: true
+      responses:
+        "201":
+          description: Compte créé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
       security:
         - bearerAuth: []
   /users/{id}:
@@ -270,6 +406,7 @@ paths:
       tags:
         - Users
       summary: Récupérer un utilisateur par son identifiant
+      description: Réservé à l'utilisateur lui-même ou à un ADMINISTRATEUR.
       operationId: getUserById
       parameters:
         - name: id
@@ -285,8 +422,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
       security:
@@ -295,6 +436,7 @@ paths:
       tags:
         - Users
       summary: Mettre à jour les informations d'un utilisateur
+      description: Mise à jour partielle (les champs absents sont conservés). Seul un ADMINISTRATEUR peut modifier l'email (403 sinon, 409 si déjà utilisé).
       operationId: updateUser
       parameters:
         - name: id
@@ -324,6 +466,10 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
       security:
         - bearerAuth: []
     delete:
@@ -341,12 +487,16 @@ paths:
       responses:
         "204":
           description: Utilisateur supprimé
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
       security:
         - bearerAuth: []
   /users/{id}/status:
@@ -354,6 +504,7 @@ paths:
       tags:
         - Users
       summary: Modifier le statut d'un utilisateur (activation/désactivation/suspension)
+      description: Passer à ACTIF lève aussi un éventuel verrouillage. Passer à INACTIF ou SUSPENDU révoque les sessions.
       operationId: updateUserStatus
       parameters:
         - name: id
@@ -375,6 +526,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -385,6 +538,61 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+      security:
+        - bearerAuth: []
+  /internal/users/{id}/company:
+    put:
+      tags:
+        - Internal
+      summary: Rattacher un compte ENTREPRISE à sa fiche entreprise (usage interne)
+      description: |
+        Appelé par alumni-student-company-service quand un compte ENTREPRISE crée sa fiche, ou quand un
+        administrateur la rattache à un compte. Réservé aux jetons de service (rôle SERVICE, audience
+        `user-service`) : un JWT utilisateur reçoit 403.
+
+        **Idempotent** : rattacher un compte à la fiche à laquelle il est déjà rattaché renvoie 200 sans
+        rien modifier. 409 si le compte n'est pas un compte ENTREPRISE ou s'il est déjà rattaché à une
+        autre fiche.
+
+        Le `companyId` apparaît ensuite dans `User.companyId` et dans les prochains jetons d'accès
+        (claim `companyId`, après `POST /auth/refresh-token`).
+      operationId: linkCompanyAccount
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserCompanyLinkRequest"
+      responses:
+        "200":
+          description: Compte rattaché (ou déjà rattaché à cette fiche)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
       security:
         - bearerAuth: []
   /roles:
@@ -414,7 +622,15 @@ components:
         - ALUMNI
         - ETUDIANT
         - ENSEIGNANT
+        - ENTREPRISE
         - ADMINISTRATEUR
+    Gender:
+      type: string
+      nullable: true
+      enum:
+        - MALE
+        - FEMALE
+        - null
     UserStatus:
       type: string
       enum:
@@ -422,6 +638,41 @@ components:
         - ACTIF
         - INACTIF
         - SUSPENDU
+    UserCreateRequest:
+      required:
+        - email
+        - firstName
+        - lastName
+        - role
+      type: object
+      properties:
+        lastName:
+          type: string
+          minLength: 1
+        firstName:
+          type: string
+          minLength: 1
+        email:
+          type: string
+          format: email
+          minLength: 1
+        phone:
+          type: string
+        role:
+          $ref: "#/components/schemas/RoleName"
+    ChangePasswordRequest:
+      required:
+        - currentPassword
+        - newPassword
+      type: object
+      properties:
+        currentPassword:
+          type: string
+          format: password
+        newPassword:
+          minLength: 8
+          type: string
+          format: password
     RegisterRequest:
       required:
         - email
@@ -433,11 +684,14 @@ components:
       properties:
         lastName:
           type: string
+          minLength: 1
         firstName:
           type: string
+          minLength: 1
         email:
           type: string
           format: email
+          minLength: 1
         password:
           minLength: 8
           type: string
@@ -453,6 +707,7 @@ components:
         email:
           type: string
           format: email
+          minLength: 1
         password:
           type: string
           format: password
@@ -481,6 +736,7 @@ components:
         email:
           type: string
           format: email
+          minLength: 1
         role:
           $ref: "#/components/schemas/RoleName"
         status:
@@ -490,32 +746,38 @@ components:
           format: date-time
         phone:
           type: string
+          nullable: true
         gender:
-          type: string
-          enum:
-            - MALE
-            - FEMALE
+          $ref: "#/components/schemas/Gender"
         birthDate:
           type: string
           format: date
+          nullable: true
           example: "1995-05-15"
+        companyId:
+          type: string
+          format: uuid
+          nullable: true
+          description: |
+            Fiche entreprise rattachée au compte (comptes ENTREPRISE uniquement). Null tant que le compte
+            n'est pas rattaché. Également présent dans le jeton d'accès (claim `companyId`).
     UserUpdateRequest:
       type: object
       properties:
         lastName:
           type: string
+          minLength: 1
         firstName:
           type: string
+          minLength: 1
         email:
           type: string
           format: email
+          minLength: 1
         phone:
           type: string
         gender:
-          type: string
-          enum:
-            - MALE
-            - FEMALE
+          $ref: "#/components/schemas/Gender"
         birthDate:
           type: string
           format: date
@@ -569,6 +831,7 @@ components:
         email:
           type: string
           format: email
+          minLength: 1
     ResetPasswordRequest:
       required:
         - newPassword
@@ -596,6 +859,7 @@ components:
         email:
           type: string
           format: email
+          minLength: 1
     UserPagedResponse:
       type: object
       properties:
@@ -616,9 +880,18 @@ components:
       properties:
         status:
           $ref: "#/components/schemas/UserStatus"
+    UserCompanyLinkRequest:
+      required:
+        - companyId
+      type: object
+      properties:
+        companyId:
+          type: string
+          format: uuid
+          description: Identifiant de la fiche entreprise (alumni-student-company-service)
   responses:
     BadRequest:
-      description: Requête invalide
+      description: Requête invalide ou corps illisible (MALFORMED_REQUEST)
       content:
         application/json:
           schema:
@@ -637,6 +910,24 @@ components:
             $ref: "#/components/schemas/ErrorResponse"
     NotFound:
       description: Ressource introuvable
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: Conflit avec l'état actuel de la ressource
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    UnsupportedMediaType:
+      description: Content-Type absent ou non supporté (UNSUPPORTED_MEDIA_TYPE)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    TooManyRequests:
+      description: Limiteur de débit atteint (TOO_MANY_REQUESTS)
       content:
         application/json:
           schema:

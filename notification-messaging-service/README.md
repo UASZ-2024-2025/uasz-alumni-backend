@@ -40,3 +40,54 @@ k8s/overlays/prod  image GHCR, configuration de production (secrets hors dépôt
 - 12-factor : aucune valeur par défaut dans les yml, aucun secret dans le dépôt (`.env` ignoré par git).
 - JWT : même `JWT_SECRET` et même `JWT_ISSUER` dans tous les services.
 - Probes K8s : `/actuator/health/liveness` et `/actuator/health/readiness`.
+
+## Groupes de discussion (contrat 1.1.0)
+
+Implémentés dans `service/GroupService` (règles) et `controller/GroupMessagingController` (routes du SPI).
+Réservés aux rôles ETUDIANT, ALUMNI, ENSEIGNANT et ADMINISTRATEUR : ENTREPRISE reçoit un 403.
+Un non-membre reçoit un 403 sur toutes les routes d'un groupe. On n'entre dans un groupe qu'en y étant ajouté.
+
+### Qui peut faire quoi
+
+| Action | Propriétaire (OWNER) | Admin (ADMIN) | Membre (MEMBER) |
+|---|---|---|---|
+| Lire le fil, marquer comme lu, préférences personnelles | oui | oui | oui |
+| Envoyer un message | oui | oui | oui, sauf si `onlyAdminsCanSend` |
+| Modifier nom et description | oui | oui | si `onlyAdminsCanEditInfo` est désactivé |
+| Ajouter des participants | oui | oui | si `onlyAdminsCanAddMembers` est désactivé |
+| Modifier les réglages du groupe | oui | oui | non |
+| Nommer ou retirer un ADMIN | oui | non | non |
+| Retirer un participant | tout le monde | ADMIN et MEMBER, jamais le propriétaire | non |
+| Supprimer un message pour tous | oui | oui | ses propres messages |
+| Quitter le groupe | oui (passation) | oui | oui |
+| Supprimer le groupe | oui | non | non |
+
+- L'ADMINISTRATEUR de la plateforme peut supprimer n'importe quel groupe.
+- Réglages par défaut : envoi ouvert à tous ; modification des infos et ajout de participants réservés aux administrateurs.
+- Quand le propriétaire part, la propriété passe à l'ADMIN le plus ancien, à défaut au membre le plus ancien.
+  Le groupe est supprimé avec son dernier membre.
+- Chaque événement (création, ajout, départ, retrait, rôle, réglage, renommage, passation) ajoute au fil un message `SYSTEM`
+  en français. Ces messages ne comptent pas dans les non-lus et ne peuvent pas être supprimés.
+- Un message supprimé reste dans le fil avec `deleted: true` et sans contenu.
+- Messages : contenu non vide, 4000 caractères au plus (sinon 400 `INVALID_MESSAGE`).
+  Pagination : page 0 = messages les plus récents, et chaque page est rendue dans l'ordre chronologique (`size` de 1 à 100).
+- Préférences personnelles (`pinned`, `archived`, sourdine de 8 h, 1 semaine ou sans limite) : propres à chaque participant.
+  `listGroups` renvoie les groupes épinglés d'abord, puis les plus récents.
+
+### Données (migration `V2__groupes_de_discussion.sql`)
+
+| Table | Contenu |
+|---|---|
+| `chat_users` | Annuaire local des noms et rôles, recopiés du JWT (claim `name`), voir [ADR-0011](../docs/adr/0011-annuaire-local-noms-messagerie.md) |
+| `chat_groups` | Groupe, propriétaire, les trois réglages, dernière activité |
+| `chat_group_members` | Rôle dans le groupe, dernière lecture, préférences personnelles ; un seul OWNER par groupe (index unique partiel) |
+| `chat_group_messages` | Messages TEXT et SYSTEM ; `seq` départage deux messages de même horodatage |
+
+Les modifications d'un groupe verrouillent sa ligne (`SELECT … FOR UPDATE`). Deux actions simultanées, comme deux départs,
+ne peuvent donc pas laisser un groupe sans propriétaire.
+
+### Tests
+
+- `GroupServiceIntegrationTest` : règles des groupes contre un vrai PostgreSQL embarqué (`io.zonky.test:embedded-postgres`,
+  sans Docker). Les migrations Flyway et la validation du schéma JPA sont incluses.
+- `GroupMessagingControllerTest` : sécurité des routes (401, 403 pour ENTREPRISE), validation du contrat et format des erreurs.

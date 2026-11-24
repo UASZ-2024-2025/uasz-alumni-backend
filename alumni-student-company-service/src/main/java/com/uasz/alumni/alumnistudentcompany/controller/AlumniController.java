@@ -1,7 +1,10 @@
 package com.uasz.alumni.alumnistudentcompany.controller;
 
-import com.uasz.alumni.alumnistudentcompany.exceptions.NotImplementedYetException;
+import com.uasz.alumni.alumnistudentcompany.model.Experience;
 import com.uasz.alumni.alumnistudentcompany.model.Recommendation;
+import com.uasz.alumni.alumnistudentcompany.security.AuthenticatedUser;
+import com.uasz.alumni.alumnistudentcompany.service.AlumniExperienceService;
+import com.uasz.alumni.alumnistudentcompany.service.AlumniProfileService;
 import com.uasz.alumni.alumnistudentcompany.service.RecommendationService;
 import com.uasz.alumni.alumnistudentcompany.spi.api.AlumniApi;
 import com.uasz.alumni.alumnistudentcompany.spi.model.AlumniPagedResponse;
@@ -17,59 +20,74 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 public class AlumniController implements AlumniApi {
 
+    private final AlumniExperienceService experiences;
+    private final AlumniProfileService profiles;
     private final RecommendationService recommendations;
 
-    public AlumniController(RecommendationService recommendations) {
+    public AlumniController(AlumniExperienceService experiences, AlumniProfileService profiles,
+                            RecommendationService recommendations) {
+        this.experiences = experiences;
+        this.profiles = profiles;
         this.recommendations = recommendations;
     }
 
     @Override
     public ResponseEntity<AlumniPagedResponse> searchAlumni(String query, UUID companyId, Integer graduationYear,
-                                                            Integer page, Integer size) {
-        // TODO : recherche paginée (nom, entreprise, poste, année)
-        throw new NotImplementedYetException("searchAlumni");
+                                                            String specialty, Integer page, Integer size) {
+        // companyId : pas encore filtrable (l'entité n'a que le nom de l'entreprise)
+        return ResponseEntity.ok(profiles.search(query, graduationYear, specialty, page, size));
     }
 
     @Override
     public ResponseEntity<AlumniProfile> getAlumniById(UUID id) {
-        // TODO : profil détaillé -> 200 / 404
-        throw new NotImplementedYetException("getAlumniById");
+        return ResponseEntity.ok(profiles.getById(id));
     }
 
     @Override
+    @PreAuthorize("hasRole('ALUMNI')")
     public ResponseEntity<AlumniProfile> updateAlumniProfile(UUID id, AlumniProfileUpdateRequest alumniProfileUpdateRequest) {
-        // TODO : mise à jour du profil -> 200 / 400 / 404
-        throw new NotImplementedYetException("updateAlumniProfile");
+        AuthenticatedUser caller = (AuthenticatedUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return ResponseEntity.ok(profiles.update(id, alumniProfileUpdateRequest, caller.id()));
     }
 
     @Override
     public ResponseEntity<List<WorkExperience>> getAlumniExperiences(UUID id) {
-        // TODO : parcours professionnel
-        throw new NotImplementedYetException("getAlumniExperiences");
+        return ResponseEntity.ok(experiences.listExperiences(id).stream().map(AlumniController::toDto).toList());
     }
 
     @Override
+    @PreAuthorize("hasRole('ALUMNI')")
     public ResponseEntity<WorkExperience> addAlumniExperience(UUID id, WorkExperienceRequest workExperienceRequest) {
-        // TODO : ajouter une expérience -> 201 / 400
-        throw new NotImplementedYetException("addAlumniExperience");
+        // La signature imposée par le SPI ne donne pas accès au jeton : on lit l'appelant dans le contexte de sécurité.
+        AuthenticatedUser caller = (AuthenticatedUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        Experience saved = experiences.addExperience(id, workExperienceRequest, caller.id());
+        return ResponseEntity.status(HttpStatus.CREATED).body(toDto(saved));
     }
 
     @Override
     @PreAuthorize("hasRole('ALUMNI')")
     public ResponseEntity<RecommendationResponse> recommendCandidate(RecommendationRequest request) {
-        // Le contrôleur n'a pas accès au JWT par paramètre (signature imposée par le SPI) : on le lit dans le contexte.
-        Jwt jwt = (Jwt) SecurityContextHolder.getContext()
-            .getAuthentication().getPrincipal();
-        Recommendation r = recommendations.recommander(UUID.fromString(jwt.getSubject()),
-            request.getStudentId(), request.getCompanyId(), request.getComments(), jwt.getTokenValue());
+        AuthenticatedUser caller = (AuthenticatedUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        Recommendation r = recommendations.recommander(caller.id(), request.getStudentId(),
+            request.getCompanyId(), request.getComments());
         return ResponseEntity.status(HttpStatus.CREATED).body(new RecommendationResponse()
             .id(r.getId()).recommenderId(r.getRecommenderId()).studentId(r.getStudentId())
             .companyId(r.getCompanyId()).comments(r.getComments()).createdAt(r.getCreatedAt()));
+    }
+
+    private static WorkExperience toDto(Experience e) {
+        return new WorkExperience()
+            .id(e.getId())
+            .companyName(e.getCompanyName())
+            .position(e.getPosition())
+            .startDate(e.getStartDate())
+            .endDate(e.getEndDate())
+            .isCurrent(e.isCurrent())
+            .description(e.getDescription());
     }
 }

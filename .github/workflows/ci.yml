@@ -1,21 +1,45 @@
+# CI du backend (AL-13) : lint des contrats, vérification des SPIs, build + tests
+# des microservices modifiés, puis un job récapitulatif « CI success ».
+#
+# « CI success » est le SEUL check à rendre obligatoire dans la protection de
+# branche : les jobs de la matrice changent de nom selon les services modifiés,
+# on ne peut donc pas les exiger un par un.
+
 name: CI
 
 on:
+  pull_request:
+    branches: [main, develop]
   push:
     branches: [main, develop]
-  pull_request:
 
 permissions:
   contents: read
-  packages: write
+  packages: write # publication des images sur ghcr.io (push sur main uniquement)
 
+# Une nouvelle poussée sur la même PR annule le run précédent.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  # Lint Redocly de tous les contrats, à chaque run (quelques secondes) :
+  # un contrat invalide ne doit jamais rester caché derrière un filtre de chemins.
+  contracts-lint:
+    name: Lint des contrats OpenAPI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Les erreurs font échouer le job ; les avertissements sont seulement affichés.
+      - name: Lint
+        run: npx --yes @redocly/cli@1 lint contracts/*.yaml
+
   # Les contrats produisent-ils des SPIs valides ? (verify : aucune publication)
   spis-check:
+    name: Generation des SPIs
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -40,7 +64,9 @@ jobs:
         run: ./mvnw -B -ntp clean verify -DskipTests
 
   # Detecte les microservices modifies : seuls ceux-la sont construits.
+  # Modifier ce workflow reconstruit et reteste les 5 services.
   changes:
+    name: Services modifies
     runs-on: ubuntu-latest
     outputs:
       services: ${{ steps.filter.outputs.changes }}
@@ -53,35 +79,45 @@ jobs:
             user-service:
               - 'user-service/**'
               - 'spis/repo/com/uasz/alumni/user-service-spi/**'
+              # client d'alumni-student-company-service (contrat consommé, ALUM-83)
+              - 'spis/repo/com/uasz/alumni/alumni-student-company-service-spi/**'
               - 'spis/repo/com/uasz/alumni/alumni-spis/**'
               - 'docker/**'
+              - '.github/workflows/ci.yml'
             alumni-student-company-service:
               - 'alumni-student-company-service/**'
               - 'spis/repo/com/uasz/alumni/alumni-student-company-service-spi/**'
               - 'spis/repo/com/uasz/alumni/alumni-spis/**'
               - 'docker/**'
+              - '.github/workflows/ci.yml'
             job-offer-service:
               - 'job-offer-service/**'
               - 'spis/repo/com/uasz/alumni/job-offer-service-spi/**'
+              # client de notification-messaging-service (contrat consommé, ALUM-83)
+              - 'spis/repo/com/uasz/alumni/notification-messaging-service-spi/**'
               - 'spis/repo/com/uasz/alumni/alumni-spis/**'
               - 'docker/**'
+              - '.github/workflows/ci.yml'
             analytics-matching-service:
               - 'analytics-matching-service/**'
               - 'spis/repo/com/uasz/alumni/analytics-matching-service-spi/**'
               - 'spis/repo/com/uasz/alumni/alumni-spis/**'
               - 'docker/**'
+              - '.github/workflows/ci.yml'
             notification-messaging-service:
               - 'notification-messaging-service/**'
               - 'spis/repo/com/uasz/alumni/notification-messaging-service-spi/**'
               - 'spis/repo/com/uasz/alumni/alumni-spis/**'
               - 'docker/**'
+              - '.github/workflows/ci.yml'
 
   build:
+    name: Build et tests (${{ matrix.service }})
     needs: changes
     if: needs.changes.outputs.services != '[]'
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
+      fail-fast: false # un service en échec n'arrête pas les autres
       matrix:
         service: ${{ fromJson(needs.changes.outputs.services) }}
     steps:
@@ -93,10 +129,13 @@ jobs:
           cache: maven
           cache-dependency-path: ${{ matrix.service }}/pom.xml
 
-      - name: Build Maven
+      # verify = compilation + tests unitaires et d'intégration : un test rouge fait échouer le job.
+      - name: Build et tests Maven
         working-directory: ${{ matrix.service }}
-        run: ./mvnw -B -DskipTests package
+        run: ./mvnw -B -ntp verify
 
+      # Image Docker : construite à chaque run pour valider le Dockerfile,
+      # publiée sur ghcr.io seulement lors d'un push sur main.
       - name: Nom d'image (minuscules)
         run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}/${{ matrix.service }}" >> "$GITHUB_ENV"
       - uses: docker/setup-buildx-action@v3
@@ -123,3 +162,63 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+  # Conformité au contrat OpenAPI (ALUM-74) : stack lancée comme en local,
+  # puis Schemathesis + refus ciblés. Un écart au contrat fait échouer le job.
+  contract-tests:
+    name: Conformite au contrat (user-service)
+    needs: changes
+    if: contains(needs.changes.outputs.services, 'user-service')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+          cache-dependency-path: user-service/pom.xml
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Installer Schemathesis
+        run: pip install schemathesis==4.33.4
+      - name: Preparer et lancer user-service
+        working-directory: user-service
+        run: |
+          make setup
+          make up
+      - name: Attendre que le service soit pret
+        run: |
+          PORT=$(grep "^SERVER_PORT=" user-service/.env | cut -d= -f2 | tr -d "\r")
+          for i in $(seq 1 100); do
+            curl -sf "http://localhost:${PORT}/actuator/health" | grep -q UP && exit 0
+            sleep 3
+          done
+          echo "user-service n'a pas demarre"
+          docker logs user-service-user-service-1 --tail 50 || true
+          exit 1
+      - name: Tests de conformite
+        working-directory: user-service
+        run: ./scripts/contract-test.sh
+      - name: Arreter la stack
+        if: always()
+        working-directory: user-service
+        run: docker compose down -v
+
+  # Check obligatoire de la protection de branche. if: always() le fait tourner
+  # même quand un job précédent échoue ; un job « skipped » (aucun service
+  # modifié) est accepté, un job « failure » ou « cancelled » ne l'est pas.
+  ci-success:
+    name: CI success
+    if: always()
+    needs: [contracts-lint, spis-check, changes, build, contract-tests]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Echec si un job a echoue ou a ete annule
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: |
+          echo "Au moins un job a echoue ou a ete annule."
+          exit 1
+      - run: echo "CI verte"
