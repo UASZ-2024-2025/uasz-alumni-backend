@@ -180,4 +180,4 @@ Le paramètre `--role all` place tout sur une seule machine (`COMPOSE_PROFILES=v
 
 La démo suit `develop` (tags `<sha>` et `develop`). Pour figer une version, créer un tag git :
 `git tag v1.2.0 && git push origin v1.2.0`. Le workflow « Release - Images versionnées » publie alors chaque
-image sur ghcr.io avec les tags `1.2.0` et `sha-<commit>` (backend et frontend). Il ne déploie rien.
+image sur ghcr.io avec les tags `1.2.0` et `sha-<commit>` (les 5 services backend ; le frontend a son propre workflow dans son dépôt). Il ne déploie rien.
