@@ -1,8 +1,8 @@
 # Journal des modifications des contrats OpenAPI
 
-## 1.17.0 (compteurs de non-lus d'un utilisateur, usage interne, ALUM-243)
+## 1.17.0 (synthèse d'accueil étudiant et compteurs de non-lus, ALUM-243)
 
-Évolution compatible : une opération et un schéma ajoutés, rien de retiré.
+Évolution compatible : des opérations et des schémas ajoutés, rien de retiré.
 
 ### notification-messaging-service
 - Nouveau tag `Internal` : `GET /internal/users/{userId}/unread-counts` (`getUnreadCountsForUser`), réservé aux
@@ -10,7 +10,14 @@
 - Nouveau schéma `UserUnreadCounts`.
 - `info.version` passe de 1.15.0 à **1.17.0**.
 
-SPI `notification-messaging-service-spi` publié en **1.17.0** (pom parent `alumni-spis` 1.17.0).
+### job-offer-service
+- Nouveau tag `StudentHome` : `GET /students/me/home-summary` (`getMyStudentHomeSummary`, rôle ETUDIANT) :
+  compteurs de la page d'accueil de l'étudiant connecté, identifié par son jeton uniquement. Réponses 200, 401 et 403.
+- Nouveaux schémas `StudentHomeSummary` (`applicationsByStatus`, `proposalsReceived`, `unreadNotifications`,
+  `unreadMessages`) et `ApplicationStatusCounts` (un compteur par statut de candidature).
+- `info.version` passe de 1.10.0 à **1.17.0**.
+
+SPI `notification-messaging-service-spi` et `job-offer-service-spi` publiés en **1.17.0** (pom parent `alumni-spis` 1.17.0).
 
 ## 1.15.0 (pièces jointes : envoi sans remplacement, ALUM-261)
 
