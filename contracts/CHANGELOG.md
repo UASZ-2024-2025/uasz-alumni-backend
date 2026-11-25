@@ -1,5 +1,17 @@
 # Journal des modifications des contrats OpenAPI
 
+## 1.17.0 (compteurs de non-lus d'un utilisateur, usage interne, ALUM-243)
+
+Évolution compatible : une opération et un schéma ajoutés, rien de retiré.
+
+### notification-messaging-service
+- Nouveau tag `Internal` : `GET /internal/users/{userId}/unread-counts` (`getUnreadCountsForUser`), réservé aux
+  jetons de service (rôle `SERVICE`) ; renvoie `UserUnreadCounts` (`notifications`, `messages`).
+- Nouveau schéma `UserUnreadCounts`.
+- `info.version` passe de 1.15.0 à **1.17.0**.
+
+SPI `notification-messaging-service-spi` publié en **1.17.0** (pom parent `alumni-spis` 1.17.0).
+
 ## 1.15.0 (pièces jointes : envoi sans remplacement, ALUM-261)
 
 Évolution compatible : un champ ajouté en réponse.

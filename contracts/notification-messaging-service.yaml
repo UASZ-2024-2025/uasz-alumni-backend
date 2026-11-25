@@ -6,7 +6,7 @@ info:
     ainsi que de la gestion et de la distribution des notifications (In-App, Email, Push).
   contact:
     name: Équipe Projet Intégrateur - M2 GL - UASZ
-  version: 1.15.0
+  version: 1.17.0
 servers:
   - url: https://api.alumni-uasz.sn/notification-messaging-service/v1
     description: Serveur de production
@@ -27,7 +27,8 @@ tags:
       reçoivent des liens signés.
   - name: Notifications
     description: Centre de notifications système, alertes et suivi de lecture
-
+  - name: Internal
+    description: Endpoints réservés aux autres services (jeton de service, rôle SERVICE) ; un JWT utilisateur reçoit 403
 paths:
   /messages/conversations:
     get:
@@ -978,6 +979,41 @@ paths:
       security:
         - bearerAuth: []
 
+  /internal/users/{userId}/unread-counts:
+    get:
+      tags:
+        - Internal
+      summary: Compter les notifications et les messages non lus d'un utilisateur (usage interne)
+      description: |
+        Appelé par un autre service (ex. la synthèse d'accueil étudiant, ALUM-243) pour afficher les compteurs
+        d'un utilisateur sans relayer son jeton (ADR-0010).
+        Réservé aux jetons de service (rôle SERVICE, audience `notification-messaging-service`) :
+        un JWT utilisateur reçoit 403.
+
+        `messages` additionne les messages privés non lus et les messages de groupe non lus (même calcul
+        que `unreadCount` des conversations et des groupes).
+      operationId: getUnreadCountsForUser
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Compteurs de non-lus de l'utilisateur
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserUnreadCounts"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      security:
+        - bearerAuth: [ ]
+
 components:
   schemas:
     NotificationType:
@@ -1300,6 +1336,18 @@ components:
       properties:
         unreadCount:
           type: integer
+          example: 5
+
+    UserUnreadCounts:
+      type: object
+      properties:
+        notifications:
+          type: integer
+          description: Notifications non lues
+          example: 3
+        messages:
+          type: integer
+          description: Messages non lus (privés et de groupe)
           example: 5
 
     PrivateMessagePagedResponse:
