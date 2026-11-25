@@ -9,7 +9,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
-
+import java.util.List;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 public interface JobApplicationRepository extends JpaRepository<JobApplication, UUID> {
 
     /** Candidatures d'une offre, les plus récentes d'abord. */
@@ -38,4 +40,16 @@ public interface JobApplicationRepository extends JpaRepository<JobApplication, 
 
     @EntityGraph(attributePaths = "offer")
     Page<JobApplication> findAllBy(Pageable pageable);
+
+    /** Nombre de candidatures d'un étudiant pour un statut. */
+    interface StatusCount {
+        ApplicationStatus getStatus();
+
+        long getTotal();
+    }
+
+    /** Candidatures d'un étudiant regroupées par statut (les statuts sans candidature sont absents). */
+    @Query("select a.status as status, count(a) as total from JobApplication a "
+        + "where a.studentId = :studentId group by a.status")
+    List<StatusCount> countByStatusForStudent(@Param("studentId") UUID studentId);
 }
