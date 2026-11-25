@@ -39,4 +39,7 @@ public interface PrivateMessageRepository extends JpaRepository<PrivateMessageEn
         where m.recipientId = :me and m.senderId = :other and m.readAt is null
         """)
     int markAsRead(@Param("me") UUID me, @Param("other") UUID other, @Param("now") Instant now);
+
+    /** Total des messages privés non lus reçus par un utilisateur (somme des non-lus de ses conversations). */
+    long countByRecipientIdAndReadAtIsNull(UUID recipientId);
 }

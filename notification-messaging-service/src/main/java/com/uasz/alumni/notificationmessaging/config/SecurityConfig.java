@@ -43,6 +43,8 @@ public class SecurityConfig {
                 .requestMatchers("/actuator/health/**", "/actuator/info").permitAll()
                 .requestMatchers(HttpMethod.POST, p + "/notifications/send")
                     .hasAnyRole(JwtService.SERVICE_ROLE, "ADMINISTRATEUR")
+                .requestMatchers(HttpMethod.GET, p + "/internal/**")
+                .hasRole(JwtService.SERVICE_ROLE)
                 .anyRequest().hasAnyRole(USER_ROLES))
             .exceptionHandling(e -> e
                 .authenticationEntryPoint((req, res, ex) -> {
