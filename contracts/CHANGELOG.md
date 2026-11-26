@@ -1,6 +1,6 @@
 # Journal des modifications des contrats OpenAPI
 
-## 1.18.0 (synthèse d'accueil entreprise, ALUM-249)
+## 1.20.0 (synthèse d'accueil entreprise, ALUM-249)
 
 Évolution compatible : un chemin ajouté.
 
@@ -9,9 +9,36 @@
   (401 sans jeton, 403 pour un autre rôle) : `CompanyHomeSummary` (`activeOffers`, `applicationsByOffer`,
   `proposalsSent`) et `OfferApplicationsCount` (`offerId`, `title`, `applications`).
 - Les données sont celles de l'utilisateur connecté : aucun paramètre d'identité.
+- `proposalsSent` compte les propositions envoyées par l'utilisateur connecté ; `activeOffers` et `applicationsByOffer`
+  portent sur la fiche entreprise rattachée à son compte.
 
 ### Version
-- `info.version` passe de 1.10.0 à **1.18.0**.
+- `info.version` passe de 1.10.0 à **1.20.0**.
+
+SPI `job-offer-service-spi` publié en **1.20.0** (pom parent `alumni-spis` 1.20.0).
+
+## 1.19.0 (recommandation d'un étudiant par un Alumni, ALUM-119)
+
+Évolution compatible : aucune opération ni aucun champ retiré ; seule une réponse est ajoutée.
+
+### alumni-student-company-service
+- `POST /alumni/recommendations` (`recommendCandidate`) est implémenté (il renvoyait 501) : réservé au rôle ALUMNI,
+  l'étudiant recommandé est notifié (type `SYSTEM_ALERT`, canal `IN_APP`) sans que la réponse l'attende.
+- **Précision** : `recommendCandidate` déclare la réponse 403 (appelant qui n'a pas le rôle ALUMNI).
+- `info.version` passe de 1.16.0 à **1.19.0**.
+
+SPI `alumni-student-company-service-spi` publié en **1.19.0** (pom parent `alumni-spis` 1.19.0).
+
+## 1.16.0 (synthèse d'accueil Alumni, ALUM-246)
+
+Évolution compatible : une opération et un schéma ajoutés, rien de retiré.
+
+### alumni-student-company-service
+- **Ajout** de `GET /alumni/me/home-summary` (`getMyAlumniHomeSummary`, rôle ALUMNI) : compteurs de la page d'accueil
+  de l'Alumni connecté, identifié par son jeton uniquement. Réponses 200, 401 et 403.
+- Nouveau schéma `AlumniHomeSummary` : `recommendationsGiven`, `pendingRequests`, `unreadMessages` (entiers >= 0,
+  obligatoires).
+- `info.version` passe de 1.9.0 à **1.16.0** (alignée sur la version du SPI).
 
 ## 1.15.0 (pièces jointes : envoi sans remplacement, ALUM-261)
 

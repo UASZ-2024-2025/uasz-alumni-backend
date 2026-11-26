@@ -35,7 +35,7 @@ public class SecurityConfig {
                 .requestMatchers("/actuator/health/**", "/actuator/info").permitAll()
                 .requestMatchers(HttpMethod.GET, p + "/offers", p + "/offers/*").permitAll()
                 .anyRequest().authenticated())
-                        .exceptionHandling(e -> e
+            .exceptionHandling(e -> e
                 .authenticationEntryPoint((req, res, ex) -> {
                     res.setStatus(401);
                     res.setContentType("application/json");

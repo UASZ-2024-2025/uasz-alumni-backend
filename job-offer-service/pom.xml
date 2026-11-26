@@ -19,7 +19,7 @@
   <properties>
     <java.version>21</java.version>
     <jjwt.version>0.12.6</jjwt.version>
-    <alumni.spi.version>1.18.0</alumni.spi.version>
+    <alumni.spi.version>1.20.0</alumni.spi.version>
     <!-- Contrat consommé en client (GET /internal/companies/{id}, ALUM-148) -->
     <alumni-student-company.spi.version>1.5.0</alumni-student-company.spi.version>
     <!-- Contrat consommé en client (POST /notifications/send, ALUM-83) -->

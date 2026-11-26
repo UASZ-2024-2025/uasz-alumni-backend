@@ -5,7 +5,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * Implémentation provisoire : les propositions (ALUM-174) ne sont pas encore dans develop, donc aucune n'est comptée.
- * À SUPPRIMER quand ALUM-174 est fusionnée, au profit de JpaSentProposalsCounter (voir apres-ALUM-174/).
+ * À remplacer par une implémentation lisant la table des propositions une fois ALUM-174 fusionnée :
+ * il suffira alors de supprimer ce composant, le service dépend uniquement de {@link SentProposalsCounter}.
  */
 @Component
 class NoSentProposalsYet implements SentProposalsCounter {
