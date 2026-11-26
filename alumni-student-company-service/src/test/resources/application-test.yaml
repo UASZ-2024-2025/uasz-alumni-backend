@@ -23,3 +23,9 @@ jwt:
 user-service:
   # Client de user-service (ALUM-168) : jamais appelé par les tests d'intégration, l'URL doit seulement exister
   base-url: http://localhost:9
+notification:
+  # Client de notification-messaging-service (ALUM-119) : jamais appelé par les tests d'intégration
+  base-url: http://localhost:9
+notification-messaging-service:
+  # Client de la messagerie (ALUM-246) : jamais appelé par les tests d'intégration, l'URL doit seulement exister
+  base-url: http://localhost:9
