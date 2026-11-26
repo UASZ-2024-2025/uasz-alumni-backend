@@ -37,6 +37,21 @@ class MatchingClientsTest {
                     ? "{\"id\":\"" + KNOWN + "\",\"userId\":\"" + KNOWN + "\",\"skills\":[\"Java\"]}"
                     : "{\"code\":\"STUDENT_NOT_FOUND\",\"message\":\"x\"}");
         });
+        server.createContext("/sc2/v1/students", exchange -> {
+            record(exchange);
+            boolean firstPage = exchange.getRequestURI().getQuery().contains("page=0");
+            String content = firstPage
+                    ? "[{\"id\":\"" + UUID.randomUUID() + "\",\"firstName\":\"A\"}]"
+                    : "[{\"id\":\"" + UUID.randomUUID() + "\",\"firstName\":\"B\"}]";
+            reply(exchange, 200, "{\"content\":" + content + ",\"totalElements\":2,\"page\":0,\"size\":100}");
+        });
+        server.createContext("/jo/v1/offers/", exchange -> {
+            record(exchange);
+            boolean known = exchange.getRequestURI().getPath().endsWith(KNOWN.toString());
+            reply(exchange, known ? 200 : 404, known
+                    ? "{\"id\":\"" + KNOWN + "\",\"title\":\"Dev\",\"publisherId\":\"" + KNOWN + "\"}"
+                    : "{\"code\":\"OFFER_NOT_FOUND\",\"message\":\"x\"}");
+        });
         server.createContext("/jo/v1/offers", exchange -> {
             record(exchange);
             boolean firstPage = exchange.getRequestURI().getQuery().contains("page=0");
@@ -90,6 +105,24 @@ class MatchingClientsTest {
         assertThat(client.listOpen()).extracting(o -> o.getTitle()).containsExactly("A", "B", "C");
         assertThat(received).hasSize(2);
         assertThat(received.getFirst()[0]).contains("status=OPEN").contains("page=0").contains("size=100");
+        assertThat(received).allSatisfy(r -> assertThat(r[1]).isEqualTo(CALLER));
+    }
+
+    @Test
+    void tousLesProfilsLusPageParPage() {
+        StudentProfilesClient client = new StudentProfilesClient(base("/sc2/v1"), Duration.ofSeconds(1), Duration.ofSeconds(1));
+
+        assertThat(client.listAll()).extracting(p -> p.getFirstName()).containsExactly("A", "B");
+        assertThat(received).hasSize(2);
+        assertThat(received).allSatisfy(r -> assertThat(r[1]).isEqualTo(CALLER));
+    }
+
+    @Test
+    void uneOffreLueAvecLeJetonDeLAppelant() {
+        JobOffersClient client = new JobOffersClient(base("/jo/v1"), Duration.ofSeconds(1), Duration.ofSeconds(1));
+
+        assertThat(client.find(KNOWN)).hasValueSatisfying(o -> assertThat(o.getPublisherId()).isEqualTo(KNOWN));
+        assertThat(client.find(UUID.randomUUID())).isEmpty();
         assertThat(received).allSatisfy(r -> assertThat(r[1]).isEqualTo(CALLER));
     }
 }

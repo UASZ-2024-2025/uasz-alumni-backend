@@ -8,6 +8,9 @@
 - `GET /analytics/matchings/students/{studentId}` (`getMatchingOffersForStudent`) est implémenté (il renvoyait 501) :
   offres ouvertes dont le score (ALUM-179, `docs/matching.md`) atteint `minScore`, triées par score décroissant ;
   réservé à l'étudiant concerné et à l'administrateur.
+- `GET /analytics/matchings/offers/{offerId}` (`getMatchingCandidatesForOffer`, ALUM-181) est implémenté : étudiants
+  disponibles dont le score atteint `minScore`, triés par score décroissant ; réservé à l'auteur de l'offre et à
+  l'administrateur.
 - `getMatchingOffersForStudent` et `getMatchingCandidatesForOffer` déclarent 400 (`minScore` hors de 0..100),
   403 (appelant non autorisé) et 503 (service source injoignable).
 - `info.version` passe de 1.21.0 à **1.22.0**.

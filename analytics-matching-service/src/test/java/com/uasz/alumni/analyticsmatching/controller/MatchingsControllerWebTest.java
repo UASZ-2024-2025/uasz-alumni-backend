@@ -12,7 +12,9 @@ import com.uasz.alumni.analyticsmatching.config.SecurityConfig;
 import com.uasz.alumni.analyticsmatching.exceptions.ApiException;
 import com.uasz.alumni.analyticsmatching.exceptions.GlobalExceptionHandler;
 import com.uasz.alumni.analyticsmatching.jwt.JwtService;
+import com.uasz.alumni.analyticsmatching.service.CandidateMatchingService;
 import com.uasz.alumni.analyticsmatching.service.OfferMatchingService;
+import com.uasz.alumni.analyticsmatching.spi.model.CandidateMatchResult;
 import com.uasz.alumni.analyticsmatching.spi.model.OfferMatchResult;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -54,6 +56,7 @@ class MatchingsControllerWebTest {
 
     @Autowired MockMvc mvc;
     @MockitoBean OfferMatchingService offerMatching;
+    @MockitoBean CandidateMatchingService candidateMatching;
 
     @Test
     void sansJeton_renvoie401() throws Exception {
@@ -89,6 +92,25 @@ class MatchingsControllerWebTest {
 
         mvc.perform(get(URL).header("Authorization", "Bearer " + token(STUDENT, "ADMINISTRATEUR")))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void candidatsRecommandes_renvoie200() throws Exception {
+        UUID offer = UUID.randomUUID();
+        when(candidateMatching.matchingCandidates(eq(offer), eq(60), any())).thenReturn(List.of(new CandidateMatchResult()
+                .studentId(STUDENT).studentName("Awa Ndiaye").specialty("Génie Logiciel").matchScore(90)
+                .matchingSkills(List.of("Java"))));
+
+        mvc.perform(get("/v1/analytics/matchings/offers/" + offer)
+                        .header("Authorization", "Bearer " + token(UUID.randomUUID(), "ENTREPRISE")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].studentName").value("Awa Ndiaye"))
+                .andExpect(jsonPath("$[0].matchScore").value(90));
+    }
+
+    @Test
+    void candidatsSansJeton_renvoie401() throws Exception {
+        mvc.perform(get("/v1/analytics/matchings/offers/" + UUID.randomUUID())).andExpect(status().isUnauthorized());
     }
 
     private static String token(UUID subject, String role) {

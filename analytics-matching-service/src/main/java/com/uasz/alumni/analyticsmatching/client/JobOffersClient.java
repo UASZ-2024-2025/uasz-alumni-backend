@@ -7,10 +7,13 @@ import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
 /**
@@ -59,5 +62,18 @@ public class JobOffersClient {
             }
         }
         return offers;
+    }
+
+    /** Une offre, quel que soit son statut tant que l'appelant peut la voir ; vide si elle est inconnue. */
+    public Optional<JobOffer> find(UUID id) {
+        try {
+            return Optional.ofNullable(http.get()
+                    .uri("/offers/{id}", id)
+                    .header(HttpHeaders.AUTHORIZATION, CallerToken.authorization())
+                    .retrieve()
+                    .body(JobOffer.class));
+        } catch (HttpClientErrorException.NotFound e) {
+            return Optional.empty();
+        }
     }
 }

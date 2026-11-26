@@ -1,7 +1,7 @@
 package com.uasz.alumni.analyticsmatching.controller;
 
-import com.uasz.alumni.analyticsmatching.exceptions.NotImplementedYetException;
 import com.uasz.alumni.analyticsmatching.security.AuthenticatedUser;
+import com.uasz.alumni.analyticsmatching.service.CandidateMatchingService;
 import com.uasz.alumni.analyticsmatching.service.OfferMatchingService;
 import com.uasz.alumni.analyticsmatching.spi.api.MatchingsApi;
 import com.uasz.alumni.analyticsmatching.spi.model.CandidateMatchResult;
@@ -16,9 +16,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class MatchingsController implements MatchingsApi {
 
     private final OfferMatchingService offerMatching;
+    private final CandidateMatchingService candidateMatching;
 
-    public MatchingsController(OfferMatchingService offerMatching) {
+    public MatchingsController(OfferMatchingService offerMatching, CandidateMatchingService candidateMatching) {
         this.offerMatching = offerMatching;
+        this.candidateMatching = candidateMatching;
     }
 
     @Override
@@ -28,8 +30,7 @@ public class MatchingsController implements MatchingsApi {
 
     @Override
     public ResponseEntity<List<CandidateMatchResult>> getMatchingCandidatesForOffer(UUID offerId, Integer minScore) {
-        // TODO : candidats recommandés pour l'offre (ALUM-181)
-        throw new NotImplementedYetException("getMatchingCandidatesForOffer");
+        return ResponseEntity.ok(candidateMatching.matchingCandidates(offerId, minScore, currentUser()));
     }
 
     private static AuthenticatedUser currentUser() {
