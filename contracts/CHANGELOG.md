@@ -1,5 +1,18 @@
 # Journal des modifications des contrats OpenAPI
 
+## 1.18.0 (synthèse d'accueil entreprise, ALUM-249)
+
+Évolution compatible : un chemin ajouté.
+
+### job-offer-service
+- Nouveau `GET /companies/me/home-summary` (`getMyCompanyHomeSummary`, tag `CompanyHome`), réservé au rôle ENTREPRISE
+  (401 sans jeton, 403 pour un autre rôle) : `CompanyHomeSummary` (`activeOffers`, `applicationsByOffer`,
+  `proposalsSent`) et `OfferApplicationsCount` (`offerId`, `title`, `applications`).
+- Les données sont celles de l'utilisateur connecté : aucun paramètre d'identité.
+
+### Version
+- `info.version` passe de 1.10.0 à **1.18.0**.
+
 ## 1.15.0 (pièces jointes : envoi sans remplacement, ALUM-261)
 
 Évolution compatible : un champ ajouté en réponse.
