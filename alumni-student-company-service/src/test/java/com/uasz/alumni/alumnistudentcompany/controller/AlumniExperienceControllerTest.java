@@ -1,4 +1,5 @@
 package com.uasz.alumni.alumnistudentcompany.controller;
+import com.uasz.alumni.alumnistudentcompany.service.RecommendationService;
 import com.uasz.alumni.alumnistudentcompany.service.AlumniProfileService;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -46,6 +47,7 @@ class AlumniExperienceControllerTest {
     @MockitoBean AlumniExperienceService service;
     @MockitoBean JwtService jwtService;
     @MockitoBean AlumniProfileService profileService;
+    @MockitoBean RecommendationService recommendationService;
     @MockitoBean AlumniHomeSummaryService homeSummaryService;
 
     private final UUID user = UUID.randomUUID();

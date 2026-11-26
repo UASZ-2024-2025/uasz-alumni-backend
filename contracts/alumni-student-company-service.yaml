@@ -6,7 +6,7 @@ info:
     des entreprises partenaires et des promotions académiques pour la plateforme Alumni UASZ.
   contact:
     name: Équipe Projet Intégrateur - M2 GL - UASZ
-  version: 1.16.0
+  version: 1.19.0
 servers:
   - url: https://api.alumni-uasz.sn/alumni-student-company-service/v1
     description: Serveur de production
@@ -375,6 +375,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
       security:
         - bearerAuth: []
 

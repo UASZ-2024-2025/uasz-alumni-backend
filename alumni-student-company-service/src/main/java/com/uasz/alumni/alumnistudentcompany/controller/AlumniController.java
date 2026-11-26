@@ -1,11 +1,12 @@
 package com.uasz.alumni.alumnistudentcompany.controller;
 
-import com.uasz.alumni.alumnistudentcompany.exceptions.NotImplementedYetException;
 import com.uasz.alumni.alumnistudentcompany.model.Experience;
+import com.uasz.alumni.alumnistudentcompany.model.Recommendation;
 import com.uasz.alumni.alumnistudentcompany.security.AuthenticatedUser;
 import com.uasz.alumni.alumnistudentcompany.service.AlumniExperienceService;
 import com.uasz.alumni.alumnistudentcompany.service.AlumniHomeSummaryService;
 import com.uasz.alumni.alumnistudentcompany.service.AlumniProfileService;
+import com.uasz.alumni.alumnistudentcompany.service.RecommendationService;
 import com.uasz.alumni.alumnistudentcompany.spi.api.AlumniApi;
 import com.uasz.alumni.alumnistudentcompany.spi.model.AlumniHomeSummary;
 import com.uasz.alumni.alumnistudentcompany.spi.model.AlumniPagedResponse;
@@ -29,12 +30,14 @@ public class AlumniController implements AlumniApi {
     private final AlumniExperienceService experiences;
     private final AlumniProfileService profiles;
     private final AlumniHomeSummaryService homeSummary;
+    private final RecommendationService recommendations;
 
     public AlumniController(AlumniExperienceService experiences, AlumniProfileService profiles,
-                            AlumniHomeSummaryService homeSummary) {
+                            AlumniHomeSummaryService homeSummary, RecommendationService recommendations) {
         this.experiences = experiences;
         this.profiles = profiles;
         this.homeSummary = homeSummary;
+        this.recommendations = recommendations;
     }
 
     @Override
@@ -78,9 +81,14 @@ public class AlumniController implements AlumniApi {
     }
 
     @Override
-    public ResponseEntity<RecommendationResponse> recommendCandidate(RecommendationRequest recommendationRequest) {
-        // TODO : enregistrer la recommandation (recommenderId = utilisateur courant) -> 201 / 400
-        throw new NotImplementedYetException("recommendCandidate");
+    @PreAuthorize("hasRole('ALUMNI')")
+    public ResponseEntity<RecommendationResponse> recommendCandidate(RecommendationRequest request) {
+        AuthenticatedUser caller = (AuthenticatedUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        Recommendation r = recommendations.recommander(caller.id(), request.getStudentId(),
+            request.getCompanyId(), request.getComments());
+        return ResponseEntity.status(HttpStatus.CREATED).body(new RecommendationResponse()
+            .id(r.getId()).recommenderId(r.getRecommenderId()).studentId(r.getStudentId())
+            .companyId(r.getCompanyId()).comments(r.getComments()).createdAt(r.getCreatedAt()));
     }
 
     private static WorkExperience toDto(Experience e) {

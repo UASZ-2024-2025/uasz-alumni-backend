@@ -1,5 +1,17 @@
 # Journal des modifications des contrats OpenAPI
 
+## 1.19.0 (recommandation d'un étudiant par un Alumni, ALUM-119)
+
+Évolution compatible : aucune opération ni aucun champ retiré ; seule une réponse est ajoutée.
+
+### alumni-student-company-service
+- `POST /alumni/recommendations` (`recommendCandidate`) est implémenté (il renvoyait 501) : réservé au rôle ALUMNI,
+  l'étudiant recommandé est notifié (type `SYSTEM_ALERT`, canal `IN_APP`) sans que la réponse l'attende.
+- **Précision** : `recommendCandidate` déclare la réponse 403 (appelant qui n'a pas le rôle ALUMNI).
+- `info.version` passe de 1.16.0 à **1.19.0**.
+
+SPI `alumni-student-company-service-spi` publié en **1.19.0** (pom parent `alumni-spis` 1.19.0).
+
 ## 1.16.0 (synthèse d'accueil Alumni, ALUM-246)
 
 Évolution compatible : une opération et un schéma ajoutés, rien de retiré.

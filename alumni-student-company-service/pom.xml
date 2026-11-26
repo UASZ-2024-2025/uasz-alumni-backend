@@ -19,10 +19,10 @@
   <properties>
     <java.version>21</java.version>
     <jjwt.version>0.12.6</jjwt.version>
-    <alumni.spi.version>1.16.0</alumni.spi.version>
+    <alumni.spi.version>1.19.0</alumni.spi.version>
     <!-- Contrat consommé en client (PUT /internal/users/{id}/company, ALUM-168) -->
     <user-service.spi.version>1.5.0</user-service.spi.version>
-    <!-- Contrat consommé en client (non-lus de la messagerie, synthèse d'accueil Alumni, ALUM-246) -->
+    <!-- Contrat consommé en client (POST /notifications/send, ALUM-119 ; non-lus de la messagerie, ALUM-246) -->
     <notification-messaging.spi.version>1.15.0</notification-messaging.spi.version>
   </properties>
 
@@ -52,7 +52,7 @@
       <artifactId>user-service-spi</artifactId>
       <version>${user-service.spi.version}</version>
     </dependency>
-    <!-- Client : contrat de notification-messaging-service (conversations et groupes, nombre de non-lus) -->
+    <!-- Client : contrat de notification-messaging-service (notifications, conversations et groupes) -->
     <dependency>
       <groupId>com.uasz.alumni</groupId>
       <artifactId>notification-messaging-service-spi</artifactId>

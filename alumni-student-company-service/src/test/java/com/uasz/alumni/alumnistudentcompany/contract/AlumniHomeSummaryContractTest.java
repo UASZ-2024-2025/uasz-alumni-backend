@@ -19,6 +19,7 @@ import com.uasz.alumni.alumnistudentcompany.service.AlumniExperienceService;
 import com.uasz.alumni.alumnistudentcompany.service.AlumniHomeSummaryService;
 import com.uasz.alumni.alumnistudentcompany.service.AlumniProfileService;
 import com.uasz.alumni.alumnistudentcompany.service.MessagingClient;
+import com.uasz.alumni.alumnistudentcompany.service.RecommendationService;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -55,6 +56,7 @@ class AlumniHomeSummaryContractTest {
     @MockitoBean MessagingClient messaging;
     @MockitoBean AlumniProfileService profileService;
     @MockitoBean AlumniExperienceService experienceService;
+    @MockitoBean RecommendationService recommendationService;
 
     @BeforeEach
     void tokens() {
