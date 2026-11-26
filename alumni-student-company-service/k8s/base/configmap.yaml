@@ -11,3 +11,5 @@ data:
   JWT_ISSUER: alumni-uasz-user
   # Rattachement du compte ENTREPRISE à sa fiche (ALUM-168) : Service K8s sur le port 80
   USER_SERVICE_URL: http://user-service/user-service/v1
+  # Synthèse d'accueil Alumni (ALUM-246) : non-lus de la messagerie, Service K8s sur le port 80
+  NOTIFICATION_SERVICE_URL: http://notification-messaging-service/notification-messaging-service/v1

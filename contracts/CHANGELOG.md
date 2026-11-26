@@ -1,5 +1,16 @@
 # Journal des modifications des contrats OpenAPI
 
+## 1.16.0 (synthèse d'accueil Alumni, ALUM-246)
+
+Évolution compatible : une opération et un schéma ajoutés, rien de retiré.
+
+### alumni-student-company-service
+- **Ajout** de `GET /alumni/me/home-summary` (`getMyAlumniHomeSummary`, rôle ALUMNI) : compteurs de la page d'accueil
+  de l'Alumni connecté, identifié par son jeton uniquement. Réponses 200, 401 et 403.
+- Nouveau schéma `AlumniHomeSummary` : `recommendationsGiven`, `pendingRequests`, `unreadMessages` (entiers >= 0,
+  obligatoires).
+- `info.version` passe de 1.9.0 à **1.16.0** (alignée sur la version du SPI).
+
 ## 1.15.0 (pièces jointes : envoi sans remplacement, ALUM-261)
 
 Évolution compatible : un champ ajouté en réponse.

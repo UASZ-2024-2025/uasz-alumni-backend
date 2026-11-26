@@ -18,6 +18,7 @@ import com.uasz.alumni.alumnistudentcompany.exceptions.GlobalExceptionHandler;
 import com.uasz.alumni.alumnistudentcompany.jwt.JwtService;
 import com.uasz.alumni.alumnistudentcompany.security.AuthenticatedUser;
 import com.uasz.alumni.alumnistudentcompany.service.AlumniExperienceService;
+import com.uasz.alumni.alumnistudentcompany.service.AlumniHomeSummaryService;
 import com.uasz.alumni.alumnistudentcompany.service.AlumniProfileService;
 import com.uasz.alumni.alumnistudentcompany.spi.model.AlumniProfile;
 import com.uasz.alumni.alumnistudentcompany.spi.model.AlumniProfileUpdateRequest;
@@ -47,6 +48,7 @@ class AlumniProfileControllerTest {
     // On mocke les deux services car ils sont injectés dans le contrôleur
     @MockitoBean AlumniProfileService profileService;
     @MockitoBean AlumniExperienceService experienceService;
+    @MockitoBean AlumniHomeSummaryService homeSummaryService;
     @MockitoBean JwtService jwtService;
 
     private final UUID proprietaireId = UUID.randomUUID();
