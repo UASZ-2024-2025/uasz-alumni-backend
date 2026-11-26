@@ -19,6 +19,8 @@ import com.uasz.alumni.alumnistudentcompany.repository.AlumniRepository;
 import com.uasz.alumni.alumnistudentcompany.repository.ExperienceRepository;
 import com.uasz.alumni.alumnistudentcompany.security.AuthenticatedUser;
 import com.uasz.alumni.alumnistudentcompany.service.AlumniExperienceService;
+import com.uasz.alumni.alumnistudentcompany.service.AlumniHomeSummaryService;
+import com.uasz.alumni.alumnistudentcompany.service.RecommendationService;
 import com.uasz.alumni.alumnistudentcompany.service.AlumniProfileService;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
@@ -61,6 +63,8 @@ class AlumniExperiencesContractTest {
     @MockitoBean ExperienceRepository experiences;
     @MockitoBean JwtService jwt;
     @MockitoBean AlumniProfileService profileService;
+    @MockitoBean RecommendationService recommendationService;
+    @MockitoBean AlumniHomeSummaryService homeSummaryService;
 
     private final UUID owner = UUID.randomUUID();
     private final UUID alumniId = UUID.randomUUID();

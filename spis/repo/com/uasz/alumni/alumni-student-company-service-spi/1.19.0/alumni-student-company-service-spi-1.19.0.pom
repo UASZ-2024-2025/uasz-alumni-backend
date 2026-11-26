@@ -6,16 +6,16 @@
   <parent>
     <groupId>com.uasz.alumni</groupId>
     <artifactId>alumni-spis</artifactId>
-    <version>1.16.0</version>
+    <version>1.19.0</version>
   </parent>
 
-  <artifactId>job-offer-service-spi</artifactId>
-  <name>job-offer-service-spi</name>
-  <description>SPI généré depuis contracts/job-offer-service.yaml</description>
+  <artifactId>alumni-student-company-service-spi</artifactId>
+  <name>alumni-student-company-service-spi</name>
+  <description>SPI généré depuis contracts/alumni-student-company-service.yaml</description>
 
   <properties>
-    <spi.contract>${project.basedir}/../../contracts/job-offer-service.yaml</spi.contract>
-    <spi.package>com.uasz.alumni.joboffer.spi</spi.package>
+    <spi.contract>${project.basedir}/../../contracts/alumni-student-company-service.yaml</spi.contract>
+    <spi.package>com.uasz.alumni.alumnistudentcompany.spi</spi.package>
   </properties>
 
   <build>
