@@ -6,7 +6,7 @@ info:
     des entreprises partenaires et des promotions académiques pour la plateforme Alumni UASZ.
   contact:
     name: Équipe Projet Intégrateur - M2 GL - UASZ
-  version: 1.0.0
+  version: 1.21.0
 servers:
   - url: https://api.alumni-uasz.sn/alumni-student-company-service/v1
     description: Serveur de production
@@ -21,6 +21,10 @@ tags:
     description: Gestion des entreprises partenaires et profils d'entreprises
   - name: Promotions
     description: Gestion des promotions académiques, spécialités et listes de diplômés
+  - name: Internal
+    description: |
+      Opérations réservées aux autres microservices (jeton de service, rôle SERVICE, voir ADR-0010).
+      Elles ne sont pas exposées au frontend.
 
 paths:
   /students:
@@ -105,6 +109,10 @@ paths:
       tags:
         - Students
       summary: Mettre à jour le profil d'un étudiant
+      description: >
+        Les champs skills et interests sont remplacés à chaque appel PUT.
+        Lorsqu'ils sont absents de la requête, ils sont considérés comme des
+        listes vides et les anciennes valeurs sont effacées.
       operationId: updateStudentProfile
       parameters:
         - $ref: "#/components/parameters/EntityId"
@@ -125,8 +133,11 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+
       security:
         - bearerAuth: []
 
@@ -176,6 +187,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
       security:
@@ -207,6 +220,12 @@ paths:
           required: false
           schema:
             type: integer
+        - name: specialty
+          in: query
+          description: Filtrer par spécialité (le « secteur » de l'écran)
+          required: false
+          schema:
+            type: string
         - name: page
           in: query
           required: false
@@ -277,6 +296,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
       security:
@@ -354,6 +375,33 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      security:
+        - bearerAuth: []
+
+  /alumni/me/home-summary:
+    get:
+      tags:
+        - Alumni
+      summary: Synthèse de la page d'accueil de l'Alumni connecté
+      description: |
+        Réservé au rôle ALUMNI. Renvoie en un seul appel les compteurs de la page d'accueil de l'Alumni connecté.
+        L'Alumni est identifié uniquement par son jeton (aucun identifiant en paramètre) : chacun ne voit que
+        ses propres chiffres. Aucune donnée n'est dupliquée : les compteurs sont calculés à chaque appel à partir
+        des services qui détiennent les données.
+      operationId: getMyAlumniHomeSummary
+      responses:
+        "200":
+          description: Compteurs de la page d'accueil de l'Alumni connecté
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlumniHomeSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
       security:
         - bearerAuth: []
 
@@ -422,6 +470,41 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: Un compte ENTREPRISE ne gère qu'une seule fiche entreprise
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - bearerAuth: []
+
+  /companies/me:
+    get:
+      tags:
+        - Companies
+      summary: Fiche entreprise du compte connecté
+      description: |
+        Réservé au rôle ENTREPRISE. Renvoie la fiche dont le compte connecté est le gestionnaire (`ownerId`).
+        404 tant que le compte n'a pas créé sa fiche (l'écran propose alors de la créer).
+        Si le jeton ne porte pas encore de `companyId`, le rattachement du compte à la fiche dans user-service
+        est relancé en arrière-plan (idempotent) : un rattachement manqué à la création se rattrape ainsi.
+      operationId: getMyCompany
+      responses:
+        "200":
+          description: Fiche entreprise du compte connecté
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Company"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
       security:
         - bearerAuth: []
 
@@ -452,6 +535,7 @@ paths:
         - Companies
       summary: Mettre à jour une entreprise
       operationId: updateCompany
+      
       parameters:
         - $ref: "#/components/parameters/EntityId"
       requestBody:
@@ -471,8 +555,60 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
+  /companies/{id}/owner:
+    put:
+      tags:
+        - Companies
+      summary: Rattacher la fiche à un compte ENTREPRISE (administrateur)
+      description: |
+        Réservé à l'ADMINISTRATEUR. Désigne le compte gestionnaire de la fiche et rattache ce compte à la
+        fiche dans user-service (`User.companyId`). Idempotent : rejouer l'appel avec le même compte
+        rattrape un rattachement qui n'aurait pas abouti à la création de la fiche.
+        409 si le compte n'est pas un compte ENTREPRISE ou s'il est déjà rattaché à une autre fiche ;
+        503 si user-service est indisponible.
+      operationId: assignCompanyOwner
+      parameters:
+        - $ref: "#/components/parameters/EntityId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompanyOwnerRequest"
+      responses:
+        "200":
+          description: Fiche rattachée au compte
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Company"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Le compte n'est pas un compte ENTREPRISE ou est déjà rattaché à une autre fiche
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: user-service indisponible
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
       security:
         - bearerAuth: []
 
@@ -481,6 +617,10 @@ paths:
       tags:
         - Promotions
       summary: Lister les promotions académiques
+      description: |
+        Promotions triées de la plus récente à la plus ancienne, puis par spécialité.
+        `graduateCount` est calculé : nombre d'Alumni dont l'année de diplôme et la spécialité
+        (sans tenir compte de la casse) sont celles de la promotion.
       operationId: listPromotions
       responses:
         "200":
@@ -500,6 +640,9 @@ paths:
       tags:
         - Promotions
       summary: Ajouter une nouvelle promotion
+      description: |
+        Réservé aux administrateurs. `academicYear` (entre 1990 et 2100) et `specialty` (non vide) sont
+        obligatoires. Une promotion est unique par année et spécialité (sans tenir compte de la casse).
       operationId: createPromotion
       requestBody:
         required: true
@@ -518,6 +661,14 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: Une promotion existe déjà pour cette année et cette spécialité
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
       security:
         - bearerAuth: []
 
@@ -526,6 +677,11 @@ paths:
       tags:
         - Promotions
       summary: Obtenir la liste des diplômés d'une promotion
+      description: |
+        Les diplômés sont les Alumni dont l'année de diplôme et la spécialité sont celles de la promotion,
+        triés par nom puis prénom ; leur nombre est égal à `graduateCount`.
+        Chaque élément reprend le schéma `StudentProfile`, mais son `id` est celui du **profil Alumni** :
+        il s'utilise avec `GET /alumni/{id}`, et non avec `GET /students/{id}` (qui répondrait 404).
       operationId: getPromotionGraduates
       parameters:
         - $ref: "#/components/parameters/EntityId"
@@ -542,6 +698,99 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
+  /internal/profiles:
+    post:
+      tags:
+        - Internal
+      summary: Créer le profil d'un utilisateur dont le compte vient d'être activé (usage interne)
+      description: |
+        Appelé par user-service après la confirmation de l'email d'un compte ETUDIANT ou ALUMNI.
+        Réservé aux jetons de service (rôle SERVICE, audience `alumni-student-company-service`) :
+        un JWT utilisateur reçoit 403.
+
+        **Idempotent** sur `userId` : si un profil existe déjà pour cet utilisateur, il est renvoyé
+        tel quel avec le code 200 (aucun doublon). L'appelant peut donc rejouer la requête sans risque
+        après un timeout.
+      operationId: provisionProfile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileProvisioningRequest"
+      responses:
+        "201":
+          description: Profil créé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileProvisioningResponse"
+        "200":
+          description: Un profil existait déjà pour cet utilisateur (aucune création)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileProvisioningResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      security:
+        - bearerAuth: []
+
+  /internal/companies/{id}:
+    get:
+      tags:
+        - Internal
+      summary: Lire une fiche entreprise (usage interne)
+      description: |
+        Appelé par job-offer-service pour vérifier le gestionnaire et la validation (`isPartner`) d'une
+        entreprise avant la publication d'une offre. Réservé aux jetons de service (rôle SERVICE,
+        audience `alumni-student-company-service`) : un JWT utilisateur reçoit 403.
+      operationId: getCompanyForService
+      parameters:
+        - $ref: "#/components/parameters/EntityId"
+      responses:
+        "200":
+          description: Fiche entreprise
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Company"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
+  /internal/stats:
+    get:
+      tags:
+        - Internal
+      summary: Statistiques agrégées de la plateforme (usage interne)
+      description: |
+        Appelé par analytics-matching-service pour le tableau de bord administrateur (ALUM-182).
+        Réservé aux jetons de service (rôle SERVICE).
+      operationId: getPlatformStatsForService
+      responses:
+        "200":
+          description: Compteurs agrégés
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformStats"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
       security:
         - bearerAuth: []
 
@@ -871,12 +1120,43 @@ components:
           type: string
           format: date-time
 
+    AlumniHomeSummary:
+      type: object
+      description: Compteurs de la page d'accueil de l'Alumni connecté.
+      required:
+        - recommendationsGiven
+        - pendingRequests
+        - unreadMessages
+      properties:
+        recommendationsGiven:
+          type: integer
+          format: int32
+          minimum: 0
+          example: 3
+          description: Nombre de recommandations faites par l'Alumni (`POST /alumni/recommendations`)
+        pendingRequests:
+          type: integer
+          format: int32
+          minimum: 0
+          example: 2
+          description: Nombre de demandes adressées à l'Alumni et en attente de sa réponse
+        unreadMessages:
+          type: integer
+          format: int32
+          minimum: 0
+          example: 5
+          description: Nombre de messages non lus de l'Alumni (conversations privées et groupes)
+
     Company:
       type: object
       properties:
         id:
           type: string
           format: uuid
+        ownerId:
+          type: string
+          format: uuid
+          description: Identifiant du gestionnaire de la fiche (l'utilisateur qui l'a créée)
         name:
           type: string
           example: "Gainde 2000"
@@ -951,6 +1231,17 @@ components:
           type: string
         isPartner:
           type: boolean
+          description: Réservé à l'administrateur (403 sinon)
+
+    CompanyOwnerRequest:
+      type: object
+      required:
+        - ownerId
+      properties:
+        ownerId:
+          type: string
+          format: uuid
+          description: Identifiant du compte ENTREPRISE qui gère la fiche
 
     Promotion:
       type: object
@@ -1020,6 +1311,77 @@ components:
           type: integer
         size:
           type: integer
+
+    ProvisionedProfileType:
+      type: string
+      description: Type de profil à créer, déduit du rôle du compte dans user-service.
+      enum:
+        - ETUDIANT
+        - ALUMNI
+
+    ProfileProvisioningRequest:
+      type: object
+      required:
+        - userId
+        - profileType
+        - firstName
+        - lastName
+        - email
+      properties:
+        userId:
+          type: string
+          format: uuid
+          description: Identifiant du compte dans user-service (claim `sub` des JWT utilisateurs)
+        profileType:
+          $ref: "#/components/schemas/ProvisionedProfileType"
+        firstName:
+          type: string
+          maxLength: 100
+        lastName:
+          type: string
+          maxLength: 100
+        email:
+          type: string
+          format: email
+          maxLength: 255
+
+    PlatformStats:
+      type: object
+      description: Compteurs agrégés pour le tableau de bord administrateur (ALUM-182).
+      properties:
+        alumniCount:
+          type: integer
+          format: int64
+          description: Nombre de profils Alumni
+        employedAlumniCount:
+          type: integer
+          format: int64
+          description: Alumni dont le poste ou l'entreprise actuels sont renseignés (base du taux d'insertion)
+        studentCount:
+          type: integer
+          format: int64
+          description: Nombre de profils étudiants
+        companyCount:
+          type: integer
+          format: int64
+          description: Entreprises partenaires (fiches validées)
+
+    ProfileProvisioningResponse:
+      type: object
+      required:
+        - profileId
+        - userId
+        - profileType
+      properties:
+        profileId:
+          type: string
+          format: uuid
+          description: Identifiant du profil (étudiant ou Alumni) dans ce service
+        userId:
+          type: string
+          format: uuid
+        profileType:
+          $ref: "#/components/schemas/ProvisionedProfileType"
 
     ErrorResponse:
       type: object

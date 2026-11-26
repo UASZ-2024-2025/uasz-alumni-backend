@@ -6,7 +6,7 @@ info:
     ainsi que de la gestion et de la distribution des notifications (In-App, Email, Push).
   contact:
     name: Équipe Projet Intégrateur - M2 GL - UASZ
-  version: 1.0.0
+  version: 1.15.0
 servers:
   - url: https://api.alumni-uasz.sn/notification-messaging-service/v1
     description: Serveur de production
@@ -16,7 +16,15 @@ tags:
   - name: PrivateMessaging
     description: Échanges et discussions privées 1-à-1 entre étudiants, Alumni et enseignants
   - name: GroupMessaging
-    description: Groupes de discussion (création, membres, échanges collectifs entre étudiants, Alumni et enseignants)
+    description: |
+      Groupes de discussion (création, membres, réglages, échanges collectifs entre étudiants, Alumni et enseignants).
+      Réservés aux rôles ETUDIANT, ALUMNI, ENSEIGNANT et ADMINISTRATEUR (403 pour ENTREPRISE).
+  - name: MessageAttachments
+    description: |
+      Pièces jointes des messages (images, documents, messages vocaux) stockées chez Cloudinary.
+      Le navigateur envoie le fichier directement à Cloudinary avec la signature délivrée par le service, puis envoie
+      le message avec la réponse de Cloudinary. Les fichiers sont en accès authentifié : seuls les participants
+      reçoivent des liens signés.
   - name: Notifications
     description: Centre de notifications système, alertes et suivi de lecture
 
@@ -26,6 +34,7 @@ paths:
       tags:
         - PrivateMessaging
       summary: Lister les conversations privées de l'utilisateur connecté
+      description: Conversations épinglées d'abord, puis par dernier message le plus récent.
       operationId: listConversations
       responses:
         "200":
@@ -46,6 +55,9 @@ paths:
       tags:
         - PrivateMessaging
       summary: Historique des messages d'une conversation avec un utilisateur
+      description: >-
+        Messages triés du plus récent au plus ancien (createdAt décroissant), paginés.
+        Seuls les échanges entre l'appelant et recipientId sont renvoyés.
       operationId: getConversationMessages
       parameters:
         - name: recipientId
@@ -84,6 +96,9 @@ paths:
       tags:
         - PrivateMessaging
       summary: Envoyer un message privé à un utilisateur
+      description: |
+        Texte, sticker ou pièce jointe (voir `SendMessageRequest`). 503 `ATTACHMENTS_DISABLED` pour une pièce jointe
+        quand le stockage n'est pas configuré.
       operationId: sendPrivateMessage
       parameters:
         - name: recipientId
@@ -109,6 +124,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
       security:
         - bearerAuth: []
 
@@ -133,11 +150,87 @@ paths:
       security:
         - bearerAuth: []
 
+  /messages/conversations/{recipientId}/preferences:
+    patch:
+      tags:
+        - PrivateMessaging
+      summary: Modifier ses préférences personnelles sur une conversation (épingler, archiver, mettre en sourdine)
+      description: |
+        Préférences propres à l'utilisateur connecté, invisibles de son interlocuteur.
+        Seuls les champs fournis sont modifiés.
+      operationId: updateConversationPreferences
+      parameters:
+        - name: recipientId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupPreferencesUpdateRequest"
+      responses:
+        "200":
+          description: Préférences mises à jour
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupPreferences"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      security:
+        - bearerAuth: []
+
   /messages/{messageId}:
+    patch:
+      tags:
+        - PrivateMessaging
+      summary: Modifier un message privé envoyé
+      description: |
+        Seul l'expéditeur modifie son message (404 pour tout autre appelant), dans les 15 minutes qui suivent
+        l'envoi. Un message supprimé ne se modifie pas (400). `editedAt` est renseigné.
+      operationId: editPrivateMessage
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EditMessageRequest"
+      responses:
+        "200":
+          description: Message modifié
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PrivateMessage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
     delete:
       tags:
         - PrivateMessaging
-      summary: Supprimer un message privé
+      summary: Supprimer un message privé pour les deux interlocuteurs
+      description: |
+        Seul l'expéditeur supprime son message (404 pour tout autre appelant).
+        Le message reste dans le fil avec `deleted` à true et un contenu vide.
       operationId: deletePrivateMessage
       parameters:
         - name: messageId
@@ -162,10 +255,13 @@ paths:
       tags:
         - GroupMessaging
       summary: Lister les groupes de discussion de l'utilisateur connecté
+      description: |
+        Groupes dont l'utilisateur est membre, archivés compris (voir `preferences.archived`),
+        triés : épinglés d'abord, puis du plus récent au plus ancien (dernier message ou création).
       operationId: listGroups
       responses:
         "200":
-          description: Liste des groupes avec le dernier message et le nombre de non-lus
+          description: Liste des groupes avec le dernier message, le nombre de non-lus et les préférences de l'utilisateur
           content:
             application/json:
               schema:
@@ -174,6 +270,8 @@ paths:
                   $ref: "#/components/schemas/GroupSummary"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
       security:
         - bearerAuth: []
 
@@ -181,7 +279,10 @@ paths:
       tags:
         - GroupMessaging
       summary: Créer un groupe de discussion
-      description: L'utilisateur connecté devient propriétaire (OWNER) du groupe.
+      description: |
+        L'utilisateur connecté devient propriétaire (OWNER) du groupe ; les `memberIds` y entrent comme MEMBER
+        (doublons et créateur ignorés). Réglages par défaut : voir `GroupSettings`.
+        Un message système « X a créé le groupe » ouvre le fil.
       operationId: createGroup
       requestBody:
         required: true
@@ -200,6 +301,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
       security:
         - bearerAuth: []
 
@@ -207,7 +310,7 @@ paths:
     get:
       tags:
         - GroupMessaging
-      summary: Obtenir le détail d'un groupe et la liste de ses membres
+      summary: Obtenir le détail d'un groupe et la liste de ses membres (membres uniquement)
       operationId: getGroupById
       parameters:
         - name: groupId
@@ -218,7 +321,7 @@ paths:
             format: uuid
       responses:
         "200":
-          description: Détail du groupe
+          description: Détail du groupe, réglages et préférences de l'utilisateur connecté
           content:
             application/json:
               schema:
@@ -235,7 +338,10 @@ paths:
     put:
       tags:
         - GroupMessaging
-      summary: Modifier le nom ou la description d'un groupe (propriétaire uniquement)
+      summary: Modifier le nom ou la description d'un groupe
+      description: |
+        Réservé aux administrateurs du groupe (OWNER ou ADMIN) tant que `settings.onlyAdminsCanEditInfo` vaut true ;
+        sinon ouvert à tous les membres. Ajoute un message système.
       operationId: updateGroup
       parameters:
         - name: groupId
@@ -271,7 +377,8 @@ paths:
     delete:
       tags:
         - GroupMessaging
-      summary: Supprimer un groupe (propriétaire ou administrateur)
+      summary: Supprimer un groupe (propriétaire ou ADMINISTRATEUR de la plateforme)
+      description: Supprime le groupe, ses membres, ses messages et les préférences associées.
       operationId: deleteGroup
       parameters:
         - name: groupId
@@ -292,11 +399,93 @@ paths:
       security:
         - bearerAuth: []
 
+  /messages/groups/{groupId}/settings:
+    patch:
+      tags:
+        - GroupMessaging
+      summary: Modifier les réglages d'un groupe (administrateurs du groupe uniquement)
+      description: Seuls les champs fournis sont modifiés. Réservé à OWNER et ADMIN. Ajoute un message système.
+      operationId: updateGroupSettings
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupSettings"
+      responses:
+        "200":
+          description: Réglages mis à jour, groupe renvoyé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
+  /messages/groups/{groupId}/preferences:
+    patch:
+      tags:
+        - GroupMessaging
+      summary: Modifier ses préférences personnelles sur un groupe (épingler, archiver, mettre en sourdine)
+      description: |
+        Préférences propres à l'utilisateur connecté (membres uniquement), invisibles des autres membres.
+        Seuls les champs fournis sont modifiés.
+      operationId: updateGroupPreferences
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupPreferencesUpdateRequest"
+      responses:
+        "200":
+          description: Préférences mises à jour
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupPreferences"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
   /messages/groups/{groupId}/members:
     post:
       tags:
         - GroupMessaging
-      summary: Ajouter des membres à un groupe (propriétaire uniquement)
+      summary: Ajouter des membres à un groupe
+      description: |
+        Réservé aux administrateurs du groupe (OWNER ou ADMIN) tant que `settings.onlyAdminsCanAddMembers` vaut true ;
+        sinon ouvert à tous les membres. On ne rejoint pas un groupe de soi-même : il faut y être ajouté.
+        Les personnes déjà membres sont ignorées ; les nouveaux entrent comme MEMBER. Ajoute un message système.
       operationId: addGroupMembers
       parameters:
         - name: groupId
@@ -330,11 +519,61 @@ paths:
         - bearerAuth: []
 
   /messages/groups/{groupId}/members/{userId}:
+    patch:
+      tags:
+        - GroupMessaging
+      summary: Nommer ou retirer un administrateur du groupe (propriétaire uniquement)
+      description: |
+        Passe un membre de MEMBER à ADMIN ou l'inverse. Le rôle OWNER ne s'attribue pas ainsi
+        et le propriétaire ne peut pas changer son propre rôle (400). Ajoute un message système.
+      operationId: updateGroupMemberRole
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupMemberRoleUpdateRequest"
+      responses:
+        "200":
+          description: Rôle modifié, groupe renvoyé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
     delete:
       tags:
         - GroupMessaging
       summary: Retirer un membre du groupe ou quitter le groupe
-      description: Le propriétaire peut retirer n'importe quel membre ; un membre peut se retirer lui-même (quitter le groupe).
+      description: |
+        - Un membre peut toujours se retirer lui-même (quitter le groupe).
+        - Le propriétaire peut retirer n'importe quel membre ; un ADMIN peut retirer les ADMIN et MEMBER, jamais le propriétaire.
+        - Si le propriétaire quitte, la propriété passe à l'ADMIN le plus ancien, à défaut au membre le plus ancien ;
+          si plus personne ne reste, le groupe est supprimé.
+        Ajoute un message système.
       operationId: removeGroupMember
       parameters:
         - name: groupId
@@ -365,7 +604,10 @@ paths:
     get:
       tags:
         - GroupMessaging
-      summary: Historique des messages d'un groupe
+      summary: Historique des messages d'un groupe (membres uniquement)
+      description: |
+        La page 0 contient les messages les plus récents ; chaque page est renvoyée dans l'ordre chronologique
+        (du plus ancien au plus récent), les pages suivantes remontent dans le temps.
       operationId: getGroupMessages
       parameters:
         - name: groupId
@@ -406,6 +648,10 @@ paths:
       tags:
         - GroupMessaging
       summary: Envoyer un message dans un groupe
+      description: |
+        Membres uniquement ; si `settings.onlyAdminsCanSend` vaut true, seuls OWNER et ADMIN peuvent écrire (403 sinon).
+        Texte (au plus 4000 caractères), sticker ou pièce jointe avec légende facultative (voir `SendMessageRequest`).
+        503 `ATTACHMENTS_DISABLED` pour une pièce jointe quand le stockage n'est pas configuré.
       operationId: sendGroupMessage
       parameters:
         - name: groupId
@@ -427,6 +673,90 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/GroupMessage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      security:
+        - bearerAuth: []
+
+  /messages/groups/{groupId}/messages/{messageId}:
+    patch:
+      tags:
+        - GroupMessaging
+      summary: Modifier un message envoyé dans un groupe
+      description: |
+        Seul l'auteur modifie son message (403 sinon), dans les 15 minutes qui suivent l'envoi, et tant qu'il
+        peut écrire dans le groupe. Les messages système et les messages supprimés ne se modifient pas (400).
+        `editedAt` est renseigné.
+      operationId: editGroupMessage
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EditMessageRequest"
+      responses:
+        "200":
+          description: Message modifié
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupMessage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
+    delete:
+      tags:
+        - GroupMessaging
+      summary: Supprimer un message pour tous
+      description: |
+        L'auteur peut supprimer son message ; OWNER et ADMIN peuvent supprimer celui de n'importe quel membre.
+        Le message reste dans le fil avec `deleted` à true et un contenu vide. Les messages système ne se suppriment pas (400).
+      operationId: deleteGroupMessage
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Message supprimé
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -463,6 +793,65 @@ paths:
       security:
         - bearerAuth: []
 
+
+  /messages/attachments/settings:
+    get:
+      tags:
+        - MessageAttachments
+      summary: Réglages des pièces jointes (activées, tailles et durée maximales)
+      description: >-
+        `enabled` vaut false tant que le stockage n'est pas configuré : le front masque alors les boutons
+        de pièce jointe et de message vocal.
+      operationId: getAttachmentSettings
+      responses:
+        "200":
+          description: Réglages des pièces jointes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttachmentSettings"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      security:
+        - bearerAuth: []
+
+  /messages/attachments/uploads:
+    post:
+      tags:
+        - MessageAttachments
+      summary: Obtenir une autorisation d'envoi d'un fichier vers le stockage
+      description: |
+        Renseigner `groupId` (membre pouvant écrire dans le groupe, 403 sinon) ou `recipientId` (pas soi-même),
+        exactement l'un des deux. Le navigateur envoie ensuite le fichier en `multipart/form-data` à `uploadUrl`
+        avec les champs `file`, `api_key`, `timestamp`, `signature`, `public_id`, `type` et, s'il est présent,
+        `allowed_formats` ; puis il envoie le message avec la réponse de Cloudinary (`AttachmentUpload`).
+        400 `UNSUPPORTED_FILE_TYPE` pour une extension refusée ; 503 `ATTACHMENTS_DISABLED` sans stockage configuré.
+      operationId: createAttachmentUpload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AttachmentUploadRequest"
+      responses:
+        "200":
+          description: Autorisation d'envoi (valable une heure)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttachmentUploadTicket"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+      security:
+        - bearerAuth: []
 
   /notifications:
     get:
@@ -584,6 +973,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
       security:
         - bearerAuth: []
 
@@ -621,12 +1012,25 @@ components:
           example: "ALUMNI"
         lastMessage:
           type: string
+          description: Contenu du dernier message (vide s'il a été supprimé).
+        lastMessageSenderId:
+          type: string
+          format: uuid
+          description: Auteur du dernier message (l'appelant ou son interlocuteur).
+        lastMessageDeleted:
+          type: boolean
+        lastMessageType:
+          $ref: "#/components/schemas/GroupMessageType"
+        lastMessageAttachmentKind:
+          $ref: "#/components/schemas/AttachmentKind"
         lastMessageTime:
           type: string
           format: date-time
         unreadCount:
           type: integer
           example: 3
+        preferences:
+          $ref: "#/components/schemas/GroupPreferences"
 
     PrivateMessage:
       type: object
@@ -639,27 +1043,208 @@ components:
           format: uuid
         senderName:
           type: string
+          description: Nom affiché de l'expéditeur ; absent tant que l'utilisateur ne s'est jamais connecté au service avec un jeton portant son nom (prévoir un nom par défaut).
         recipientId:
           type: string
           format: uuid
         recipientName:
           type: string
+        type:
+          $ref: "#/components/schemas/GroupMessageType"
         content:
           type: string
+          description: Texte du message, ou légende d'une pièce jointe ; vide si le message a été supprimé.
+        sticker:
+          type: string
+          description: Code du sticker quand `type` vaut STICKER.
+        attachment:
+          $ref: "#/components/schemas/MessageAttachment"
         isRead:
+          type: boolean
+        deleted:
           type: boolean
         createdAt:
           type: string
           format: date-time
+        editedAt:
+          type: string
+          format: date-time
+          description: Date de la dernière modification ; absent si le message n'a jamais été modifié.
 
     SendMessageRequest:
+      type: object
+      description: |
+        Un texte (`content`), un sticker (`sticker`, sans texte) ou une pièce jointe (`attachment`, avec `content`
+        en légende facultative). 400 `EMPTY_MESSAGE` si rien n'est fourni, `INVALID_MESSAGE` si sticker et pièce
+        jointe sont combinés, `INVALID_STICKER`, `INVALID_ATTACHMENT` (signature, propriétaire ou type incorrects)
+        ou `ATTACHMENT_TOO_LARGE`.
+      properties:
+        content:
+          type: string
+          example: "Bonjour ! Seriez-vous disponible pour discuter des opportunités dans votre entreprise ?"
+        sticker:
+          type: string
+          pattern: "^[a-z0-9-]{1,40}$"
+          example: "bravo"
+        attachment:
+          $ref: "#/components/schemas/AttachmentUpload"
+
+    AttachmentKind:
+      type: string
+      description: IMAGE (photo), FILE (document) ou AUDIO (message vocal).
+      enum:
+        - IMAGE
+        - FILE
+        - AUDIO
+
+    MessageAttachment:
+      type: object
+      properties:
+        kind:
+          $ref: "#/components/schemas/AttachmentKind"
+        fileName:
+          type: string
+          example: "rapport-de-stage.pdf"
+        format:
+          type: string
+          example: "pdf"
+        sizeBytes:
+          type: integer
+          format: int64
+        durationSeconds:
+          type: number
+          format: double
+          description: Durée d'un message vocal.
+        width:
+          type: integer
+        height:
+          type: integer
+        url:
+          type: string
+          description: Lien signé vers le fichier (l'audio est servi en mp3, lisible par tous les navigateurs).
+        previewUrl:
+          type: string
+          description: Version réduite d'une image, pour l'affichage dans le fil.
+
+    AttachmentUpload:
+      type: object
+      description: >-
+        Réponse de Cloudinary à l'envoi du fichier, recopiée dans le message. Seuls `publicId` et `version` sont
+        signés : taille, format, durée et dimensions sont relus auprès du stockage par le service, les valeurs
+        envoyées ici sont indicatives.
+      required:
+        - kind
+        - publicId
+        - version
+        - signature
+        - fileName
+        - sizeBytes
+      properties:
+        kind:
+          $ref: "#/components/schemas/AttachmentKind"
+        publicId:
+          type: string
+          description: "`public_id` renvoyé par Cloudinary (celui de l'autorisation d'envoi)."
+        version:
+          type: integer
+          format: int64
+        signature:
+          type: string
+          description: "`signature` de la réponse de Cloudinary, vérifiée par le service."
+        format:
+          type: string
+        fileName:
+          type: string
+          description: Nom du fichier d'origine, affiché dans le fil.
+        sizeBytes:
+          type: integer
+          format: int64
+        durationSeconds:
+          type: number
+          format: double
+        width:
+          type: integer
+        height:
+          type: integer
+
+    AttachmentSettings:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        maxImageBytes:
+          type: integer
+          format: int64
+        maxFileBytes:
+          type: integer
+          format: int64
+        maxAudioSeconds:
+          type: integer
+        fileExtensions:
+          type: array
+          description: Extensions acceptées pour un document (FILE).
+          items:
+            type: string
+        imageExtensions:
+          type: array
+          items:
+            type: string
+
+    AttachmentUploadRequest:
+      type: object
+      required:
+        - kind
+        - fileName
+      properties:
+        kind:
+          $ref: "#/components/schemas/AttachmentKind"
+        fileName:
+          type: string
+          example: "rapport-de-stage.pdf"
+        groupId:
+          type: string
+          format: uuid
+        recipientId:
+          type: string
+          format: uuid
+
+    AttachmentUploadTicket:
+      type: object
+      properties:
+        uploadUrl:
+          type: string
+          example: "https://api.cloudinary.com/v1_1/demo/raw/upload"
+        apiKey:
+          type: string
+        timestamp:
+          type: integer
+          format: int64
+        signature:
+          type: string
+        publicId:
+          type: string
+        type:
+          type: string
+          example: "authenticated"
+        allowedFormats:
+          type: string
+          description: Formats acceptés par Cloudinary (champ `allowed_formats`), absent pour un document.
+        overwrite:
+          type: boolean
+          description: >-
+            Toujours false, à envoyer tel quel (champ `overwrite`, signé) : un fichier déjà déposé ne peut pas être
+            remplacé avec la même autorisation.
+          example: false
+
+    EditMessageRequest:
       type: object
       required:
         - content
       properties:
         content:
           type: string
-          example: "Bonjour ! Seriez-vous disponible pour discuter des opportunités dans votre entreprise ?"
+          description: Nouveau texte du message (mêmes limites qu'à l'envoi).
+          example: "Bonjour ! Seriez-vous disponible demain pour en discuter ?"
 
 
     Notification:
@@ -748,8 +1333,12 @@ components:
 
     GroupMemberRole:
       type: string
+      description: |
+        Rôle dans le groupe. OWNER (un seul, le propriétaire) et ADMIN sont les « administrateurs du groupe » ;
+        à ne pas confondre avec le rôle applicatif ADMINISTRATEUR.
       enum:
         - OWNER
+        - ADMIN
         - MEMBER
 
     GroupMember:
@@ -760,6 +1349,7 @@ components:
           format: uuid
         userName:
           type: string
+          description: Nom affiché ; absent tant que l'utilisateur ne s'est jamais connecté au service.
         userRole:
           type: string
           description: Rôle applicatif de l'utilisateur (ALUMNI, ETUDIANT, ENSEIGNANT, ADMINISTRATEUR)
@@ -769,6 +1359,70 @@ components:
         joinedAt:
           type: string
           format: date-time
+
+    GroupSettings:
+      type: object
+      description: |
+        Réglages du groupe, modifiables par OWNER et ADMIN. Valeurs par défaut à la création :
+        onlyAdminsCanSend=false, onlyAdminsCanEditInfo=true, onlyAdminsCanAddMembers=true.
+      properties:
+        onlyAdminsCanSend:
+          type: boolean
+          description: Seuls OWNER et ADMIN peuvent envoyer des messages.
+        onlyAdminsCanEditInfo:
+          type: boolean
+          description: Seuls OWNER et ADMIN peuvent modifier le nom et la description.
+        onlyAdminsCanAddMembers:
+          type: boolean
+          description: Seuls OWNER et ADMIN peuvent ajouter des membres.
+
+    MuteDuration:
+      type: string
+      description: Durée de mise en sourdine ; NONE la lève.
+      enum:
+        - NONE
+        - EIGHT_HOURS
+        - ONE_WEEK
+        - ALWAYS
+
+    GroupPreferences:
+      type: object
+      description: |
+        Préférences de l'utilisateur connecté sur un groupe ou une conversation privée
+        (personnelles, invisibles des autres participants).
+      properties:
+        pinned:
+          type: boolean
+        archived:
+          type: boolean
+        muted:
+          type: boolean
+          description: Vrai si la sourdine est active à l'instant de la réponse.
+        mutedUntil:
+          type: string
+          format: date-time
+          description: Fin de la sourdine ; absent si elle est permanente (ALWAYS) ou inactive.
+
+    GroupPreferencesUpdateRequest:
+      type: object
+      properties:
+        pinned:
+          type: boolean
+        archived:
+          type: boolean
+        mute:
+          $ref: "#/components/schemas/MuteDuration"
+
+    GroupMemberRoleUpdateRequest:
+      type: object
+      required:
+        - groupRole
+      properties:
+        groupRole:
+          type: string
+          enum:
+            - ADMIN
+            - MEMBER
 
     Group:
       type: object
@@ -788,6 +1442,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/GroupMember"
+        settings:
+          $ref: "#/components/schemas/GroupSettings"
+        preferences:
+          $ref: "#/components/schemas/GroupPreferences"
         createdAt:
           type: string
           format: date-time
@@ -805,12 +1463,21 @@ components:
           example: 12
         lastMessage:
           type: string
+          description: Contenu du dernier message (vide s'il a été supprimé).
+        lastMessageSenderName:
+          type: string
+        lastMessageType:
+          $ref: "#/components/schemas/GroupMessageType"
+        lastMessageAttachmentKind:
+          $ref: "#/components/schemas/AttachmentKind"
         lastMessageTime:
           type: string
           format: date-time
         unreadCount:
           type: integer
           example: 3
+        preferences:
+          $ref: "#/components/schemas/GroupPreferences"
 
     GroupCreateRequest:
       type: object
@@ -853,6 +1520,17 @@ components:
             type: string
             format: uuid
 
+    GroupMessageType:
+      type: string
+      description: |
+        TEXT pour un message d'un membre, SYSTEM pour un événement du groupe (création, ajout, départ...),
+        STICKER et ATTACHMENT (image, document ou message vocal). Aussi utilisé par la messagerie privée (jamais SYSTEM).
+      enum:
+        - TEXT
+        - SYSTEM
+        - STICKER
+        - ATTACHMENT
+
     GroupMessage:
       type: object
       properties:
@@ -867,11 +1545,26 @@ components:
           format: uuid
         senderName:
           type: string
+          description: Nom affiché de l'expéditeur ; absent tant que l'utilisateur ne s'est jamais connecté au service avec un jeton portant son nom (prévoir un nom par défaut).
+        type:
+          $ref: "#/components/schemas/GroupMessageType"
         content:
           type: string
+          description: Texte du message, ou légende d'une pièce jointe ; vide si le message a été supprimé.
+        sticker:
+          type: string
+          description: Code du sticker quand `type` vaut STICKER.
+        attachment:
+          $ref: "#/components/schemas/MessageAttachment"
+        deleted:
+          type: boolean
         createdAt:
           type: string
           format: date-time
+        editedAt:
+          type: string
+          format: date-time
+          description: Date de la dernière modification ; absent si le message n'a jamais été modifié.
 
     GroupMessagePagedResponse:
       type: object
@@ -919,6 +1612,12 @@ components:
             $ref: "#/components/schemas/ErrorResponse"
     NotFound:
       description: Ressource non trouvée
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    ServiceUnavailable:
+      description: Fonction indisponible (stockage des pièces jointes non configuré ou momentanément injoignable)
       content:
         application/json:
           schema:

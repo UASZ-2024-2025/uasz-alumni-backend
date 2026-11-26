@@ -40,3 +40,37 @@ jwt:
   # Base64, 32 octets minimum
   secret: ${JWT_SECRET}
   issuer: ${JWT_ISSUER}
+
+# Jetons de service pour les appels inter-services (ADR-0010) : émetteur interne, distinct de jwt.issuer
+service-token:
+  issuer: alumni-uasz-internal
+  ttl: 5m
+
+# Client de notification-messaging-service (ALUM-83, ADR-0006 : jeton de service, timeouts, retry, non bloquant)
+notification:
+  base-url: ${NOTIFICATION_SERVICE_URL}
+  connect-timeout: 2s
+  read-timeout: 3s
+  retry:
+    # 1 essai + 3 retries, délais 500 ms -> 1 s -> 2 s (plafond 5 s)
+    max-retries: 3
+    delay-ms: 500
+    multiplier: 2
+    max-delay-ms: 5000
+
+# Client d'alumni-student-company-service : lecture de la fiche entreprise avant publication (ALUM-148).
+# ADR-0006 : lecture synchrone, timeouts courts, un seul retry (la requête de l'utilisateur attend la réponse).
+company:
+  base-url: ${STUDENT_COMPANY_SERVICE_URL}
+  connect-timeout: 2s
+  read-timeout: 3s
+  retry:
+    max-retries: 1
+    delay-ms: 200
+    multiplier: 2
+    max-delay-ms: 1000
+
+# Fermeture automatique des offres dont la date limite est dépassée (UTC, offre ouverte jusqu'à la fin du jour limite)
+offers:
+  expiration:
+    cron: "0 5 0 * * *"

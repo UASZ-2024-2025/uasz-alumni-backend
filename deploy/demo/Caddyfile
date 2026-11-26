@@ -1,0 +1,40 @@
+# Point d'entrée unique de la démo. Certificat Let's Encrypt automatique pour DEMO_DOMAIN.
+# Front et API sur le même domaine : aucune requête cross-origin, donc pas de CORS à gérer.
+# Les chemins d'API sont ceux des contrats (API_PREFIX) ; /actuator n'est jamais exposé.
+
+{$DEMO_DOMAIN} {
+	encode zstd gzip
+
+	handle /user-service/v1* {
+		reverse_proxy user-service:8081
+	}
+	handle /alumni-student-company-service/v1* {
+		reverse_proxy alumni-student-company-service:8082
+	}
+	handle /job-offer-service/v1* {
+		reverse_proxy {$UPSTREAM_JOB_OFFER}
+	}
+	handle /analytics-matching-service/v1* {
+		reverse_proxy {$UPSTREAM_ANALYTICS}
+	}
+	handle /notification-messaging-service/v1* {
+		reverse_proxy {$UPSTREAM_NOTIFICATION}
+	}
+	handle /mailpit* {
+		reverse_proxy mailpit:8025
+	}
+	handle {
+		reverse_proxy frontend:8080
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+	log {
+		output stdout
+		format console
+	}
+}

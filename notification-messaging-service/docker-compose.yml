@@ -38,6 +38,7 @@ services:
       JWT_ISSUER: ${JWT_ISSUER:?JWT_ISSUER manquant}
       API_PREFIX: ${API_PREFIX:?API_PREFIX manquant}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?CORS_ALLOWED_ORIGINS manquant}
+      CLOUDINARY_URL: ${CLOUDINARY_URL:-}
     ports:
       - "127.0.0.1:${SERVER_PORT:?SERVER_PORT manquant}:${SERVER_PORT}"
     healthcheck:
