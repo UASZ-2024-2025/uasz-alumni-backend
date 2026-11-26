@@ -170,6 +170,8 @@ services:
       SPRING_DATASOURCE_USERNAME: alumni_student_company_svc
       SPRING_DATASOURCE_PASSWORD: ${ALUMNI_STUDENT_COMPANY_DB_PASSWORD}
       USER_SERVICE_URL: http://user-service:8081/user-service/v1
+      # vm-a : notifications (ALUM-119) et synthèse d'accueil Alumni (ALUM-246) sur vm-b (URL posée par bootstrap.sh)
+      NOTIFICATION_SERVICE_URL: ${NOTIFICATION_SERVICE_URL:-http://notification-messaging-service:8085/notification-messaging-service/v1}
 
   # ------------------------------------------------------------------ vm-b
   job-offer-service:
