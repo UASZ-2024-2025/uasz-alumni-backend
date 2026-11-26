@@ -6,7 +6,7 @@ info:
     des entreprises partenaires et des promotions académiques pour la plateforme Alumni UASZ.
   contact:
     name: Équipe Projet Intégrateur - M2 GL - UASZ
-  version: 1.19.0
+  version: 1.22.0
 servers:
   - url: https://api.alumni-uasz.sn/alumni-student-company-service/v1
     description: Serveur de production
@@ -185,6 +185,99 @@ paths:
                 $ref: "#/components/schemas/CvResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
+  /students/{id}/cv/photo:
+    get:
+      tags:
+        - Students
+      summary: Obtenir la photo du CV d'un étudiant
+      description: |
+        Renvoie l'image (JPEG ou PNG) telle qu'elle a été envoyée. Réservé à l'étudiant concerné et à l'administrateur
+        (403 pour les autres rôles). `id` est l'identifiant du profil étudiant ou celui de son compte.
+        404 `PHOTO_NOT_FOUND` si l'étudiant n'a pas de photo.
+      operationId: getStudentCvPhoto
+      parameters:
+        - $ref: "#/components/parameters/EntityId"
+      responses:
+        "200":
+          description: Photo de l'étudiant
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
+    put:
+      tags:
+        - Students
+      summary: Ajouter ou remplacer la photo du CV d'un étudiant
+      description: |
+        Envoi en `multipart/form-data` (champ `file`). Image JPEG ou PNG de 2 Mo au plus, vérifiée sur son contenu et
+        pas seulement sur son extension : 400 `INVALID_PHOTO_FORMAT` ou `PHOTO_TOO_LARGE` sinon. Une nouvelle photo
+        remplace la précédente. Réservé à l'étudiant concerné et à l'administrateur (403 sinon).
+      operationId: updateStudentCvPhoto
+      parameters:
+        - $ref: "#/components/parameters/EntityId"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Image JPEG ou PNG, 2 Mo maximum
+      responses:
+        "204":
+          description: Photo enregistrée
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      security:
+        - bearerAuth: []
+
+    delete:
+      tags:
+        - Students
+      summary: Supprimer la photo du CV d'un étudiant
+      description: |
+        Retire la photo ; le CV s'affiche alors avec les initiales. Sans photo, la suppression ne fait rien (204).
+        Réservé à l'étudiant concerné et à l'administrateur (403 sinon).
+      operationId: deleteStudentCvPhoto
+      parameters:
+        - $ref: "#/components/parameters/EntityId"
+      responses:
+        "204":
+          description: Photo supprimée
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -893,6 +986,11 @@ components:
         fileUrl:
           type: string
           description: Lien vers le fichier PDF du CV publié
+        hasPhoto:
+          type: boolean
+          description: |
+            Vrai si l'étudiant a une photo que l'appelant peut lire (lui-même ou un administrateur) ;
+            elle se lit avec `GET /students/{id}/cv/photo`.
 
     CvRequest:
       type: object

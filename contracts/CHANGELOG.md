@@ -1,5 +1,22 @@
 # Journal des modifications des contrats OpenAPI
 
+## 1.22.0 (photo sur le CV, ALUM-255)
+
+Évolution compatible : trois opérations et un champ de réponse ajoutés, rien de retiré.
+
+### alumni-student-company-service
+- **Ajout** de `GET /students/{id}/cv/photo` (`getStudentCvPhoto`) : renvoie l'image JPEG ou PNG. Réponses 200,
+  401, 403 et 404 (`PHOTO_NOT_FOUND`).
+- **Ajout** de `PUT /students/{id}/cv/photo` (`updateStudentCvPhoto`) : envoi `multipart/form-data` (champ `file`),
+  JPEG ou PNG de 2 Mo au plus, contrôlé sur le contenu du fichier. Réponses 204, 400 (`INVALID_PHOTO_FORMAT`,
+  `PHOTO_TOO_LARGE`), 401, 403 et 404. Une nouvelle photo remplace la précédente.
+- **Ajout** de `DELETE /students/{id}/cv/photo` (`deleteStudentCvPhoto`) : réponses 204, 401, 403 et 404.
+- Les trois opérations sont réservées à l'étudiant concerné et à l'administrateur.
+- `CvResponse.hasPhoto` (booléen) : vrai si l'étudiant a une photo que l'appelant peut lire.
+- `info.version` passe de 1.19.0 à **1.22.0** (1.20.0 et 1.21.0 sont prises par des PR en cours : ALUM-174, ALUM-182).
+
+SPI `alumni-student-company-service-spi` publié en **1.22.0** (pom parent `alumni-spis` 1.22.0).
+
 ## 1.19.0 (recommandation d'un étudiant par un Alumni, ALUM-119)
 
 Évolution compatible : aucune opération ni aucun champ retiré ; seule une réponse est ajoutée.

@@ -29,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
  * CV de l'étudiant (ALUM-109). {@code id} est l'identifiant du profil étudiant ou celui de son compte (le front ne
  * connaît que le second). Lecture : tout utilisateur connecté (recruteur d'une candidature, Alumni, annuaire).
  * Écriture : l'étudiant lui-même ou un administrateur ; un PUT remplace tout le CV précédent.
+ * {@code hasPhoto} indique si l'appelant peut afficher la photo du CV (ALUM-255, voir StudentCvPhotoService).
  */
 @Service
 public class StudentCvService {
@@ -40,19 +41,22 @@ public class StudentCvService {
     private final StudentProfileRepository students;
     private final StudentCvRepository cvs;
     private final CurrentUserProvider currentUserProvider;
+    private final StudentCvPhotoService photos;
 
     public StudentCvService(StudentProfileRepository students, StudentCvRepository cvs,
-            CurrentUserProvider currentUserProvider) {
+            CurrentUserProvider currentUserProvider, StudentCvPhotoService photos) {
         this.students = students;
         this.cvs = cvs;
         this.currentUserProvider = currentUserProvider;
+        this.photos = photos;
     }
 
     @Transactional(readOnly = true)
     public CvResponse get(UUID id) {
         StudentProfileEntity student = findStudent(id);
-        return cvs.findByStudentId(student.getId()).map(StudentCvService::toDto).orElseThrow(() ->
+        CvResponse cv = cvs.findByStudentId(student.getId()).map(StudentCvService::toDto).orElseThrow(() ->
                 new ApiException(HttpStatus.NOT_FOUND, "CV_NOT_FOUND", "Cet étudiant n'a pas encore de CV"));
+        return cv.hasPhoto(photos.visibleTo(student, currentUserProvider.require()));
     }
 
     @Transactional
@@ -74,7 +78,7 @@ public class StudentCvService {
                 section("experiences", request.getExperiences(), StudentCvService::experience),
                 section("educations", request.getEducations(), StudentCvService::education),
                 section("languages", request.getLanguages(), StudentCvService::language));
-        return toDto(cvs.save(cv));
+        return toDto(cvs.save(cv)).hasPhoto(photos.visibleTo(student, user));
     }
 
     private StudentProfileEntity findStudent(UUID id) {
