@@ -29,6 +29,6 @@ public class PlatformStatsService {
                 .alumniCount(alumni.count())
                 .employedAlumniCount(alumni.countEmployed())
                 .studentCount(students.count())
-                .companyCount(companies.count());
+                .companyCount(companies.countByPartnerTrue());
     }
 }

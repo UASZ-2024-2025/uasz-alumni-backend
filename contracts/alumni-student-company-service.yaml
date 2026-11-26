@@ -1347,19 +1347,24 @@ components:
 
     PlatformStats:
       type: object
+      description: Compteurs agrégés pour le tableau de bord administrateur (ALUM-182).
       properties:
         alumniCount:
           type: integer
           format: int64
+          description: Nombre de profils Alumni
         employedAlumniCount:
           type: integer
           format: int64
+          description: Alumni dont le poste ou l'entreprise actuels sont renseignés (base du taux d'insertion)
         studentCount:
           type: integer
           format: int64
+          description: Nombre de profils étudiants
         companyCount:
           type: integer
           format: int64
+          description: Entreprises partenaires (fiches validées)
 
     ProfileProvisioningResponse:
       type: object

@@ -38,6 +38,9 @@ services:
       JWT_ISSUER: ${JWT_ISSUER:?JWT_ISSUER manquant}
       API_PREFIX: ${API_PREFIX:?API_PREFIX manquant}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?CORS_ALLOWED_ORIGINS manquant}
+      # Dans le conteneur, localhost désigne le conteneur : on passe par l'hôte Docker
+      STUDENT_COMPANY_SERVICE_URL: ${STUDENT_COMPANY_SERVICE_URL_DOCKER:?STUDENT_COMPANY_SERVICE_URL_DOCKER manquant, lancez make env-complete}
+      JOB_OFFER_SERVICE_URL: ${JOB_OFFER_SERVICE_URL_DOCKER:?JOB_OFFER_SERVICE_URL_DOCKER manquant, lancez make env-complete}
     ports:
       - "127.0.0.1:${SERVER_PORT:?SERVER_PORT manquant}:${SERVER_PORT}"
     healthcheck:

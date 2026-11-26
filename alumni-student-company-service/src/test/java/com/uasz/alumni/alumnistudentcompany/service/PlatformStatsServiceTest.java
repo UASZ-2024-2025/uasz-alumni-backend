@@ -20,7 +20,7 @@ class PlatformStatsServiceTest {
         when(alumni.count()).thenReturn(120L);
         when(alumni.countEmployed()).thenReturn(96L);
         when(students.count()).thenReturn(80L);
-        when(companies.count()).thenReturn(25L);
+        when(companies.countByPartnerTrue()).thenReturn(25L);
 
         PlatformStats stats = new PlatformStatsService(alumni, students, companies).getStats();
 
