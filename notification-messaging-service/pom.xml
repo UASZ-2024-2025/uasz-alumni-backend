@@ -19,7 +19,7 @@
   <properties>
     <java.version>21</java.version>
     <jjwt.version>0.12.6</jjwt.version>
-    <alumni.spi.version>1.15.0</alumni.spi.version>
+    <alumni.spi.version>1.17.0</alumni.spi.version>
     <embedded-postgres.version>2.1.0</embedded-postgres.version>
   </properties>
 

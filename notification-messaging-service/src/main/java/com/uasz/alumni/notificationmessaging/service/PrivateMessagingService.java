@@ -228,4 +228,10 @@ public class PrivateMessagingService {
     private static OffsetDateTime toOffset(Instant instant) {
         return instant == null ? null : OffsetDateTime.ofInstant(instant, ZoneOffset.UTC);
     }
+
+    /** Messages privés non lus d'un utilisateur, toutes conversations confondues. */
+    @Transactional(readOnly = true)
+    public long unreadTotal(UUID userId) {
+        return repository.countByRecipientIdAndReadAtIsNull(userId);
+    }
 }

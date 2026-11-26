@@ -505,4 +505,11 @@ public class GroupService {
     private static ApiException forbidden(String message) {
         return new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", message);
     }
+    /** Messages de groupe non lus d'un utilisateur : somme des non-lus de ses groupes (même règle que la liste). */
+    @Transactional(readOnly = true)
+    public long unreadTotal(UUID userId) {
+        return members.findByUserId(userId).stream()
+            .mapToLong(m -> messages.countUnread(m.getGroupId(), userId, readSince(m)))
+            .sum();
+    }
 }

@@ -6,7 +6,7 @@ info:
     du dépôt et suivi des candidatures et des propositions directes d'opportunités.
   contact:
     name: Équipe Projet Intégrateur - M2 GL - UASZ
-  version: 1.10.0
+  version: 1.17.0
 servers:
   - url: https://api.alumni-uasz.sn/job-offer-service/v1
     description: Serveur de production
@@ -19,7 +19,8 @@ tags:
     description: Dépôt et suivi des candidatures des étudiants
   - name: Proposals
     description: Propositions directes d'offres d'emploi ou stage envoyées aux étudiants
-
+  - name: StudentHome
+    description: Synthèse de la page d'accueil de l'étudiant connecté
 paths:
   /offers:
     get:
@@ -385,6 +386,37 @@ paths:
           $ref: "#/components/responses/NotFound"
       security:
         - bearerAuth: []
+
+
+  /students/me/home-summary:
+    get:
+      tags:
+        - StudentHome
+      summary: Synthèse de la page d'accueil de l'étudiant connecté
+      description: |
+        Réservé au rôle ETUDIANT. Renvoie en un seul appel les compteurs de la page d'accueil de l'étudiant
+        connecté, identifié uniquement par son jeton (aucun identifiant en paramètre) : chacun ne voit que
+        ses propres chiffres.
+
+        - `applicationsByStatus` : ses candidatures par statut (calculées ici, sans duplication de données).
+        - `proposalsReceived` : vaut 0 tant que les propositions (`GET /proposals`) ne sont pas implémentées.
+        - `unreadNotifications` et `unreadMessages` : lus auprès de `notification-messaging-service` avec un
+          jeton de service (ADR-0010). Si ce service est injoignable, ils valent 0 : la page d'accueil
+          reste affichable.
+      operationId: getMyStudentHomeSummary
+      responses:
+        "200":
+          description: Compteurs de la page d'accueil de l'étudiant connecté
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudentHomeSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      security:
+        - bearerAuth: [ ]
 
 
   /proposals:
@@ -760,6 +792,76 @@ components:
         size:
           type: integer
 
+    ApplicationStatusCounts:
+      type: object
+      description: Nombre de candidatures de l'étudiant pour chaque statut (`ApplicationStatus`).
+      required:
+        - submitted
+        - underReview
+        - shortlisted
+        - rejected
+        - accepted
+      properties:
+        submitted:
+          type: integer
+          format: int32
+          minimum: 0
+          example: 2
+          description: Candidatures au statut SUBMITTED
+        underReview:
+          type: integer
+          format: int32
+          minimum: 0
+          example: 1
+          description: Candidatures au statut UNDER_REVIEW
+        shortlisted:
+          type: integer
+          format: int32
+          minimum: 0
+          example: 0
+          description: Candidatures au statut SHORTLISTED
+        rejected:
+          type: integer
+          format: int32
+          minimum: 0
+          example: 0
+          description: Candidatures au statut REJECTED
+        accepted:
+          type: integer
+          format: int32
+          minimum: 0
+          example: 1
+          description: Candidatures au statut ACCEPTED
+
+    StudentHomeSummary:
+      type: object
+      description: Compteurs de la page d'accueil de l'étudiant connecté.
+      required:
+        - applicationsByStatus
+        - proposalsReceived
+        - unreadNotifications
+        - unreadMessages
+      properties:
+        applicationsByStatus:
+          $ref: "#/components/schemas/ApplicationStatusCounts"
+        proposalsReceived:
+          type: integer
+          format: int32
+          minimum: 0
+          example: 0
+          description: Propositions reçues (0 tant que `GET /proposals` n'est pas implémenté)
+        unreadNotifications:
+          type: integer
+          format: int32
+          minimum: 0
+          example: 3
+          description: Notifications non lues (0 si notification-messaging-service est injoignable)
+        unreadMessages:
+          type: integer
+          format: int32
+          minimum: 0
+          example: 5
+          description: Messages non lus, privés et de groupe (0 si notification-messaging-service est injoignable)
     ApplicationPagedResponse:
       type: object
       properties:

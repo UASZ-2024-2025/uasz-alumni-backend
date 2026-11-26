@@ -58,6 +58,15 @@ notification:
     multiplier: 2
     max-delay-ms: 5000
 
+  # Lecture synchrone des non-lus pour la synthèse d'accueil étudiant (ALUM-243).
+  # ADR-0006 : la requête de l'étudiant attend la réponse, donc un seul retry et des délais courts.
+  unread:
+    retry:
+      max-retries: 1
+      delay-ms: 200
+      multiplier: 2
+      max-delay-ms: 1000
+
 # Client d'alumni-student-company-service : lecture de la fiche entreprise avant publication (ALUM-148).
 # ADR-0006 : lecture synchrone, timeouts courts, un seul retry (la requête de l'utilisateur attend la réponse).
 company:
