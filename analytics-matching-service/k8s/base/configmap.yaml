@@ -9,3 +9,6 @@ data:
   # URL de production des contrats : https://api.alumni-uasz.sn/analytics-matching-service/v1
   API_PREFIX: /analytics-matching-service/v1
   JWT_ISSUER: alumni-uasz-user
+  # Tableau de bord administrateur (ALUM-182) : Services K8s sur le port 80
+  STUDENT_COMPANY_SERVICE_URL: http://alumni-student-company-service/alumni-student-company-service/v1
+  JOB_OFFER_SERVICE_URL: http://job-offer-service/job-offer-service/v1

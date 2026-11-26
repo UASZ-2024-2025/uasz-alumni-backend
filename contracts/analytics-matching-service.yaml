@@ -6,7 +6,7 @@ info:
     et offres d'emploi/stage, ainsi que de la génération des métriques statistiques pour le tableau de bord de l'administrateur.
   contact:
     name: Équipe Projet Intégrateur - M2 GL - UASZ
-  version: 1.0.0
+  version: 1.21.0
 servers:
   - url: https://api.alumni-uasz.sn/analytics-matching-service/v1
     description: Serveur de production
@@ -114,6 +114,12 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "503":
+          description: Un service source (alumni-student-company-service ou job-offer-service) est injoignable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
       security:
         - bearerAuth: []
 

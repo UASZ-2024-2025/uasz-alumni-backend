@@ -6,7 +6,7 @@ info:
     des entreprises partenaires et des promotions académiques pour la plateforme Alumni UASZ.
   contact:
     name: Équipe Projet Intégrateur - M2 GL - UASZ
-  version: 1.9.0
+  version: 1.21.0
 servers:
   - url: https://api.alumni-uasz.sn/alumni-student-company-service/v1
     description: Serveur de production
@@ -375,6 +375,33 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      security:
+        - bearerAuth: []
+
+  /alumni/me/home-summary:
+    get:
+      tags:
+        - Alumni
+      summary: Synthèse de la page d'accueil de l'Alumni connecté
+      description: |
+        Réservé au rôle ALUMNI. Renvoie en un seul appel les compteurs de la page d'accueil de l'Alumni connecté.
+        L'Alumni est identifié uniquement par son jeton (aucun identifiant en paramètre) : chacun ne voit que
+        ses propres chiffres. Aucune donnée n'est dupliquée : les compteurs sont calculés à chaque appel à partir
+        des services qui détiennent les données.
+      operationId: getMyAlumniHomeSummary
+      responses:
+        "200":
+          description: Compteurs de la page d'accueil de l'Alumni connecté
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlumniHomeSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
       security:
         - bearerAuth: []
 
@@ -744,6 +771,29 @@ paths:
       security:
         - bearerAuth: []
 
+  /internal/stats:
+    get:
+      tags:
+        - Internal
+      summary: Statistiques agrégées de la plateforme (usage interne)
+      description: |
+        Appelé par analytics-matching-service pour le tableau de bord administrateur (ALUM-182).
+        Réservé aux jetons de service (rôle SERVICE).
+      operationId: getPlatformStatsForService
+      responses:
+        "200":
+          description: Compteurs agrégés
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformStats"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      security:
+        - bearerAuth: []
+
 components:
   parameters:
     EntityId:
@@ -1070,6 +1120,33 @@ components:
           type: string
           format: date-time
 
+    AlumniHomeSummary:
+      type: object
+      description: Compteurs de la page d'accueil de l'Alumni connecté.
+      required:
+        - recommendationsGiven
+        - pendingRequests
+        - unreadMessages
+      properties:
+        recommendationsGiven:
+          type: integer
+          format: int32
+          minimum: 0
+          example: 3
+          description: Nombre de recommandations faites par l'Alumni (`POST /alumni/recommendations`)
+        pendingRequests:
+          type: integer
+          format: int32
+          minimum: 0
+          example: 2
+          description: Nombre de demandes adressées à l'Alumni et en attente de sa réponse
+        unreadMessages:
+          type: integer
+          format: int32
+          minimum: 0
+          example: 5
+          description: Nombre de messages non lus de l'Alumni (conversations privées et groupes)
+
     Company:
       type: object
       properties:
@@ -1267,6 +1344,27 @@ components:
           type: string
           format: email
           maxLength: 255
+
+    PlatformStats:
+      type: object
+      description: Compteurs agrégés pour le tableau de bord administrateur (ALUM-182).
+      properties:
+        alumniCount:
+          type: integer
+          format: int64
+          description: Nombre de profils Alumni
+        employedAlumniCount:
+          type: integer
+          format: int64
+          description: Alumni dont le poste ou l'entreprise actuels sont renseignés (base du taux d'insertion)
+        studentCount:
+          type: integer
+          format: int64
+          description: Nombre de profils étudiants
+        companyCount:
+          type: integer
+          format: int64
+          description: Entreprises partenaires (fiches validées)
 
     ProfileProvisioningResponse:
       type: object

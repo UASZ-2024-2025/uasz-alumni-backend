@@ -6,7 +6,7 @@
   <parent>
     <groupId>com.uasz.alumni</groupId>
     <artifactId>alumni-spis</artifactId>
-    <version>1.15.0</version>
+    <version>1.21.0</version>
   </parent>
 
   <artifactId>notification-messaging-service-spi</artifactId>

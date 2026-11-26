@@ -170,6 +170,8 @@ services:
       SPRING_DATASOURCE_USERNAME: alumni_student_company_svc
       SPRING_DATASOURCE_PASSWORD: ${ALUMNI_STUDENT_COMPANY_DB_PASSWORD}
       USER_SERVICE_URL: http://user-service:8081/user-service/v1
+      # vm-a : notifications (ALUM-119) et synthèse d'accueil Alumni (ALUM-246) sur vm-b (URL posée par bootstrap.sh)
+      NOTIFICATION_SERVICE_URL: ${NOTIFICATION_SERVICE_URL:-http://notification-messaging-service:8085/notification-messaging-service/v1}
 
   # ------------------------------------------------------------------ vm-b
   job-offer-service:
@@ -199,6 +201,10 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST:-db}:5432/analytics_matching_db
       SPRING_DATASOURCE_USERNAME: analytics_matching_svc
       SPRING_DATASOURCE_PASSWORD: ${ANALYTICS_MATCHING_DB_PASSWORD}
+      # Tableau de bord administrateur (ALUM-182) : alumni-student-company est sur vm-a (URL posée par bootstrap.sh),
+      # job-offer sur la même machine (vm-b)
+      STUDENT_COMPANY_SERVICE_URL: ${STUDENT_COMPANY_SERVICE_URL:-http://alumni-student-company-service:8082/alumni-student-company-service/v1}
+      JOB_OFFER_SERVICE_URL: http://job-offer-service:8083/job-offer-service/v1
 
   notification-messaging-service:
     <<: *backend

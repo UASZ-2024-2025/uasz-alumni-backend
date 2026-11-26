@@ -1,5 +1,46 @@
 # Journal des modifications des contrats OpenAPI
 
+## 1.21.0 (statistiques du tableau de bord administrateur, ALUM-182)
+
+Évolution compatible : une opération interne et un schéma ajoutés, une réponse d'erreur déclarée.
+
+### alumni-student-company-service
+- **Ajout** de `GET /internal/stats` (`getPlatformStatsForService`, tag `Internal`) : réservé aux jetons de service
+  (rôle `SERVICE`) ; renvoie `PlatformStats` (Alumni, Alumni en poste, étudiants, entreprises partenaires).
+- `info.version` passe de 1.19.0 à **1.21.0**.
+
+### analytics-matching-service
+- `GET /analytics/dashboard/stats` (`getDashboardStats`) est implémenté (il renvoyait 501) : réservé à l'ADMINISTRATEUR,
+  chiffres lus auprès d'alumni-student-company-service et de job-offer-service (offres ouvertes par type), cache de 5 min.
+- **Précision** : `getDashboardStats` déclare 503 (service source injoignable).
+- `info.version` passe de 1.0.0 à **1.21.0**.
+
+SPI `alumni-student-company-service-spi` et `analytics-matching-service-spi` publiés en **1.21.0**
+(pom parent `alumni-spis` 1.21.0).
+
+## 1.19.0 (recommandation d'un étudiant par un Alumni, ALUM-119)
+
+Évolution compatible : aucune opération ni aucun champ retiré ; seule une réponse est ajoutée.
+
+### alumni-student-company-service
+- `POST /alumni/recommendations` (`recommendCandidate`) est implémenté (il renvoyait 501) : réservé au rôle ALUMNI,
+  l'étudiant recommandé est notifié (type `SYSTEM_ALERT`, canal `IN_APP`) sans que la réponse l'attende.
+- **Précision** : `recommendCandidate` déclare la réponse 403 (appelant qui n'a pas le rôle ALUMNI).
+- `info.version` passe de 1.16.0 à **1.19.0**.
+
+SPI `alumni-student-company-service-spi` publié en **1.19.0** (pom parent `alumni-spis` 1.19.0).
+
+## 1.16.0 (synthèse d'accueil Alumni, ALUM-246)
+
+Évolution compatible : une opération et un schéma ajoutés, rien de retiré.
+
+### alumni-student-company-service
+- **Ajout** de `GET /alumni/me/home-summary` (`getMyAlumniHomeSummary`, rôle ALUMNI) : compteurs de la page d'accueil
+  de l'Alumni connecté, identifié par son jeton uniquement. Réponses 200, 401 et 403.
+- Nouveau schéma `AlumniHomeSummary` : `recommendationsGiven`, `pendingRequests`, `unreadMessages` (entiers >= 0,
+  obligatoires).
+- `info.version` passe de 1.9.0 à **1.16.0** (alignée sur la version du SPI).
+
 ## 1.15.0 (pièces jointes : envoi sans remplacement, ALUM-261)
 
 Évolution compatible : un champ ajouté en réponse.

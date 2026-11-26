@@ -13,6 +13,9 @@ public interface CompanyRepository extends JpaRepository<CompanyEntity, UUID>, J
     /** Vrai si cet utilisateur gère déjà au moins une fiche (un compte ENTREPRISE n'en gère qu'une). */
     boolean existsByOwnerId(UUID ownerId);
 
+    /** Entreprises partenaires (fiches validées par l'administrateur), pour le tableau de bord (ALUM-182). */
+    long countByPartnerTrue();
+
     /** Fiche gérée par ce compte (la plus ancienne si un ALUMNI ou un administrateur en gère plusieurs). */
     Optional<CompanyEntity> findFirstByOwnerIdOrderByCreatedAtAsc(UUID ownerId);
 }
