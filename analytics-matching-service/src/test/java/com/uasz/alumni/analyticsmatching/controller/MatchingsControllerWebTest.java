@@ -1,5 +1,6 @@
 package com.uasz.alumni.analyticsmatching.controller;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -11,7 +12,7 @@ import com.uasz.alumni.analyticsmatching.config.SecurityConfig;
 import com.uasz.alumni.analyticsmatching.exceptions.ApiException;
 import com.uasz.alumni.analyticsmatching.exceptions.GlobalExceptionHandler;
 import com.uasz.alumni.analyticsmatching.jwt.JwtService;
-import com.uasz.alumni.analyticsmatching.service.MatchingService;
+import com.uasz.alumni.analyticsmatching.service.OfferMatchingService;
 import com.uasz.alumni.analyticsmatching.spi.model.OfferMatchResult;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -40,6 +41,8 @@ class MatchingsControllerWebTest {
     private static final String SECRET = Base64.getEncoder()
             .encodeToString("0123456789abcdef0123456789abcdef".getBytes(StandardCharsets.UTF_8));
     private static final String ISSUER = "alumni-uasz-user";
+    private static final UUID STUDENT = UUID.randomUUID();
+    private static final String URL = "/v1/analytics/matchings/students/" + STUDENT;
 
     @TestConfiguration
     static class Config {
@@ -50,47 +53,47 @@ class MatchingsControllerWebTest {
     }
 
     @Autowired MockMvc mvc;
-    @MockitoBean MatchingService matchingService;
+    @MockitoBean OfferMatchingService offerMatching;
 
     @Test
     void sansJeton_renvoie401() throws Exception {
-        mvc.perform(get("/v1/analytics/matchings/students/" + UUID.randomUUID()))
-                .andExpect(status().isUnauthorized());
-    }
-
-    @Test
-    void etudiantInexistant_renvoie404() throws Exception {
-        UUID studentId = UUID.randomUUID();
-        when(matchingService.getMatchingOffersForStudent(eq(studentId), eq(50)))
-                .thenThrow(new ApiException(HttpStatus.NOT_FOUND, "STUDENT_NOT_FOUND", "Introuvable"));
-
-        mvc.perform(get("/v1/analytics/matchings/students/" + studentId)
-                        .header("Authorization", "Bearer " + token(studentId, "ETUDIANT")))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.code").value("STUDENT_NOT_FOUND"));
+        mvc.perform(get(URL)).andExpect(status().isUnauthorized());
     }
 
     @Test
     void offresRecommandees_renvoie200() throws Exception {
-        UUID studentId = UUID.randomUUID();
-        OfferMatchResult match = new OfferMatchResult()
-                .offerId(UUID.randomUUID())
-                .offerTitle("Développeur Java")
-                .companyName("Atos")
-                .matchScore(90);
-        when(matchingService.getMatchingOffersForStudent(eq(studentId), eq(60))).thenReturn(List.of(match));
+        when(offerMatching.matchingOffers(eq(STUDENT), eq(70), any())).thenReturn(List.of(new OfferMatchResult()
+                .offerId(UUID.randomUUID()).offerTitle("Développeur Java").companyName("Gainde 2000").matchScore(90)
+                .matchingSkills(List.of("Java")).missingSkills(List.of())));
 
-        mvc.perform(get("/v1/analytics/matchings/students/" + studentId)
-                        .param("minScore", "60")
-                        .header("Authorization", "Bearer " + token(studentId, "ETUDIANT")))
+        mvc.perform(get(URL).param("minScore", "70").header("Authorization", "Bearer " + token(STUDENT, "ETUDIANT")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].offerTitle").value("Développeur Java"))
-                .andExpect(jsonPath("$[0].matchScore").value(90));
+                .andExpect(jsonPath("$[0].matchScore").value(90))
+                .andExpect(jsonPath("$[0].matchingSkills[0]").value("Java"));
     }
 
-    private static String token(UUID userId, String role) {
-        return Jwts.builder().issuer(ISSUER).subject(userId.toString())
-                .claim("role", role).claim("email", "etu@uasz.sn")
+    @Test
+    void refusDuService_renvoie403() throws Exception {
+        when(offerMatching.matchingOffers(eq(STUDENT), any(), any()))
+                .thenThrow(new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "x"));
+
+        mvc.perform(get(URL).header("Authorization", "Bearer " + token(UUID.randomUUID(), "ETUDIANT")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void etudiantInconnu_renvoie404() throws Exception {
+        when(offerMatching.matchingOffers(eq(STUDENT), any(), any()))
+                .thenThrow(new ApiException(HttpStatus.NOT_FOUND, "STUDENT_NOT_FOUND", "x"));
+
+        mvc.perform(get(URL).header("Authorization", "Bearer " + token(STUDENT, "ADMINISTRATEUR")))
+                .andExpect(status().isNotFound());
+    }
+
+    private static String token(UUID subject, String role) {
+        return Jwts.builder().issuer(ISSUER).subject(subject.toString())
+                .claim("role", role).claim("email", "user@uasz.sn")
                 .issuedAt(new Date()).expiration(Date.from(Instant.now().plusSeconds(600)))
                 .signWith(Keys.hmacShaKeyFor(Base64.getDecoder().decode(SECRET))).compact();
     }
