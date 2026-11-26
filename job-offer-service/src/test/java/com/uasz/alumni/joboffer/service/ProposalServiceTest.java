@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -26,13 +27,15 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.client.ResourceAccessException;
 
 class ProposalServiceTest {
 
     private final OfferRepository offers = mock(OfferRepository.class);
     private final ProposalRepository proposals = mock(ProposalRepository.class);
     private final ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
-    private final ProposalService service = new ProposalService(offers, proposals, events, 14);
+    private final StudentDirectory students = mock(StudentDirectory.class);
+    private final ProposalService service = new ProposalService(offers, proposals, events, students, 14);
 
     private final UUID recruiterId = UUID.randomUUID();
     private final UUID studentId = UUID.randomUUID();
@@ -47,6 +50,7 @@ class ProposalServiceTest {
     void setUp() {
         offer = new Offer("Développeur Java", OfferType.JOB, "desc", UUID.randomUUID(), recruiterId, "Dakar");
         when(offers.findById(offer.getId())).thenReturn(Optional.of(offer));
+        when(students.find(studentId)).thenReturn(Optional.of(new StudentDirectory.StudentRef(studentId, "Awa Ndiaye")));
     }
 
     @Test
@@ -59,6 +63,7 @@ class ProposalServiceTest {
         assertEquals(recruiterId, created.getRecruiterId());
         assertEquals(studentId, created.getStudentId());
         assertEquals("Profil idéal", created.getMessage());
+        assertEquals("Awa Ndiaye", created.getStudentName());
 
         ArgumentCaptor<ProposalCreatedEvent> captor = ArgumentCaptor.forClass(ProposalCreatedEvent.class);
         verify(events).publishEvent(captor.capture());
@@ -96,6 +101,50 @@ class ProposalServiceTest {
         ProposalCreateRequest req = new ProposalCreateRequest(offer.getId(), studentId);
         ApiException ex = assertThrows(ApiException.class, () -> service.create(req, recruiter));
         assertEquals(HttpStatus.CONFLICT, ex.getStatus());
+    }
+
+    @Test
+    void idDeProfilEstRemplaceParIdUtilisateurDeLEtudiant() {
+        UUID profileId = UUID.randomUUID();
+        when(students.find(profileId)).thenReturn(Optional.of(new StudentDirectory.StudentRef(studentId, "Awa Ndiaye")));
+
+        ProposalEntity created = service.create(new ProposalCreateRequest(offer.getId(), profileId), recruiter);
+
+        assertEquals(studentId, created.getStudentId());
+        ArgumentCaptor<ProposalCreatedEvent> captor = ArgumentCaptor.forClass(ProposalCreatedEvent.class);
+        verify(events).publishEvent(captor.capture());
+        assertEquals(studentId, captor.getValue().studentId());
+    }
+
+    @Test
+    void etudiantInconnuDonne404() {
+        UUID unknown = UUID.randomUUID();
+        when(students.find(unknown)).thenReturn(Optional.empty());
+
+        ApiException ex = assertThrows(ApiException.class,
+                () -> service.create(new ProposalCreateRequest(offer.getId(), unknown), recruiter));
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatus());
+        assertEquals("STUDENT_NOT_FOUND", ex.getCode());
+        verify(proposals, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void serviceEtudiantsIndisponibleDonne503() {
+        when(students.find(studentId)).thenThrow(new ResourceAccessException("timeout"));
+
+        ApiException ex = assertThrows(ApiException.class,
+                () -> service.create(new ProposalCreateRequest(offer.getId(), studentId), recruiter));
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, ex.getStatus());
+        verify(proposals, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void propositionASoiMemeRefusee() {
+        when(students.find(recruiterId)).thenReturn(Optional.of(new StudentDirectory.StudentRef(recruiterId, "Moi")));
+
+        ApiException ex = assertThrows(ApiException.class,
+                () -> service.create(new ProposalCreateRequest(offer.getId(), recruiterId), recruiter));
+        assertEquals("INVALID_RECIPIENT", ex.getCode());
     }
 
     @Test

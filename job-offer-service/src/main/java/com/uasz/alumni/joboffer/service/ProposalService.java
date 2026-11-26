@@ -20,6 +20,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestClientException;
 
 /**
  * ALUM-174 : propositions directes d'offres aux étudiants.
@@ -40,15 +41,18 @@ public class ProposalService {
     private final OfferRepository offers;
     private final ProposalRepository proposals;
     private final ApplicationEventPublisher events;
+    private final StudentDirectory students;
     private final int expirationDays;
 
     public ProposalService(OfferRepository offers,
                            ProposalRepository proposals,
                            ApplicationEventPublisher events,
+                           StudentDirectory students,
                            @Value("${proposals.expiration-days:14}") int expirationDays) {
         this.offers = offers;
         this.proposals = proposals;
         this.events = events;
+        this.students = students;
         this.expirationDays = Math.max(1, expirationDays);
     }
 
@@ -91,25 +95,28 @@ public class ProposalService {
             throw new ApiException(HttpStatus.BAD_REQUEST, "OFFER_NOT_OPEN",
                     "Cette offre n'est plus ouverte aux propositions");
         }
-        if (request.getStudentId().equals(caller.id())) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_RECIPIENT",
-                    "Impossible d'envoyer une proposition à soi-même");
-        }
-        if (proposals.existsByOfferIdAndStudentIdAndStatus(offer.getId(), request.getStudentId(), ProposalStatus.PENDING)) {
-            throw duplicateProposal();
-        }
         String message = request.getMessage() == null ? null : request.getMessage().trim();
         if (message != null && message.length() > MAX_MESSAGE_LENGTH) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR",
                     "message : " + MAX_MESSAGE_LENGTH + " caractères maximum");
+        }
+        // L'étudiant est résolu auprès de son service : il existe, et on garde son id utilisateur (celui des
+        // notifications et de GET /proposals), même si le recruteur a fourni l'id du profil.
+        StudentDirectory.StudentRef student = resolveStudent(request.getStudentId());
+        if (student.userId().equals(caller.id())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_RECIPIENT",
+                    "Impossible d'envoyer une proposition à soi-même");
+        }
+        if (proposals.existsByOfferIdAndStudentIdAndStatus(offer.getId(), student.userId(), ProposalStatus.PENDING)) {
+            throw duplicateProposal();
         }
 
         OffsetDateTime expiresAt = computeExpiration(deadline);
         String recruiterName = displayName(caller);
         ProposalEntity entity = new ProposalEntity(
                 offer,
-                request.getStudentId(),
-                null,
+                student.userId(),
+                student.fullName(),
                 caller.id(),
                 recruiterName,
                 message == null || message.isEmpty() ? null : message,
@@ -125,7 +132,8 @@ public class ProposalService {
         return entity;
     }
 
-    @Transactional
+    /** Une proposition échue passe à EXPIRED même si la réponse est refusée : pas de rollback sur ApiException. */
+    @Transactional(noRollbackFor = ApiException.class)
     public ProposalEntity updateStatus(UUID id, ProposalStatus newStatus, AuthenticatedUser caller) {
         ProposalEntity proposal = proposals.findWithOfferById(id).orElseThrow(() -> new ApiException(
                 HttpStatus.NOT_FOUND, "PROPOSAL_NOT_FOUND", "Proposition introuvable : " + id));
@@ -166,6 +174,16 @@ public class ProposalService {
         }
         OffsetDateTime deadlineEnd = offerDeadline.plusDays(1).atStartOfDay().atOffset(ZoneOffset.UTC);
         return deadlineEnd.isBefore(defaultExpiry) ? deadlineEnd : defaultExpiry;
+    }
+
+    private StudentDirectory.StudentRef resolveStudent(UUID studentId) {
+        try {
+            return students.find(studentId).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND,
+                    "STUDENT_NOT_FOUND", "Étudiant introuvable : " + studentId));
+        } catch (RestClientException e) {
+            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "STUDENT_SERVICE_UNAVAILABLE",
+                    "Profil étudiant momentanément indisponible, réessayez plus tard");
+        }
     }
 
     private static ApiException duplicateProposal() {
