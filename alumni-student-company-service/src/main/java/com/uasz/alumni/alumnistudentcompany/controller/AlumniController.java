@@ -4,9 +4,11 @@ import com.uasz.alumni.alumnistudentcompany.model.Experience;
 import com.uasz.alumni.alumnistudentcompany.model.Recommendation;
 import com.uasz.alumni.alumnistudentcompany.security.AuthenticatedUser;
 import com.uasz.alumni.alumnistudentcompany.service.AlumniExperienceService;
+import com.uasz.alumni.alumnistudentcompany.service.AlumniHomeSummaryService;
 import com.uasz.alumni.alumnistudentcompany.service.AlumniProfileService;
 import com.uasz.alumni.alumnistudentcompany.service.RecommendationService;
 import com.uasz.alumni.alumnistudentcompany.spi.api.AlumniApi;
+import com.uasz.alumni.alumnistudentcompany.spi.model.AlumniHomeSummary;
 import com.uasz.alumni.alumnistudentcompany.spi.model.AlumniPagedResponse;
 import com.uasz.alumni.alumnistudentcompany.spi.model.AlumniProfile;
 import com.uasz.alumni.alumnistudentcompany.spi.model.AlumniProfileUpdateRequest;
@@ -27,13 +29,22 @@ public class AlumniController implements AlumniApi {
 
     private final AlumniExperienceService experiences;
     private final AlumniProfileService profiles;
+    private final AlumniHomeSummaryService homeSummary;
     private final RecommendationService recommendations;
 
     public AlumniController(AlumniExperienceService experiences, AlumniProfileService profiles,
-                            RecommendationService recommendations) {
+                            AlumniHomeSummaryService homeSummary, RecommendationService recommendations) {
         this.experiences = experiences;
         this.profiles = profiles;
+        this.homeSummary = homeSummary;
         this.recommendations = recommendations;
+    }
+
+    @Override
+    @PreAuthorize("hasRole('ALUMNI')")
+    public ResponseEntity<AlumniHomeSummary> getMyAlumniHomeSummary() {
+        // L'Alumni est déduit du jeton uniquement (aucun identifiant en paramètre).
+        return ResponseEntity.ok(homeSummary.summaryForCurrentUser());
     }
 
     @Override

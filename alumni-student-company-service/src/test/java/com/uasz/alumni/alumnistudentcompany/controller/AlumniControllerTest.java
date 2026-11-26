@@ -15,6 +15,7 @@ import com.uasz.alumni.alumnistudentcompany.jwt.JwtService;
 import com.uasz.alumni.alumnistudentcompany.model.Recommendation;
 import com.uasz.alumni.alumnistudentcompany.security.AuthenticatedUser;
 import com.uasz.alumni.alumnistudentcompany.service.AlumniExperienceService;
+import com.uasz.alumni.alumnistudentcompany.service.AlumniHomeSummaryService;
 import com.uasz.alumni.alumnistudentcompany.service.AlumniProfileService;
 import com.uasz.alumni.alumnistudentcompany.service.RecommendationService;
 import java.util.Optional;
@@ -41,6 +42,7 @@ class AlumniControllerTest {
     @MockitoBean RecommendationService service;
     @MockitoBean AlumniExperienceService experiences;
     @MockitoBean AlumniProfileService profiles;
+    @MockitoBean AlumniHomeSummaryService homeSummary;
     @MockitoBean JwtService jwtService;
 
     private final UUID alumni = UUID.randomUUID();

@@ -147,6 +147,7 @@ log "écriture de $ROOT/demo.env (profils : $PROFILES)"
     echo "UPSTREAM_JOB_OFFER=$B_HOST:8083"
     echo "UPSTREAM_ANALYTICS=$B_HOST:8084"
     echo "UPSTREAM_NOTIFICATION=$B_HOST:8085"
+    # vm-a : non-lus de la messagerie (synthèse d'accueil Alumni, ALUM-246) lus sur vm-b par l'IP privée
     echo "NOTIFICATION_SERVICE_URL=http://$B_HOST:8085/notification-messaging-service/v1"
   fi
   # vm-b : fiches entreprises lues sur vm-a par l'IP privée (le nom du conteneur n'existe que sur vm-a)
