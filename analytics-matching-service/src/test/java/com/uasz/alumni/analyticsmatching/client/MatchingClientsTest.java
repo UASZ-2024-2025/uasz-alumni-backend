@@ -23,6 +23,8 @@ class MatchingClientsTest {
 
     private static final String CALLER = "Bearer jeton-appelant";
     private static final UUID KNOWN = UUID.randomUUID();
+    /** Large : le premier appel à froid peut dépasser 1 s quand toute la suite tourne. */
+    private static final Duration TIMEOUT = Duration.ofSeconds(5);
 
     private HttpServer server;
     private final List<String[]> received = new CopyOnWriteArrayList<>(); // {chemin?requête, Authorization}
@@ -76,7 +78,7 @@ class MatchingClientsTest {
 
     @Test
     void profilEtudiantLuAvecLeJetonDeLAppelant() {
-        StudentProfilesClient client = new StudentProfilesClient(base("/sc/v1"), Duration.ofSeconds(1), Duration.ofSeconds(1));
+        StudentProfilesClient client = new StudentProfilesClient(base("/sc/v1"), Duration.ofSeconds(1), TIMEOUT);
 
         assertThat(client.find(KNOWN)).hasValueSatisfying(p -> assertThat(p.getSkills()).containsExactly("Java"));
         assertThat(client.find(UUID.randomUUID())).isEmpty();
@@ -85,7 +87,7 @@ class MatchingClientsTest {
 
     @Test
     void offresOuvertesLuesPageParPage() {
-        JobOffersClient client = new JobOffersClient(base("/jo/v1"), Duration.ofSeconds(1), Duration.ofSeconds(1));
+        JobOffersClient client = new JobOffersClient(base("/jo/v1"), Duration.ofSeconds(1), TIMEOUT);
 
         assertThat(client.listOpen()).extracting(o -> o.getTitle()).containsExactly("A", "B", "C");
         assertThat(received).hasSize(2);
