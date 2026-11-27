@@ -6,7 +6,7 @@ info:
     des entreprises partenaires et des promotions académiques pour la plateforme Alumni UASZ.
   contact:
     name: Équipe Projet Intégrateur - M2 GL - UASZ
-  version: 1.19.0
+  version: 1.20.0
 servers:
   - url: https://api.alumni-uasz.sn/alumni-student-company-service/v1
     description: Serveur de production
@@ -771,6 +771,54 @@ paths:
       security:
         - bearerAuth: []
 
+  /internal/alumni/employment:
+    get:
+      tags:
+        - Internal
+      summary: Situation d'emploi des diplômés (usage interne)
+      description: |
+        Appelé par analytics-matching-service pour le rapport du taux d'insertion professionnelle (ALUM-183).
+        Réservé aux jetons de service (rôle SERVICE, audience `alumni-student-company-service`) :
+        un JWT utilisateur reçoit 403.
+
+        Renvoie un élément par Alumni dont l'année de diplôme **et** la spécialité sont renseignées, **sans donnée
+        personnelle** (ni nom, ni email, ni identifiant). Les deux filtres sont facultatifs et se cumulent :
+        `graduationYear` est exact ; `specialty` est comparée sans tenir compte de la casse ni des espaces en début
+        et fin. Résultat trié par année de diplôme décroissante, puis par spécialité. Sans filtre, tous les diplômés
+        sont renvoyés (liste non paginée).
+
+        - `employed` : vrai si l'Alumni a une expérience professionnelle en cours (`isCurrent`).
+        - `experienceStartDates` : dates de début de toutes ses expériences, de la plus ancienne à la plus récente.
+      operationId: listAlumniEmploymentForService
+      parameters:
+        - name: graduationYear
+          in: query
+          description: Année de diplôme exacte
+          required: false
+          schema:
+            type: integer
+        - name: specialty
+          in: query
+          description: Spécialité (sans tenir compte de la casse ni des espaces en début et fin)
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Situation d'emploi des diplômés
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AlumniEmploymentRecord"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      security:
+        - bearerAuth: []
+
 components:
   parameters:
     EntityId:
@@ -1338,6 +1386,32 @@ components:
           format: uuid
         profileType:
           $ref: "#/components/schemas/ProvisionedProfileType"
+
+    AlumniEmploymentRecord:
+      type: object
+      description: Situation d'emploi d'un diplômé, sans donnée personnelle (usage interne).
+      required:
+        - graduationYear
+        - specialty
+        - employed
+        - experienceStartDates
+      properties:
+        graduationYear:
+          type: integer
+          example: 2024
+        specialty:
+          type: string
+          example: "Génie Logiciel"
+        employed:
+          type: boolean
+          description: Vrai si l'Alumni a une expérience professionnelle en cours (isCurrent)
+        experienceStartDates:
+          type: array
+          items:
+            type: string
+            format: date
+          description: Dates de début de toutes ses expériences professionnelles, de la plus ancienne à la plus récente
+          example: ["2024-09-15"]
 
     ErrorResponse:
       type: object

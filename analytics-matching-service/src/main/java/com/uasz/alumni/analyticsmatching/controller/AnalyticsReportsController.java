@@ -4,7 +4,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.uasz.alumni.analyticsmatching.exceptions.NotImplementedYetException;
+import com.uasz.alumni.analyticsmatching.service.InsertionReportService;
 import com.uasz.alumni.analyticsmatching.service.SkillsGapService;
 import com.uasz.alumni.analyticsmatching.spi.api.AnalyticsReportsApi;
 import com.uasz.alumni.analyticsmatching.spi.model.InsertionReportResponse;
@@ -14,15 +14,18 @@ import com.uasz.alumni.analyticsmatching.spi.model.SkillsGapResponse;
 public class AnalyticsReportsController implements AnalyticsReportsApi {
 
     private final SkillsGapService skillsGapService;
+    private final InsertionReportService insertionReportService;
 
-    public AnalyticsReportsController(SkillsGapService skillsGapService) {
+    public AnalyticsReportsController(SkillsGapService skillsGapService,
+                                      InsertionReportService insertionReportService) {
         this.skillsGapService = skillsGapService;
+        this.insertionReportService = insertionReportService;
     }
 
     @Override
+    @PreAuthorize("hasRole('ADMINISTRATEUR')")
     public ResponseEntity<InsertionReportResponse> getInsertionReport(Integer graduationYear, String specialty) {
-        // TODO : rapport du taux d'insertion (ADMINISTRATEUR) -> 200 / 403
-        throw new NotImplementedYetException("getInsertionReport");
+        return ResponseEntity.ok(insertionReportService.buildReport(graduationYear, specialty));
     }
 
     @Override

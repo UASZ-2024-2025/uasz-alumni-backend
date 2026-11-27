@@ -19,8 +19,10 @@ import com.uasz.alumni.alumnistudentcompany.spi.model.ProvisionedProfileType;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Base64;
 import java.util.Date;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,7 +33,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
+import com.uasz.alumni.alumnistudentcompany.service.AlumniEmploymentService;
 import com.uasz.alumni.alumnistudentcompany.service.CompanyService;
+import com.uasz.alumni.alumnistudentcompany.spi.model.AlumniEmploymentRecord;
 
 /**
  * {@code POST /internal/profiles} (ALUM-83) avec la vraie chaîne de sécurité et le vrai {@code JwtService} :
@@ -56,6 +60,7 @@ class InternalControllerTest {
     @Autowired MockMvc mvc;
     @MockitoBean ProfileProvisioningService provisioning;
     @MockitoBean CompanyService companies;
+    @MockitoBean AlumniEmploymentService employment;
 
     private static String token(String issuer, String subject, String audience, String role) {
         var builder = Jwts.builder().issuer(issuer).subject(subject).claim("role", role)
@@ -169,5 +174,45 @@ class InternalControllerTest {
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + userToken("ADMINISTRATEUR")))
                 .andExpect(status().isForbidden());
         verifyNoInteractions(companies);
+    }
+
+    @Test
+    void unJetonDeServiceLitLaSituationDEmploiDesDiplomes() throws Exception {
+        when(employment.list(2024, "Génie Logiciel")).thenReturn(List.of(new AlumniEmploymentRecord()
+                .graduationYear(2024).specialty("Génie Logiciel").employed(true)
+                .experienceStartDates(List.of(LocalDate.of(2024, 9, 15)))));
+
+        mvc.perform(get("/v1/internal/alumni/employment")
+                        .param("graduationYear", "2024").param("specialty", "Génie Logiciel")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + serviceToken(SELF)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].graduationYear").value(2024))
+                .andExpect(jsonPath("$[0].specialty").value("Génie Logiciel"))
+                .andExpect(jsonPath("$[0].employed").value(true))
+                .andExpect(jsonPath("$[0].experienceStartDates[0]").value("2024-09-15"))
+                .andExpect(jsonPath("$[0].email").doesNotExist());
+    }
+
+    @Test
+    void laSituationDEmploiSansFiltreTransmetDesFiltresNuls() throws Exception {
+        when(employment.list(null, null)).thenReturn(List.of());
+
+        mvc.perform(get("/v1/internal/alumni/employment")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + serviceToken(SELF)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    void unJwtUtilisateurNePeutPasLireLaSituationDEmploi() throws Exception {
+        mvc.perform(get("/v1/internal/alumni/employment")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + userToken("ADMINISTRATEUR")))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(employment);
+    }
+
+    @Test
+    void sansJetonLaSituationDEmploiEst401() throws Exception {
+        mvc.perform(get("/v1/internal/alumni/employment")).andExpect(status().isUnauthorized());
     }
 }

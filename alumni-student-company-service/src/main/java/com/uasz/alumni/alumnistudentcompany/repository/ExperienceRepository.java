@@ -1,6 +1,7 @@
 package com.uasz.alumni.alumnistudentcompany.repository;
 
 import com.uasz.alumni.alumnistudentcompany.model.Experience;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -11,4 +12,7 @@ public interface ExperienceRepository extends JpaRepository<Experience, UUID> {
     List<Experience> findByAlumniIdOrderByStartDateDesc(UUID alumniId);
 
     List<Experience> findByAlumniIdAndCurrentTrue(UUID alumniId);
+
+    /** Expériences de plusieurs Alumni en une requête (rapport d'insertion, ALUM-183). */
+    List<Experience> findByAlumniIdIn(Collection<UUID> alumniIds);
 }

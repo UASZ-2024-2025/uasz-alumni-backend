@@ -1,5 +1,30 @@
 # Journal des modifications des contrats OpenAPI
 
+## 1.20.0 (rapport du taux d'insertion professionnelle, ALUM-183)
+
+Évolution compatible : une opération interne et des réponses sont ajoutées ; aucune opération ni aucun champ retiré.
+
+### analytics-matching-service
+- `GET /analytics/reports/insertion` (`getInsertionReport`) est implémenté (il renvoyait 501). Les règles de calcul
+  (diplômés, en emploi, taux, taux global, délai moyen) sont décrites dans le contrat.
+- **Ajout** des réponses `400` (`INVALID_GRADUATION_YEAR`, `INVALID_SPECIALTY`) et `503`
+  (`ALUMNI_SERVICE_UNAVAILABLE`, nouvelle réponse `ServiceUnavailable`).
+- `InsertionReportItem.averageMonthsToFirstJob` devient `nullable` (aucun délai connu). `graduationYear`, `specialty`,
+  `totalGraduates`, `employedCount`, `insertionRate`, `overallInsertionRate` et `reportData` sont déclarés `required` :
+  le service les renvoyait déjà toujours.
+
+### alumni-student-company-service
+- **Ajout** de `GET /internal/alumni/employment` (`listAlumniEmploymentForService`, `AlumniEmploymentRecord`) :
+  situation d'emploi des diplômés, sans donnée personnelle, lue par analytics-matching-service avec un jeton de
+  service (ADR-0010).
+
+### Version
+- `info.version` passe de 1.0.0 à **1.20.0** (analytics) et de 1.19.0 à **1.20.0** (alumni-student-company-service).
+
+SPI `analytics-matching-service-spi` et `alumni-student-company-service-spi` publiés en **1.20.0** (pom parent
+`alumni-spis` 1.20.0) ; analytics-matching-service et alumni-student-company-service passent à `alumni.spi.version`
+1.20.0. job-offer-service et user-service, clients d'anciennes opérations, restent sur leur SPI.
+
 ## 1.19.0 (recommandation d'un étudiant par un Alumni, ALUM-119)
 
 Évolution compatible : aucune opération ni aucun champ retiré ; seule une réponse est ajoutée.
