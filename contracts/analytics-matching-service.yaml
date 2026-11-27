@@ -6,7 +6,7 @@ info:
     et offres d'emploi/stage, ainsi que de la génération des métriques statistiques pour le tableau de bord de l'administrateur.
   contact:
     name: Équipe Projet Intégrateur - M2 GL - UASZ
-  version: 1.22.0
+  version: 1.23.0
 servers:
   - url: https://api.alumni-uasz.sn/analytics-matching-service/v1
     description: Serveur de production

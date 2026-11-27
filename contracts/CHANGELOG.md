@@ -1,6 +1,6 @@
 # Journal des modifications des contrats OpenAPI
 
-## 1.22.0 (matching : offres recommandées à un étudiant, ALUM-180)
+## 1.23.0 (matching : offres recommandées à un étudiant, ALUM-180)
 
 Évolution compatible : aucune opération ni aucun champ retiré ; des réponses d'erreur sont déclarées.
 
@@ -10,9 +10,9 @@
   réservé à l'étudiant concerné et à l'administrateur.
 - `getMatchingOffersForStudent` et `getMatchingCandidatesForOffer` déclarent 400 (`minScore` hors de 0..100),
   403 (appelant non autorisé) et 503 (service source injoignable).
-- `info.version` passe de 1.21.0 à **1.22.0**.
+- `info.version` passe de 1.21.0 à **1.23.0**.
 
-SPI `analytics-matching-service-spi` publié en **1.22.0** (pom parent `alumni-spis` 1.22.0).
+SPI `analytics-matching-service-spi` publié en **1.23.0** (pom parent `alumni-spis` 1.23.0).
 
 ## 1.21.0 (statistiques du tableau de bord administrateur, ALUM-182)
 
