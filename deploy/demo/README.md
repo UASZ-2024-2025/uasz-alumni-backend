@@ -175,3 +175,9 @@ sudo /opt/alumni/app/deploy/demo/scripts/restore.sh /chemin/alumni-AAAAMMJJ-HHMM
 5. DNS du domaine vers le serveur (Caddy obtient le certificat tout seul), puis supprimer la pile `alumni-demo` dans CloudFormation.
 
 Le paramètre `--role all` place tout sur une seule machine (`COMPOSE_PROFILES=vm-a,vm-b`).
+
+## Images versionnées (ALUM-190)
+
+La démo suit `develop` (tags `<sha>` et `develop`). Pour figer une version, créer un tag git :
+`git tag v1.2.0 && git push origin v1.2.0`. Le workflow « Release - Images versionnées » publie alors chaque
+image sur ghcr.io avec les tags `1.2.0` et `sha-<commit>` (les 5 services backend ; le frontend a son propre workflow dans son dépôt). Il ne déploie rien.
