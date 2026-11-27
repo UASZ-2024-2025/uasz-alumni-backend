@@ -32,6 +32,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import com.uasz.alumni.alumnistudentcompany.service.CompanyService;
+import com.uasz.alumni.alumnistudentcompany.service.PlatformStatsService;
 
 /**
  * {@code POST /internal/profiles} (ALUM-83) avec la vraie chaîne de sécurité et le vrai {@code JwtService} :
@@ -56,6 +57,7 @@ class InternalControllerTest {
     @Autowired MockMvc mvc;
     @MockitoBean ProfileProvisioningService provisioning;
     @MockitoBean CompanyService companies;
+    @MockitoBean PlatformStatsService stats;
 
     private static String token(String issuer, String subject, String audience, String role) {
         var builder = Jwts.builder().issuer(issuer).subject(subject).claim("role", role)
