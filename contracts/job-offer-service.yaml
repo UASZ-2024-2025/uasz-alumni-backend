@@ -6,7 +6,7 @@ info:
     du dépôt et suivi des candidatures et des propositions directes d'opportunités.
   contact:
     name: Équipe Projet Intégrateur - M2 GL - UASZ
-  version: 1.10.0
+  version: 1.20.0
 servers:
   - url: https://api.alumni-uasz.sn/job-offer-service/v1
     description: Serveur de production
@@ -422,6 +422,12 @@ paths:
                   $ref: "#/components/schemas/Proposal"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Un étudiant ou un recruteur filtre sur les propositions d'un autre utilisateur
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
       security:
         - bearerAuth: []
 
@@ -444,9 +450,37 @@ paths:
               schema:
                 $ref: "#/components/schemas/Proposal"
         "400":
-          $ref: "#/components/responses/BadRequest"
+          description: Requête invalide, offre fermée, destinataire invalide (soi-même) ou message trop long
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Appelant étudiant, ou ni auteur de l'offre ni administrateur
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Offre ou étudiant introuvable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Une proposition en attente existe déjà pour cet étudiant sur cette offre
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Profil étudiant momentanément indisponible (alumni-student-company-service)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
       security:
         - bearerAuth: []
 
@@ -471,8 +505,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Proposal"
+        "400":
+          description: Transition interdite (proposition déjà traitée) ou proposition expirée
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Seul l'étudiant destinataire peut répondre
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "404":
           $ref: "#/components/responses/NotFound"
       security:

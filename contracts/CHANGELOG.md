@@ -1,5 +1,19 @@
 # Journal des modifications des contrats OpenAPI
 
+## 1.20.0 (propositions directes d'offres aux étudiants, ALUM-174)
+
+Évolution compatible : aucune opération ni aucun champ retiré ; des réponses d'erreur sont déclarées.
+
+### job-offer-service
+- `GET /proposals`, `POST /proposals` et `PATCH /proposals/{id}/status` sont implémentés (ils renvoyaient 501).
+- `listProposals` déclare 403 (filtre sur les propositions d'un autre utilisateur).
+- `createProposal` déclare 403 (appelant étudiant, ou ni auteur de l'offre ni administrateur), 404 (offre ou étudiant
+  introuvable), 409 (proposition déjà en attente) et 503 (profil étudiant indisponible).
+- `updateProposalStatus` déclare 400 (transition interdite ou proposition expirée) et 403 (autre que le destinataire).
+- `info.version` passe de 1.10.0 à **1.20.0**.
+
+SPI `job-offer-service-spi` publié en **1.20.0** (pom parent `alumni-spis` 1.20.0).
+
 ## 1.19.0 (recommandation d'un étudiant par un Alumni, ALUM-119)
 
 Évolution compatible : aucune opération ni aucun champ retiré ; seule une réponse est ajoutée.

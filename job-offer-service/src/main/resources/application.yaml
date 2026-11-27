@@ -74,3 +74,9 @@ company:
 offers:
   expiration:
     cron: "0 5 0 * * *"
+
+# Expiration automatique des propositions directes restées PENDING (ALUM-174)
+proposals:
+  expiration-days: 14
+  expiration:
+    cron: "0 15 * * * *"
