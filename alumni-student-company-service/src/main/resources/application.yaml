@@ -16,6 +16,12 @@ spring:
       ddl-auto: validate
   flyway:
     enabled: true
+  # Photo du CV (ALUM-255) : le service refuse au-delà de 2 Mo avec un message clair (400 PHOTO_TOO_LARGE) ;
+  # la limite technique est plus haute pour que ce message soit renvoyé au lieu d'une erreur 413 générique.
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
 
 management:
   endpoints:
