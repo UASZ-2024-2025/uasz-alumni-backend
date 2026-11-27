@@ -201,6 +201,8 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST:-db}:5432/analytics_matching_db
       SPRING_DATASOURCE_USERNAME: analytics_matching_svc
       SPRING_DATASOURCE_PASSWORD: ${ANALYTICS_MATCHING_DB_PASSWORD}
+      # vm-b : fiches et diplômés lus sur vm-a par l'IP privée (même variable que job-offer-service)
+      STUDENT_COMPANY_SERVICE_URL: ${STUDENT_COMPANY_SERVICE_URL:-http://alumni-student-company-service:8082/alumni-student-company-service/v1}
 
   notification-messaging-service:
     <<: *backend

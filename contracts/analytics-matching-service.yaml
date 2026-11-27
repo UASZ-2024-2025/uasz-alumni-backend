@@ -6,7 +6,7 @@ info:
     et offres d'emploi/stage, ainsi que de la génération des métriques statistiques pour le tableau de bord de l'administrateur.
   contact:
     name: Équipe Projet Intégrateur - M2 GL - UASZ
-  version: 1.0.0
+  version: 1.20.0
 servers:
   - url: https://api.alumni-uasz.sn/analytics-matching-service/v1
     description: Serveur de production
@@ -122,31 +122,49 @@ paths:
       tags:
         - AnalyticsReports
       summary: Générer un rapport sur le taux d'insertion professionnelle
+      description: |
+        Réservé à l'ADMINISTRATEUR. Une ligne par promotion (année de diplôme) et spécialité, de la promotion la plus
+        récente à la plus ancienne, puis par spécialité. Les deux filtres sont facultatifs et se cumulent.
+
+        Règles de calcul :
+        - **diplômés** (`totalGraduates`) : Alumni dont l'année de diplôme et la spécialité sont renseignées ;
+          les spécialités sont regroupées sans tenir compte de la casse ni des espaces en début et fin ;
+        - **en emploi** (`employedCount`) : diplômés ayant une expérience professionnelle en cours (`isCurrent`) ;
+        - **taux** (`insertionRate`) = `employedCount` / `totalGraduates` x 100, arrondi à une décimale ;
+        - **taux global** (`overallInsertionRate`) = total des diplômés en emploi / total des diplômés de toutes les
+          lignes (et non la moyenne des taux), arrondi à une décimale ; 0 s'il n'y a aucun diplômé ;
+        - **délai moyen** (`averageMonthsToFirstJob`) : moyenne, en mois entiers, entre le 1er juillet de l'année de
+          diplôme et le début de la première expérience débutée à cette date ou après ; les diplômés sans telle
+          expérience sont ignorés ; `null` si aucun diplômé de la ligne n'en a.
       operationId: getInsertionReport
       parameters:
         - name: graduationYear
           in: query
-          description: Filtrer par année de promotion
+          description: Filtrer par année de promotion (entre 1990 et 2100, sinon 400 `INVALID_GRADUATION_YEAR`)
           required: false
           schema:
             type: integer
         - name: specialty
           in: query
-          description: Filtrer par spécialité (ex. Génie Logiciel)
+          description: Filtrer par spécialité (ex. Génie Logiciel ; 150 caractères au plus, sinon 400 `INVALID_SPECIALTY`)
           required: false
           schema:
             type: string
       responses:
         "200":
-          description: Rapport du taux d'insertion professionnelle
+          description: Rapport du taux d'insertion professionnelle (listes vides et taux global à 0 si aucun diplômé)
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/InsertionReportResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
       security:
         - bearerAuth: []
 
@@ -254,6 +272,12 @@ components:
 
     InsertionReportItem:
       type: object
+      required:
+        - graduationYear
+        - specialty
+        - totalGraduates
+        - employedCount
+        - insertionRate
       properties:
         graduationYear:
           type: integer
@@ -271,19 +295,27 @@ components:
           type: number
           format: float
           example: 87.5
+          description: Taux d'insertion en pourcentage, arrondi à une décimale
         averageMonthsToFirstJob:
           type: number
           format: float
+          nullable: true
           example: 2.4
-          description: Délai moyen d'accès au 1er emploi (en mois)
+          description: |
+            Délai moyen d'accès au 1er emploi, en mois entiers à partir du 1er juillet de l'année de diplôme.
+            `null` quand aucun diplômé de la ligne n'a de délai connu.
 
     InsertionReportResponse:
       type: object
+      required:
+        - overallInsertionRate
+        - reportData
       properties:
         overallInsertionRate:
           type: number
           format: float
           example: 88.5
+          description: Total des diplômés en emploi / total des diplômés, en pourcentage (une décimale)
         reportData:
           type: array
           items:
@@ -356,6 +388,12 @@ components:
             $ref: "#/components/schemas/ErrorResponse"
     NotFound:
       description: Ressource non trouvée
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    ServiceUnavailable:
+      description: Données momentanément indisponibles (alumni-student-company-service injoignable ou en erreur)
       content:
         application/json:
           schema:

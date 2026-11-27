@@ -38,6 +38,27 @@ public final class AlumniSpecifications {
         };
     }
 
+    /**
+     * Diplômés pour le rapport d'insertion (ALUM-183) : année de diplôme et spécialité renseignées, filtres
+     * facultatifs. La spécialité est comparée sans tenir compte de la casse ni des espaces en début et fin.
+     */
+    public static Specification<Alumni> graduates(Integer graduationYear, String specialty) {
+        return (root, cq, cb) -> {
+            Expression<String> normalized = cb.lower(cb.trim(root.<String>get("specialty")));
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.isNotNull(root.get("graduationYear")));
+            predicates.add(cb.isNotNull(root.get("specialty")));
+            predicates.add(cb.notEqual(normalized, ""));
+            if (graduationYear != null) {
+                predicates.add(cb.equal(root.get("graduationYear"), graduationYear));
+            }
+            if (specialty != null && !specialty.isBlank()) {
+                predicates.add(cb.equal(normalized, specialty.trim().toLowerCase(Locale.ROOT)));
+            }
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+    }
+
     private static String escape(String s) {
         return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }

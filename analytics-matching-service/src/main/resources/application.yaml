@@ -40,3 +40,20 @@ jwt:
   # Base64, 32 octets minimum
   secret: ${JWT_SECRET}
   issuer: ${JWT_ISSUER}
+
+# Jetons de service pour les appels inter-services (ADR-0010) : émetteur interne, distinct de jwt.issuer
+service-token:
+  issuer: alumni-uasz-internal
+  ttl: 5m
+
+# Client d'alumni-student-company-service : situation d'emploi des diplômés pour le rapport d'insertion (ALUM-183).
+# ADR-0006 : lecture synchrone, timeouts courts, un seul retry (la requête de l'administrateur attend la réponse).
+student-company:
+  base-url: ${STUDENT_COMPANY_SERVICE_URL}
+  connect-timeout: 2s
+  read-timeout: 5s
+  retry:
+    max-retries: 1
+    delay-ms: 200
+    multiplier: 2
+    max-delay-ms: 1000
