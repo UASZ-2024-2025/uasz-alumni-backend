@@ -1,6 +1,6 @@
 # Journal des modifications des contrats OpenAPI
 
-## 1.20.0 (synthèse d'accueil entreprise, ALUM-249)
+## 1.25.0 (synthèse d'accueil entreprise, ALUM-249)
 
 Évolution compatible : un chemin ajouté.
 
@@ -13,9 +13,9 @@
   portent sur la fiche entreprise rattachée à son compte.
 
 ### Version
-- `info.version` passe de 1.10.0 à **1.20.0**.
+- `info.version` passe de 1.10.0 à **1.25.0**.
 
-SPI `job-offer-service-spi` publié en **1.20.0** (pom parent `alumni-spis` 1.20.0).
+SPI `job-offer-service-spi` publié en **1.25.0** (pom parent `alumni-spis` 1.25.0).
 
 ## 1.19.0 (recommandation d'un étudiant par un Alumni, ALUM-119)
 

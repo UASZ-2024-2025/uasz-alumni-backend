@@ -6,7 +6,7 @@ info:
     du dépôt et suivi des candidatures et des propositions directes d'opportunités.
   contact:
     name: Équipe Projet Intégrateur - M2 GL - UASZ
-  version: 1.20.0
+  version: 1.25.0
 servers:
   - url: https://api.alumni-uasz.sn/job-offer-service/v1
     description: Serveur de production
