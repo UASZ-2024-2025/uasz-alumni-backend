@@ -112,7 +112,7 @@ class MatchingClientsTest {
 
     @Test
     void tousLesProfilsLusPageParPage() {
-        StudentProfilesClient client = new StudentProfilesClient(base("/sc2/v1"), Duration.ofSeconds(1), Duration.ofSeconds(1));
+        StudentProfilesClient client = new StudentProfilesClient(base("/sc2/v1"), Duration.ofSeconds(1), TIMEOUT);
 
         assertThat(client.listAll()).extracting(p -> p.getFirstName()).containsExactly("A", "B");
         assertThat(received).hasSize(2);
@@ -121,7 +121,7 @@ class MatchingClientsTest {
 
     @Test
     void uneOffreLueAvecLeJetonDeLAppelant() {
-        JobOffersClient client = new JobOffersClient(base("/jo/v1"), Duration.ofSeconds(1), Duration.ofSeconds(1));
+        JobOffersClient client = new JobOffersClient(base("/jo/v1"), Duration.ofSeconds(1), TIMEOUT);
 
         assertThat(client.find(KNOWN)).hasValueSatisfying(o -> assertThat(o.getPublisherId()).isEqualTo(KNOWN));
         assertThat(client.find(UUID.randomUUID())).isEmpty();
