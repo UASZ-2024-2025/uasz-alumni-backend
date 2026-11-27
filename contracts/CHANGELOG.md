@@ -1,5 +1,22 @@
 # Journal des modifications des contrats OpenAPI
 
+## 1.25.0 (synthèse d'accueil entreprise, ALUM-249)
+
+Évolution compatible : un chemin ajouté.
+
+### job-offer-service
+- Nouveau `GET /companies/me/home-summary` (`getMyCompanyHomeSummary`, tag `CompanyHome`), réservé au rôle ENTREPRISE
+  (401 sans jeton, 403 pour un autre rôle) : `CompanyHomeSummary` (`activeOffers`, `applicationsByOffer`,
+  `proposalsSent`) et `OfferApplicationsCount` (`offerId`, `title`, `applications`).
+- Les données sont celles de l'utilisateur connecté : aucun paramètre d'identité.
+- `proposalsSent` compte les propositions envoyées par l'utilisateur connecté ; `activeOffers` et `applicationsByOffer`
+  portent sur la fiche entreprise rattachée à son compte.
+
+### Version
+- `info.version` passe de 1.10.0 à **1.25.0**.
+
+SPI `job-offer-service-spi` publié en **1.25.0** (pom parent `alumni-spis` 1.25.0).
+
 ## 1.19.0 (recommandation d'un étudiant par un Alumni, ALUM-119)
 
 Évolution compatible : aucune opération ni aucun champ retiré ; seule une réponse est ajoutée.

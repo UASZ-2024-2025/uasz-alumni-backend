@@ -6,7 +6,7 @@ info:
     du dépôt et suivi des candidatures et des propositions directes d'opportunités.
   contact:
     name: Équipe Projet Intégrateur - M2 GL - UASZ
-  version: 1.10.0
+  version: 1.25.0
 servers:
   - url: https://api.alumni-uasz.sn/job-offer-service/v1
     description: Serveur de production
@@ -19,6 +19,8 @@ tags:
     description: Dépôt et suivi des candidatures des étudiants
   - name: Proposals
     description: Propositions directes d'offres d'emploi ou stage envoyées aux étudiants
+  - name: CompanyHome
+    description: Synthèse de la page d'accueil d'une entreprise
 
 paths:
   /offers:
@@ -478,6 +480,29 @@ paths:
       security:
         - bearerAuth: []
 
+  /companies/me/home-summary:
+    get:
+      tags:
+        - CompanyHome
+      summary: Synthèse d'accueil de l'entreprise connectée
+      description: |
+        Chiffres de la page d'accueil en un seul appel : offres actives, candidatures reçues par offre et
+        propositions envoyées. Réservé au rôle ENTREPRISE ; les données sont celles de l'utilisateur connecté.
+      operationId: getMyCompanyHomeSummary
+      responses:
+        "200":
+          description: Synthèse de l'entreprise connectée
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompanyHomeSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      security:
+        - bearerAuth: []
+
 components:
   parameters:
     EntityId:
@@ -784,6 +809,44 @@ components:
         timestamp:
           type: string
           format: date-time
+
+    CompanyHomeSummary:
+      type: object
+      required:
+        - activeOffers
+        - applicationsByOffer
+        - proposalsSent
+      properties:
+        activeOffers:
+          type: integer
+          minimum: 0
+          description: Nombre d'offres ouvertes (OPEN) de l'entreprise
+        applicationsByOffer:
+          type: array
+          description: Candidatures reçues, pour chaque offre ouverte (les plus récentes d'abord)
+          items:
+            $ref: "#/components/schemas/OfferApplicationsCount"
+        proposalsSent:
+          type: integer
+          minimum: 0
+          description: Nombre de propositions directes envoyées aux étudiants par l'utilisateur connecté (et non par toute l'entreprise)
+
+    OfferApplicationsCount:
+      type: object
+      required:
+        - offerId
+        - title
+        - applications
+      properties:
+        offerId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        applications:
+          type: integer
+          minimum: 0
+          description: Nombre de candidatures reçues pour cette offre
 
   responses:
     BadRequest:
