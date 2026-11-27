@@ -40,3 +40,21 @@ jwt:
   # Base64, 32 octets minimum
   secret: ${JWT_SECRET}
   issuer: ${JWT_ISSUER}
+
+# Jetons de service (ADR-0010) : GET /internal/stats d'alumni-student-company-service (ALUM-182)
+service-token:
+  issuer: alumni-uasz-internal
+  ttl: 5m
+
+# Services sources du tableau de bord administrateur (ALUM-182), lus en REST (ADR-0006)
+clients:
+  student-company:
+    base-url: ${STUDENT_COMPANY_SERVICE_URL}
+  job-offer:
+    base-url: ${JOB_OFFER_SERVICE_URL}
+  connect-timeout: 2s
+  read-timeout: 3s
+
+analytics:
+  dashboard:
+    cache-ttl: PT5M

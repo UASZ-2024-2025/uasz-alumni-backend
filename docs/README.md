@@ -33,6 +33,11 @@ communication REST, distribution des SPIs, Docker/Kubernetes, stack Java/Spring)
 | Cas d'utilisation par rôle | [diagrams/cas-utilisation.md](diagrams/cas-utilisation.md) |
 | Séquences : inscription, candidature, matching | [diagrams/sequences.md](diagrams/sequences.md) |
 
+## Algorithmes
+
+**[matching.md](matching.md)** (ALUM-179) : formule du score de matching étudiant / offre (compétences,
+intérêts, disponibilité), normalisation des compétences et exemples chiffrés.
+
 ## Agents logiciels et contrats
 
 **[agents/rapport-agents-contrats.md](agents/rapport-agents-contrats.md)** (ALUM-171) : trois expériences
