@@ -40,6 +40,13 @@ d'agents s'appuyant sur les contrats OpenAPI (revue de conformité, tests géné
 jour du CHANGELOG et des ADR), avec leurs résultats et leurs limites.
 Version PDF : [agents/Rapport-agents-contrats-OpenAPI.pdf](agents/Rapport-agents-contrats-OpenAPI.pdf).
 
+## Utilisation de l'IA
+
+**[ia/rapport-utilisation-ia.md](ia/rapport-utilisation-ia.md)** (ALUM-194, livrable n°10) : bilan de l'usage de
+l'IA dans le développement, exemples avant / après, erreurs constatées et règles retenues.
+Il s'appuie sur le **[journal d'utilisation de l'IA](ia/journal-ia.md)**, que chaque équipe complète au fil du projet.
+Version PDF : [ia/Rapport-utilisation-IA.pdf](ia/Rapport-utilisation-IA.pdf).
+
 ## Format des diagrammes
 
 Les diagrammes sont écrits en **[Mermaid](https://mermaid.js.org/)** dans les fichiers Markdown :
