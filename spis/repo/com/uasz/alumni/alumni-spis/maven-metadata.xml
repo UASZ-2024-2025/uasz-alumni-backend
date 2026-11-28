@@ -3,7 +3,7 @@
   <groupId>com.uasz.alumni</groupId>
   <artifactId>alumni-spis</artifactId>
   <versioning>
-    <release>1.19.0</release>
+    <release>1.23.0</release>
     <versions>
       <version>1.0.0</version>
       <version>1.1.0</version>
@@ -24,7 +24,8 @@
       <version>1.15.0</version>
       <version>1.16.0</version>
       <version>1.19.0</version>
+      <version>1.23.0</version>
     </versions>
-    <lastUpdated>20261126123059</lastUpdated>
+    <lastUpdated>20261128130527</lastUpdated>
   </versioning>
 </metadata>

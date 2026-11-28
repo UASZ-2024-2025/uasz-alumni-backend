@@ -1,5 +1,19 @@
 # Journal des modifications des contrats OpenAPI
 
+## 1.23.0 (synthèse d'accueil enseignant, ALUM-264)
+
+Évolution compatible : aucune opération ni aucun champ retiré ; une opération et un schéma sont ajoutés.
+
+### alumni-student-company-service
+- **Ajout** de `GET /teachers/me/home-summary` (`getMyTeacherHomeSummary`, tag `Teachers`) : réservé au
+  rôle ENSEIGNANT, identifié par son jeton seul ; réponses 200, 401 et 403.
+- **Ajout** du schéma `TeacherHomeSummary` : `promotions` (schéma `Promotion`), `openOffers`,
+  `unreadNotifications`, `unreadMessages`. Compteurs calculés à chaque appel ; service injoignable : 0.
+- **Précision** : `openOffers` vaut 0 tant que job-offer-service n'est pas branché.
+- `info.version` passe de 1.19.0 à **1.23.0**.
+
+SPI `alumni-student-company-service-spi` publié en **1.23.0** (pom parent `alumni-spis` 1.23.0).
+
 ## 1.19.0 (recommandation d'un étudiant par un Alumni, ALUM-119)
 
 Évolution compatible : aucune opération ni aucun champ retiré ; seule une réponse est ajoutée.
