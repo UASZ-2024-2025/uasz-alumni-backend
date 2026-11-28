@@ -6,7 +6,7 @@ info:
     des entreprises partenaires et des promotions académiques pour la plateforme Alumni UASZ.
   contact:
     name: Équipe Projet Intégrateur - M2 GL - UASZ
-  version: 1.19.0
+  version: 1.23.0
 servers:
   - url: https://api.alumni-uasz.sn/alumni-student-company-service/v1
     description: Serveur de production
@@ -404,7 +404,31 @@ paths:
           $ref: "#/components/responses/Forbidden"
       security:
         - bearerAuth: []
-
+  /teachers/me/home-summary:
+    get:
+      tags:
+        - Teachers
+      summary: Synthèse de la page d'accueil de l'enseignant connecté
+      description: |
+        Réservé au rôle ENSEIGNANT. Renvoie en un seul appel les chiffres de la page d'accueil de l'enseignant connecté.
+        L'enseignant est identifié uniquement par son jeton (aucun identifiant en paramètre). Aucune donnée n'est
+        dupliquée : les compteurs sont calculés à chaque appel à partir des services qui détiennent les données.
+        Si un service est injoignable, le compteur correspondant vaut 0 (la page reste affichable).
+        `openOffers` vaut 0 tant que la source (job-offer-service) n'est pas branchée.
+      operationId: getMyTeacherHomeSummary
+      responses:
+        "200":
+          description: Chiffres de la page d'accueil de l'enseignant connecté
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeacherHomeSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      security:
+        - bearerAuth: [ ]
   /companies:
     get:
       tags:
@@ -1123,7 +1147,44 @@ components:
           minimum: 0
           example: 5
           description: Nombre de messages non lus de l'Alumni (conversations privées et groupes)
-
+    TeacherHomeSummary:
+      type: object
+      description: Chiffres de la page d'accueil de l'enseignant connecté.
+      required:
+        - promotions
+        - openOffers
+        - unreadNotifications
+        - unreadMessages
+      properties:
+        promotions:
+          type: array
+          description: Effectifs par promotion (une entrée par promotion, avec `graduateCount`)
+          items:
+            $ref: "#/components/schemas/Promotion"
+        openOffers:
+          type: integer
+          format: int32
+          minimum: 0
+          example: 4
+          description: >-
+            Nombre d'offres ouvertes (job-offer-service). Vaut 0 tant que cette source n'est pas branchée
+            ou si le service est injoignable.
+        unreadNotifications:
+          type: integer
+          format: int32
+          minimum: 0
+          example: 2
+          description: >-
+            Nombre de notifications non lues de l'enseignant (notification-messaging-service). Vaut 0 si le
+            service est injoignable.
+        unreadMessages:
+          type: integer
+          format: int32
+          minimum: 0
+          example: 5
+          description: >-
+            Nombre de messages non lus de l'enseignant (conversations privées et groupes). Vaut 0 si le
+            service est injoignable.
     Company:
       type: object
       properties:
